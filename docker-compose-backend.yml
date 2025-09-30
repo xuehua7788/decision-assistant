@@ -1,0 +1,42 @@
+﻿version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: decision-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./chat_data:/app/chat_data  # 添加这一行，挂载 chat_data 文件夹
+    environment:
+      - DATABASE_URL=postgresql://decision_user:decision_pass@postgres:5432/decision_db
+      - REDIS_URL=redis://redis:6379
+      - DEEPSEEK_API_KEY=sk-d3196d8e68c44690998d79c715ce715d
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      - postgres
+      - redis
+
+  postgres:
+    image: postgres:14
+    environment:
+      - POSTGRES_USER=decision_user
+      - POSTGRES_PASSWORD=decision_pass
+      - POSTGRES_DB=decision_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:latest
+    command: >
+      sh -c "
+      echo 'Starting Redis Server' &&
+      redis-server --bind 0.0.0.0 --protected-mode no
+      --loadmodule /usr/local/lib/redis/modules//redisbloom.so
+      --loadmodule /usr/local/lib/redis/modules//redisgraph.so
+      --loadmodule /usr/local/lib/redis/modules//redistimeseries.so
+      "
+
+volumes:
+  postgres_data:
