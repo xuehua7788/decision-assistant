@@ -1,21 +1,21 @@
-@echo off
+ï»¿@echo off
 echo ======================================
-echo   Decision Assistant ¤@???
+echo   Decision Assistant ï¿½@???
 echo ======================================
 echo.
-echo [1/2] ??¦ZºÝªA?...
+echo [1/2] ??ï¿½Zï¿½ÝªA?...
 start powershell -NoExit -Command "cd C:\Users\NP930\Desktop\decision-assistant && docker-compose -f docker-compose-backend.yml up"
 
-echo [2/2] µ¥«Ý5¬í¦Z??«eºÝ...
+echo [2/2] ï¿½ï¿½ï¿½ï¿½5ï¿½ï¿½Z??ï¿½eï¿½ï¿½...
 timeout /t 5 /nobreak > nul
 
 start powershell -NoExit -Command "cd C:\Users\NP930\Desktop\decision-assistant\frontend && npm start"
 
 echo.
-echo ??§¹¦¨¡I??¾¹?¦Û?¥´?...
+echo ??ï¿½ï¿½ï¿½ï¿½ï¿½I??ï¿½ï¿½?ï¿½ï¿½?ï¿½ï¿½?...
 echo.
-echo ??¤èªk¡G
-echo 1. ¦b??¶Âµ¡¤f«ö Ctrl+C
-echo 2. ¦bDockerµ¡¤f?¤J: docker-compose -f docker-compose-backend.yml down
+echo ??ï¿½ï¿½kï¿½G
+echo 1. ï¿½b??ï¿½Âµï¿½ï¿½fï¿½ï¿½ Ctrl+C
+echo 2. ï¿½bDockerï¿½ï¿½ï¿½f?ï¿½J: docker-compose -f docker-compose-backend.yml down
 echo.
 pause
