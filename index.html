@@ -1,0 +1,22 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Decision Assistant</title>
+    <meta charset="UTF-8">
+</head>
+<body>
+    <h1>Decision Assistant</h1>
+    <p>Welcome to Decision Assistant!</p>
+    <p>API Status: <span id="status">Checking...</span></p>
+    <script>
+        fetch('/api/')
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('status').textContent = 'Online';
+            })
+            .catch(e => {
+                document.getElementById('status').textContent = 'Error';
+            });
+    </script>
+</body>
+</html>
