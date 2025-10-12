@@ -1,0 +1,33 @@
+1.已经有了代码，本地跑了docker
+
+2.上云
+项目部署，申请域名，
+
+项目部署：服务器，服务器部署环境（docker）
+docker是什么：是一个集装箱，里面是代码。
+本地能跑：node，python，redis，数据库。=》》docker
+docker=》》云上，打开集装箱，在docker里面运行。
+本地已经运行起来的dockers容器。是可以打包为rar，上传云端，云端docker 直接运行。
+此时有ip，可以用ip访问
+
+申请域名：域名-》dns-》绑定ip
+
+绑定域名：cloudflare绑定dns。此时可以用域名访问
+
+3 页面放到docker中。
+
+回去要干嘛：问gpt，你的这个项目，用什么配置的vps性价比高。
+
+前端用nginx部署
+
+
+前端：IP+port1 对外开放
+后端:  IP+port2.
+
+
+域名: xzh.do (main)
+font.xzh.do
+back.xzh.do
+
+SETP1: 使用ngxin代理前端页面
+SETP2：使用nginx代理后端。
