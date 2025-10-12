@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import './App.css';
 
 function App() {
@@ -44,35 +44,47 @@ function App() {
     setLoading(true);
     setResult(null);
 
-    // Simulate API call with mock data
-    setTimeout(() => {
+    try {
+      const response = await fetch('http://localhost:8000/api/decisions/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: description,
+          options: validOptions
+        })
+      });
+      
+      const data = await response.json();
+      setResult(data);
+      setLoading(false);
+    } catch (error) {
       setResult({
-        recommendation: validOptions[0],
-        readable_summary: `Based on your description "${description}", here's our analysis:\n\nYou have ${validOptions.length} options to consider. After careful evaluation, we recommend: ${validOptions[0]}.\n\nThis option appears to offer the best balance of benefits and minimal drawbacks for your situation.`,
-        algorithm_analysis: {
-          algorithms_used: {
-            weighted_score: {
-              results: validOptions.reduce((acc, opt, idx) => {
-                acc[opt] = { total_score: (10 - idx * 1.5).toFixed(1) };
-                return acc;
-              }, {})
-            }
-          }
-        }
+        recommendation: 'Error',
+        readable_summary: 'Could not connect to server: ' + error.message
       });
       setLoading(false);
-    }, 1500);
+    }
   };
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (!chatInput.trim()) return;
 
-    setChatMessages([
-      ...chatMessages,
-      { type: 'user', text: chatInput },
-      { type: 'assistant', text: "I understand. Let me help you think through this decision. Could you tell me more about your options?" }
-    ]);
+    setChatMessages([...chatMessages, { type: 'user', text: chatInput }]);
+    const userMessage = chatInput;
     setChatInput('');
+
+    try {
+      const response = await fetch('http://localhost:8000/api/decisions/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userMessage })
+      });
+      
+      const data = await response.json();
+      setChatMessages(prev => [...prev, { type: 'assistant', text: data.response }]);
+    } catch (error) {
+      setChatMessages(prev => [...prev, { type: 'assistant', text: 'Error: Could not connect to server' }]);
+    }
   };
 
   return (
@@ -86,7 +98,7 @@ function App() {
         {/* Header */}
         <div style={{ textAlign: 'center', color: 'white', marginBottom: '20px' }}>
           <h1 style={{ fontSize: '2.5em', marginBottom: '10px', textShadow: '2px 2px 4px rgba(0,0,0,0.2)' }}>
-            🤖 Decision Assistant
+            ?? Decision Assistant
           </h1>
           <p>Powered by DeepSeek AI & Decision Algorithms</p>
         </div>
@@ -107,7 +119,7 @@ function App() {
               transform: currentMode === 'analysis' ? 'scale(1.05)' : 'scale(1)'
             }}
           >
-            📊 Decision Analysis
+            ?? Decision Analysis
           </button>
           <button
             onClick={() => switchMode('chat')}
@@ -123,7 +135,7 @@ function App() {
               transform: currentMode === 'chat' ? 'scale(1.05)' : 'scale(1)'
             }}
           >
-            💬 Chat Mode
+            ? Chat Mode
           </button>
         </div>
 
@@ -138,7 +150,7 @@ function App() {
           }}>
             <div style={{ marginBottom: '25px' }}>
               <label style={{ display: 'block', marginBottom: '8px', color: '#333', fontWeight: '600', fontSize: '1.1em' }}>
-                📝 Describe your decision:
+                ?? Describe your decision:
               </label>
               <textarea
                 value={description}
@@ -157,7 +169,7 @@ function App() {
 
             <div style={{ marginBottom: '25px' }}>
               <label style={{ display: 'block', marginBottom: '8px', color: '#333', fontWeight: '600', fontSize: '1.1em' }}>
-                🎯 Options to consider:
+                ? Options to consider:
               </label>
               {options.map((option, index) => (
                 <div key={index} style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
@@ -220,7 +232,7 @@ function App() {
                 fontWeight: '600'
               }}
             >
-              {loading ? '⏳ Analyzing...' : '🔍 Analyze My Decision'}
+              {loading ? '??Analyzing...' : '?? Analyze My Decision'}
             </button>
           </div>
         )}
@@ -307,7 +319,7 @@ function App() {
             padding: '30px',
             boxShadow: '0 20px 40px rgba(0,0,0,0.1)'
           }}>
-            <h2>📊 Decision Analysis Results</h2>
+            <h2>?? Decision Analysis Results</h2>
             
             <div style={{
               background: 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)',
@@ -317,7 +329,7 @@ function App() {
               marginTop: '20px',
               marginBottom: '20px'
             }}>
-              <h3>🎯 Recommendation</h3>
+              <h3>? Recommendation</h3>
               <p style={{ fontSize: '1.3em', fontWeight: 'bold' }}>{result.recommendation}</p>
             </div>
 
@@ -327,7 +339,7 @@ function App() {
               padding: '20px',
               marginBottom: '20px'
             }}>
-              <h3>📝 Summary</h3>
+              <h3>?? Summary</h3>
               <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
                 {result.readable_summary}
               </div>
@@ -339,7 +351,7 @@ function App() {
                 borderRadius: '10px',
                 padding: '20px'
               }}>
-                <h3>📈 Score Analysis</h3>
+                <h3>?? Score Analysis</h3>
                 {Object.entries(result.algorithm_analysis.algorithms_used.weighted_score.results).map(([option, scores]) => (
                   <div key={option} style={{
                     background: 'white',
@@ -372,7 +384,7 @@ function App() {
                 marginTop: '20px'
               }}
             >
-              ✨ New Analysis
+              ??New Analysis
             </button>
           </div>
         )}
