@@ -1,5 +1,5 @@
 ﻿{
-  "buildCommand": "echo Building...",
+  "buildCommand": "echo Building",
   "outputDirectory": ".",
   "framework": null
 }
