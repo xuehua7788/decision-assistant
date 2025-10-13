@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './App.css';
+import ChatViewer from './ChatViewer';
 
 function App() {
   const [currentMode, setCurrentMode] = useState('analysis');

@@ -1,0 +1,418 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Decision Assistant - Pure HTML</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container { max-width: 1000px; margin: 0 auto; }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .mode-selector {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .mode-btn {
+            background: white;
+            color: #667eea;
+            padding: 10px 30px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .mode-btn.active {
+            background: #ffd700;
+            color: #333;
+            transform: scale(1.05);
+        }
+        
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .chat-container { display: none; }
+        
+        .chat-messages {
+            min-height: 400px;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: #fafafa;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            line-height: 1.5;
+        }
+        
+        .message.user {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            margin-left: 30%;
+            text-align: right;
+        }
+        
+        .message.assistant {
+            background: white;
+            color: #333;
+            border: 1px solid #e0e0e0;
+            margin-right: 30%;
+        }
+        
+        .chat-input-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .chat-input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-clear {
+            background: #f56565;
+            color: white;
+            padding: 8px 16px;
+            margin-bottom: 10px;
+        }
+        
+        .analysis-mode { display: block; }
+        
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            font-family: inherit;
+            resize: vertical;
+        }
+        
+        .form-group { margin-bottom: 20px; }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .result-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Decision Assistant</h1>
+            <p>Powered by DeepSeek AI</p>
+        </div>
+        
+        <div class="mode-selector">
+            <button class="mode-btn active" onclick="switchMode('analysis')">📊 Decision Analysis</button>
+            <button class="mode-btn" onclick="switchMode('chat')">💬 Chat Mode</button>
+        </div>
+        
+        <!-- Analysis Mode -->
+        <div id="analysisMode" class="card analysis-mode">
+            <div class="form-group">
+                <label for="decisionText">📝 Describe your decision:</label>
+                <textarea id="decisionText" rows="6" 
+                    placeholder="例如：我正在考虑是否换工作。现在的工作稳定但薪水一般，新工作薪水高30%但需要搬家..."></textarea>
+            </div>
+            
+            <button class="btn btn-primary" id="analyzeBtn" style="width: 100%;">
+                🔍 开始分析
+            </button>
+            
+            <div id="analysisResult" style="display: none;">
+                <div class="result-section" id="resultContent"></div>
+            </div>
+        </div>
+        
+        <!-- Chat Mode -->
+        <div id="chatMode" class="card chat-container">
+            <button class="btn btn-clear" onclick="clearChat()">🗑️ Clear History</button>
+            
+            <div class="chat-messages" id="chatMessages"></div>
+            
+            <div class="chat-input-group">
+                <input type="text" class="chat-input" id="chatInput" 
+                    placeholder="输入你的消息...">
+                <button class="btn btn-primary" id="sendBtn">发送</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // ⚠️ 请替换成你的 DeepSeek API Key
+        const DEEPSEEK_API_KEY = 'sk-d3196d8e68c44690998d79c715ce715d';
+        const API_URL = 'https://api.deepseek.com/chat/completions';
+        
+        let chatHistory = [];
+        
+        // 页面加载时恢复聊天记录
+        window.addEventListener('DOMContentLoaded', () => {
+            loadChatHistory();
+        });
+        
+        // 加载聊天历史
+        function loadChatHistory() {
+            const saved = localStorage.getItem('chatHistory');
+            if (saved) {
+                chatHistory = JSON.parse(saved);
+                displayChatHistory();
+            } else {
+                chatHistory = [{
+                    role: 'assistant',
+                    content: "你好！我是你的决策助手。告诉我你面临的决策，我会帮你分析。"
+                }];
+                saveChatHistory();
+                displayChatHistory();
+            }
+        }
+        
+        // 保存聊天历史
+        function saveChatHistory() {
+            localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
+        }
+        
+        // 显示聊天历史
+        function displayChatHistory() {
+            const container = document.getElementById('chatMessages');
+            container.innerHTML = '';
+            chatHistory.forEach(msg => {
+                const div = document.createElement('div');
+                div.className = `message ${msg.role}`;
+                div.textContent = msg.content;
+                container.appendChild(div);
+            });
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        // 清除聊天
+        function clearChat() {
+            if (confirm('确定要清除所有聊天记录吗？')) {
+                chatHistory = [{
+                    role: 'assistant',
+                    content: "你好！我是你的决策助手。告诉我你面临的决策，我会帮你分析。"
+                }];
+                saveChatHistory();
+                displayChatHistory();
+            }
+        }
+        
+        // 切换模式
+        function switchMode(mode) {
+            document.querySelectorAll('.mode-btn').forEach(btn => 
+                btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            if (mode === 'chat') {
+                document.getElementById('analysisMode').style.display = 'none';
+                document.getElementById('chatMode').style.display = 'block';
+            } else {
+                document.getElementById('analysisMode').style.display = 'block';
+                document.getElementById('chatMode').style.display = 'none';
+            }
+        }
+        
+        // 发送聊天消息
+        async function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // 添加用户消息
+            chatHistory.push({ role: 'user', content: message });
+            saveChatHistory();
+            displayChatHistory();
+            input.value = '';
+            
+            // 显示加载
+            chatHistory.push({ role: 'assistant', content: '正在思考...' });
+            displayChatHistory();
+            
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        model: 'deepseek-chat',
+                        messages: chatHistory.slice(0, -1),
+                        temperature: 0.7
+                    })
+                });
+                
+                const data = await response.json();
+                const reply = data.choices[0].message.content;
+                
+                // 替换加载消息
+                chatHistory.pop();
+                chatHistory.push({ role: 'assistant', content: reply });
+                saveChatHistory();
+                displayChatHistory();
+                
+            } catch (error) {
+                chatHistory.pop();
+                chatHistory.push({ 
+                    role: 'assistant', 
+                    content: '抱歉，出错了。请检查 API Key 或网络连接。' 
+                });
+                saveChatHistory();
+                displayChatHistory();
+            }
+        }
+        
+        // 分析决策
+        async function analyzeDecision() {
+            const text = document.getElementById('decisionText').value.trim();
+            
+            if (!text) {
+                alert('请描述你的决策问题');
+                return;
+            }
+            
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            analyzeBtn.disabled = true;
+            analyzeBtn.textContent = '分析中...';
+            
+            document.getElementById('analysisResult').style.display = 'block';
+            document.getElementById('resultContent').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+            
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        model: 'deepseek-chat',
+                        messages: [{
+                            role: 'user',
+                            content: `作为决策顾问，请分析以下决策问题，提供：
+1. 问题总结
+2. 关键因素分析
+3. 各选项的优缺点
+4. 明确建议
+
+决策问题：${text}`
+                        }],
+                        temperature: 0.7
+                    })
+                });
+                
+                const data = await response.json();
+                const analysis = data.choices[0].message.content;
+                
+                document.getElementById('resultContent').textContent = analysis;
+                
+            } catch (error) {
+                document.getElementById('resultContent').textContent = 
+                    '分析失败，请检查 API Key 或网络连接\n\n错误信息：' + error.message;
+            }
+            
+            analyzeBtn.disabled = false;
+            analyzeBtn.textContent = '🔍 开始分析';
+        }
+        
+        // 事件监听
+        document.getElementById('sendBtn').addEventListener('click', sendMessage);
+        document.getElementById('chatInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+        document.getElementById('analyzeBtn').addEventListener('click', analyzeDecision);
+    </script>
+</body>
+</html>
