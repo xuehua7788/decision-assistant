@@ -1,0 +1,11 @@
+﻿backend/
+frontend/
+docker/
+chat_data/
+*.bat
+*.sh
+*.yml
+*.backup
+.dockerignore
+Dockerfile
+docker-compose*.yml
