@@ -2,12 +2,24 @@
 Data Models for Decision Assistant
 """
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, JSON, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, JSON, ForeignKey, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
 Base = declarative_base()
+
+class User(Base):
+    """用户模型"""
+    __tablename__ = "users"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(100), unique=True, index=True, nullable=False)
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(255), nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 class ChatSession(Base):
     """聊天会话模型"""

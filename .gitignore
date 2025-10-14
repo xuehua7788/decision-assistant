@@ -30,3 +30,14 @@ test_*.py
 
 # Logs
 *.log
+
+# User data (sensitive)
+backend/users_data.json
+users_data.json
+
+# Chat data
+backend/chat_data/
+chat_data/*.json
+
+# Test files
+test-auth-api.py

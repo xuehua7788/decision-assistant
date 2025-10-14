@@ -1,18 +1,83 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import './App.css';
 import ChatViewer from './ChatViewer';
+import Login from './Login';
+import Register from './Register';
 
 function App() {
-  const API_URL = process.env.REACT_APP_API_URL || window.location.origin;
+  const API_URL = 'http://127.0.0.1:8000';
+  const [currentView, setCurrentView] = useState('login'); // 'login', 'register', 'app'
+  const [user, setUser] = useState(null);
   const [currentMode, setCurrentMode] = useState('analysis');
   const [description, setDescription] = useState('');
   const [options, setOptions] = useState(['', '']);
-  const [chatMessages, setChatMessages] = useState([
-    { type: 'assistant', text: "Hello! I'm your decision assistant. Tell me what decision you're facing, and I'll help you think through it step by step. What's on your mind?" }
-  ]);
+  const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  // 初始化用户聊天记录的函数
+  const initializeChatForUser = React.useCallback((username) => {
+    // 从localStorage获取该用户的聊天记录
+    const userChatKey = `chat_${username}`;
+    const savedChat = localStorage.getItem(userChatKey);
+    
+    if (savedChat) {
+      try {
+        setChatMessages(JSON.parse(savedChat));
+      } catch (e) {
+        // 如果解析失败，使用默认欢迎消息
+        const welcomeMessage = [
+          { type: 'assistant', text: `Hello ${username}! I'm your decision assistant. Tell me what decision you're facing, and I'll help you think through it step by step. What's on your mind?` }
+        ];
+        setChatMessages(welcomeMessage);
+        localStorage.setItem(userChatKey, JSON.stringify(welcomeMessage));
+      }
+    } else {
+      // 新用户，创建欢迎消息
+      const welcomeMessage = [
+        { type: 'assistant', text: `Hello ${username}! I'm your decision assistant. Tell me what decision you're facing, and I'll help you think through it step by step. What's on your mind?` }
+      ];
+      setChatMessages(welcomeMessage);
+      localStorage.setItem(userChatKey, JSON.stringify(welcomeMessage));
+    }
+  }, []);
+
+  // 检查本地存储的登录状态
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const username = localStorage.getItem('username');
+    
+    if (token && username) {
+      setUser({ username, token });
+      setCurrentView('app');
+      // 加载该用户的聊天记录
+      initializeChatForUser(username);
+    }
+  }, [initializeChatForUser]);
+
+  const handleLogin = (userData) => {
+    setUser(userData);
+    setCurrentView('app');
+    // 为当前用户加载或初始化聊天记录
+    initializeChatForUser(userData.username);
+  };
+
+  const handleRegister = (userData) => {
+    setUser(userData);
+    setCurrentView('app');
+    // 新用户，初始化欢迎消息
+    initializeChatForUser(userData.username);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('username');
+    // 清空聊天记录
+    setChatMessages([]);
+    setUser(null);
+    setCurrentView('login');
+  };
 
   const switchMode = (mode) => {
     setCurrentMode(mode);
@@ -71,7 +136,8 @@ function App() {
   const sendMessage = async () => {
     if (!chatInput.trim()) return;
 
-    setChatMessages([...chatMessages, { type: 'user', text: chatInput }]);
+    const newMessages = [...chatMessages, { type: 'user', text: chatInput }];
+    setChatMessages(newMessages);
     const userMessage = chatInput;
     setChatInput('');
 
@@ -79,16 +145,41 @@ function App() {
       const response = await fetch(`${API_URL}/api/decisions/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMessage })
+        body: JSON.stringify({ 
+          message: userMessage,
+          session_id: user?.username // 使用用户名作为session_id
+        })
       });
       
       const data = await response.json();
-      setChatMessages(prev => [...prev, { type: 'assistant', text: data.response }]);
+      const updatedMessages = [...newMessages, { type: 'assistant', text: data.response }];
+      setChatMessages(updatedMessages);
+      
+      // 保存到localStorage
+      if (user?.username) {
+        localStorage.setItem(`chat_${user.username}`, JSON.stringify(updatedMessages));
+      }
     } catch (error) {
-      setChatMessages(prev => [...prev, { type: 'assistant', text: 'Error: Could not connect to server' }]);
+      const errorMessages = [...newMessages, { type: 'assistant', text: 'Error: Could not connect to server' }];
+      setChatMessages(errorMessages);
+      
+      // 保存到localStorage
+      if (user?.username) {
+        localStorage.setItem(`chat_${user.username}`, JSON.stringify(errorMessages));
+      }
     }
   };
 
+  // 如果未登录，显示登录或注册页面
+  if (currentView === 'login') {
+    return <Login onLogin={handleLogin} onSwitchToRegister={() => setCurrentView('register')} />;
+  }
+
+  if (currentView === 'register') {
+    return <Register onRegister={handleRegister} onSwitchToLogin={() => setCurrentView('login')} />;
+  }
+
+  // 已登录，显示主应用
   return (
     <div style={{ 
       fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif",
@@ -97,12 +188,38 @@ function App() {
       padding: '20px'
     }}>
       <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-        {/* Header */}
-        <div style={{ textAlign: 'center', color: 'white', marginBottom: '20px' }}>
-          <h1 style={{ fontSize: '2.5em', marginBottom: '10px', textShadow: '2px 2px 4px rgba(0,0,0,0.2)' }}>
-            🤔 Decision Assistant
-          </h1>
-          <p>Powered by DeepSeek AI & Decision Algorithms</p>
+        {/* Header with User Info */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <div style={{ textAlign: 'center', color: 'white', flex: 1 }}>
+            <h1 style={{ fontSize: '2.5em', marginBottom: '10px', textShadow: '2px 2px 4px rgba(0,0,0,0.2)' }}>
+              🤔 Decision Assistant
+            </h1>
+            <p>Powered by DeepSeek AI & Decision Algorithms</p>
+          </div>
+          <div style={{ 
+            background: 'rgba(255,255,255,0.2)', 
+            padding: '15px 20px', 
+            borderRadius: '10px',
+            color: 'white',
+            textAlign: 'right'
+          }}>
+            <div style={{ fontWeight: '600', marginBottom: '5px' }}>👤 {user?.username}</div>
+            <button
+              onClick={handleLogout}
+              style={{
+                background: 'rgba(255,255,255,0.3)',
+                color: 'white',
+                border: '1px solid white',
+                padding: '8px 16px',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                fontWeight: '600',
+                fontSize: '0.9em'
+              }}
+            >
+              🚪 退出登录
+            </button>
+          </div>
         </div>
 
         {/* Mode Selector */}

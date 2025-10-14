@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
 from app.services.chat_storage import chat_storage
 from app.services.ai_service import ai_service
+from app.routes.auth_routes import router as auth_router
 
 settings = get_settings()
 
@@ -20,6 +21,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 注册路由
+app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"])
 
 print(f"Chat storage initialized at: {chat_storage.storage_dir}")
 print(f"Settings loaded. Max history messages: {settings.max_history_messages}")
