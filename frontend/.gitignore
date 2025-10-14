@@ -22,25 +22,6 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 
-# Test files
-backend/test_api.py
-test_*.py
-
-# User data (sensitive)
-backend/users_data.json
-users_data.json
-
-# Chat data
-backend/chat_data/
-chat_data/*.json
-
-# Test files
-test-auth-api.py
-
 # Temporary files
 *.tmp
 *.bak
-
-# Environment files
-backend/.env
-frontend/.env

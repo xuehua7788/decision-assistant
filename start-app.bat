@@ -1,33 +1,53 @@
 @echo off
 chcp 65001 >nul
-echo Starting Decision Assistant...
-
+echo ====================================
+echo Starting Decision Assistant
+echo ====================================
 echo.
-echo [1/3] Checking configuration...
-if not exist backend\.env (
-    echo Creating backend .env file...
-    copy .env backend\.env
+
+:: Check if dependencies are installed
+if not exist backend\venv (
+    echo Error: Backend not installed. Please run install.bat first
+    pause
+    exit /b 1
 )
+
+if not exist frontend\node_modules (
+    echo Error: Frontend not installed. Please run install.bat first
+    pause
+    exit /b 1
+)
+
+:: Check environment files
+if not exist backend\.env (
+    echo Warning: backend\.env not found
+    echo Please create backend\.env with your OpenAI API key
+)
+
 if not exist frontend\.env (
-    echo Creating frontend .env file...
+    echo Creating frontend\.env...
     echo REACT_APP_API_URL=http://127.0.0.1:8000 > frontend\.env
 )
 
 echo.
-echo [2/3] Starting backend service...
+echo [1/2] Starting backend server...
 cd backend
 start cmd /k ".\venv\Scripts\activate && python app.py"
-timeout /t 5
+cd ..
+timeout /t 5 /nobreak > nul
 
 echo.
-echo [3/3] Starting frontend service...
-cd ..\frontend
+echo [2/2] Starting frontend server...
+cd frontend
 start cmd /k "npm start"
+cd ..
 
 echo.
-echo All services started!
+echo ====================================
+echo Application is starting...
+echo ====================================
 echo Backend: http://127.0.0.1:8000
 echo Frontend: http://localhost:3000
 echo.
-echo Press any key to close...
+echo Press any key to exit...
 pause > nul
