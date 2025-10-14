@@ -1,0 +1,16 @@
+{
+  "session_id": "882ad5b9-170d-4abf-94b2-45eb96bbfaa0",
+  "messages": [
+    {
+      "role": "user",
+      "content": "我想换工作，但不确定是否是好时机，你能帮我分析一下吗？",
+      "timestamp": "2025-09-30T08:00:35.290981"
+    },
+    {
+      "role": "assistant",
+      "content": "I received your message: 我想换工作，但不确定是否是好时机，你能帮我分析一下吗？",
+      "timestamp": "2025-09-30T08:00:35.290995"
+    }
+  ],
+  "updated_at": "2025-09-30T08:00:35.291010"
+}

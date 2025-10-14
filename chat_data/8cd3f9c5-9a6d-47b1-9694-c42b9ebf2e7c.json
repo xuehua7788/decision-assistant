@@ -1,0 +1,16 @@
+{
+  "session_id": "8cd3f9c5-9a6d-47b1-9694-c42b9ebf2e7c",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Hello, I need help with a decision",
+      "timestamp": "2025-09-30T07:46:00.138451"
+    },
+    {
+      "role": "assistant",
+      "content": "I received your message: Hello, I need help with a decision",
+      "timestamp": "2025-09-30T07:46:00.138477"
+    }
+  ],
+  "updated_at": "2025-09-30T07:46:00.138493"
+}

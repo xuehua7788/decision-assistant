@@ -1,0 +1,17 @@
+{
+  "session_id": "9514ea98-23d6-476a-a496-06959d6c73db",
+  "created_at": "2025-10-12T09:17:29.592940",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Hi",
+      "timestamp": "2025-10-12T09:17:29.593062"
+    },
+    {
+      "role": "assistant",
+      "content": "Hello! I'm here to help you think through decisions in a structured and analytical way. Whether you're facing a big life choice, a work-related dilemma, or something more personal, I can assist you by breaking down the situation, exploring pros and cons, and asking clarifying questions to guide your thinking.\n\nWhat decision or situation would you like to discuss?",
+      "timestamp": "2025-10-12T09:17:34.457236"
+    }
+  ],
+  "last_activity": "2025-10-12T09:17:34.457247"
+}

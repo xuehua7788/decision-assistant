@@ -1,0 +1,16 @@
+{
+  "session_id": "1102f28e-8a92-42de-8c29-7bd984fdb761",
+  "messages": [
+    {
+      "role": "user",
+      "content": "I want to change my job but not sure if it's the right time. Can you help me analyze?",
+      "timestamp": "2025-09-30T08:05:53.993759"
+    },
+    {
+      "role": "assistant",
+      "content": "I received your message: I want to change my job but not sure if it's the right time. Can you help me analyze?",
+      "timestamp": "2025-09-30T08:05:53.993773"
+    }
+  ],
+  "updated_at": "2025-09-30T08:05:53.993808"
+}

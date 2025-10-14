@@ -1,0 +1,36 @@
+{
+  "session_id": "e993ecc3-40c2-4f83-a7ef-a1ccf1a60e33",
+  "messages": [
+    {
+      "role": "user",
+      "content": "HI this is test from bruce",
+      "timestamp": "2025-09-30T07:49:21.694418"
+    },
+    {
+      "role": "assistant",
+      "content": "I received your message: HI this is test from bruce",
+      "timestamp": "2025-09-30T07:49:21.694434"
+    },
+    {
+      "role": "user",
+      "content": "what?",
+      "timestamp": "2025-09-30T07:49:32.286245"
+    },
+    {
+      "role": "assistant",
+      "content": "I received your message: what?",
+      "timestamp": "2025-09-30T07:49:32.286258"
+    },
+    {
+      "role": "user",
+      "content": "hi",
+      "timestamp": "2025-09-30T08:08:06.210137"
+    },
+    {
+      "role": "assistant",
+      "content": "I received your message: hi",
+      "timestamp": "2025-09-30T08:08:06.210157"
+    }
+  ],
+  "updated_at": "2025-09-30T08:08:06.210199"
+}

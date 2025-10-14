@@ -1,0 +1,27 @@
+{
+  "session_id": "9c32d521-7113-45ec-b6e8-b59f3868957c",
+  "created_at": "2025-09-30T14:44:03.790430",
+  "messages": [
+    {
+      "role": "user",
+      "content": "你好",
+      "timestamp": "2025-09-30T14:44:03.790453"
+    },
+    {
+      "role": "assistant",
+      "content": "你好！很高兴为你提供决策支持。无论是生活中的小选择，还是重要的人生规划，我都可以帮你理清思路、分析利弊。请告诉我你目前需要帮助的具体问题或决策场景，我们可以一步步探讨！",
+      "timestamp": "2025-09-30T14:44:08.024136"
+    },
+    {
+      "role": "user",
+      "content": "speak english with me",
+      "timestamp": "2025-09-30T14:44:17.679550"
+    },
+    {
+      "role": "assistant",
+      "content": "Of course! I'm here to help you think through decisions in a clear and structured way. Whether you're facing a personal, professional, or any other kind of choice, I can assist by breaking down options, weighing pros and cons, and asking questions to clarify your goals.\n\nWhat decision are you currently working on? Let’s start there!",
+      "timestamp": "2025-09-30T14:44:22.268271"
+    }
+  ],
+  "last_activity": "2025-09-30T14:44:22.268283"
+}

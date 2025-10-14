@@ -1,39 +1,81 @@
 ﻿from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="Decision Assistant API")
+from app.core.config import get_settings
+from app.services.chat_storage import chat_storage
+from app.services.ai_service import ai_service
 
-# CORS 配置
+settings = get_settings()
+
+app = FastAPI(
+    title=settings.api_title,
+    version=settings.api_version,
+    root_path=settings.api_root_path,
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",  # 本地开发
-        "https://decision-assistant-6a9f3h29e-bruces-projects-409b2d51.vercel.app",  # Vercel 生产环境
-        "https://*.vercel.app",  # 其他 Vercel 预览部署
-    ],
+    allow_origins=settings.allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 导入并注册路由
-from app.routes import decision_routes
-from app.services.chat_storage import chat_storage
-from app.services.ai_service import ai_service
+print(f"Chat storage initialized at: {chat_storage.storage_dir}")
+print(f"Settings loaded. Max history messages: {settings.max_history_messages}")
+print(
+    "DeepSeek API key loaded."
+    if settings.deepseek_api_key
+    else "Warning: DeepSeek API key is not set."
+)
 
-app.include_router(decision_routes.router, prefix="/api/decisions", tags=["decisions"])
-print("✓ AI-powered decision routes loaded successfully")
-print(f"✓ Chat storage initialized at: {chat_storage.storage_dir}")
-print(f"✓ AI service ready: DeepSeek API")
-
-@app.get("/")
-async def root():
-    return {"message": "Decision Assistant API is running"}
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "service": "backend", "ai": "DeepSeek"}
+    return {"status": "ok"}
 
-@app.get("/api/test")
-async def test_endpoint():
-    return {"message": "Test endpoint working"}
+
+@app.post("/chat")
+async def chat_endpoint(request: dict):
+    session_id = request.get("session_id")
+    user_message = request.get("message")
+
+    if not session_id or not user_message:
+        return {"error": "session_id and message are required fields"}
+
+    chat_storage.add_message(session_id, "user", user_message)
+
+    history = chat_storage.get_session(session_id)
+    messages = history["messages"][-settings.max_history_messages :] if history else []
+
+    response = await ai_service.generate_response(session_id, messages, user_message)
+
+    chat_storage.add_message(session_id, "assistant", response)
+
+    return {"response": response}
+
+
+@app.get("/sessions")
+async def list_sessions():
+    return chat_storage.get_all_sessions()
+
+
+@app.get("/sessions/{session_id}")
+async def get_session(session_id: str):
+    session = chat_storage.get_session(session_id)
+    if session is None:
+        return {"error": "Session not found"}
+    return session
+
+
+@app.delete("/sessions/{session_id}")
+async def delete_session(session_id: str):
+    deleted = chat_storage.delete_session(session_id)
+    if not deleted:
+        return {"error": "Session not found"}
+    return {"status": "deleted"}
+
+
+@app.get("/", summary="Service root", tags=["Health"])
+async def read_root() -> dict[str, str]:
+    return {"message": "Decision Assistant API"}

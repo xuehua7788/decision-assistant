@@ -1,0 +1,47 @@
+{
+  "session_id": "57e56767-4088-4d2a-9206-64ad27232b15",
+  "created_at": "2025-09-30T08:14:57.527677",
+  "messages": [
+    {
+      "role": "user",
+      "content": "hi",
+      "timestamp": "2025-09-30T08:14:57.527695"
+    },
+    {
+      "role": "assistant",
+      "content": "Hello! How can I assist you with decision-making today? Whether you're facing a big life choice, a work-related dilemma, or something else entirely, I'm here to help you think it through step by step. \n\nFeel free to share what's on your mind!",
+      "timestamp": "2025-09-30T08:15:01.157699"
+    },
+    {
+      "role": "user",
+      "content": "yes",
+      "timestamp": "2025-09-30T08:15:19.938940"
+    },
+    {
+      "role": "assistant",
+      "content": "Great! It sounds like you're ready to dive into a decision. To help you effectively, could you share a bit more about the situation or choice you're facing? For example:\n\n- What decision are you trying to make?\n- What options are you considering?\n- What’s your main goal or concern?\n\nThe more details you provide, the better I can assist you in analyzing the pros, cons, and possible outcomes. Let’s get started!",
+      "timestamp": "2025-09-30T08:15:25.206842"
+    },
+    {
+      "role": "user",
+      "content": "no, very hard",
+      "timestamp": "2025-09-30T08:15:43.755303"
+    },
+    {
+      "role": "assistant",
+      "content": "I hear you—sometimes decisions can feel overwhelming, especially when the stakes are high or the options aren't clear. That's completely normal.\n\nLet's break it down together, step by step. You don't have to face it all at once.\n\nCould you tell me a little about what makes this decision feel \"very hard\"? For example:\n- Are you unsure about what you really want?\n- Do you feel pressured by others or by time?\n- Are you worried about potential negative outcomes?\n\nYou don't have to go into detail if you're not comfortable—just share whatever feels manageable. We'll take it from there.",
+      "timestamp": "2025-09-30T08:15:50.586000"
+    },
+    {
+      "role": "user",
+      "content": "hi",
+      "timestamp": "2025-09-30T08:23:10.217077"
+    },
+    {
+      "role": "assistant",
+      "content": "Hi there! 😊\n\nIt sounds like you might be dealing with something difficult or overwhelming right now. That's okay—I'm here to help however I can.\n\nIf you're comfortable sharing, could you tell me a bit about what's making this decision feel so hard? For example:\n\n- Is it a personal choice, like about a relationship, your career, or your future?\n- Are you feeling stuck between two or more options?\n- Is there something you're afraid of losing or risking?\n\nYou're not alone in this. Let's take it one step at a time.",
+      "timestamp": "2025-09-30T08:23:16.942446"
+    }
+  ],
+  "last_activity": "2025-09-30T08:23:16.942457"
+}

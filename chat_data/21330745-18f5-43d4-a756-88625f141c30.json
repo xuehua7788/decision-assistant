@@ -1,0 +1,17 @@
+{
+  "session_id": "21330745-18f5-43d4-a756-88625f141c30",
+  "created_at": "2025-10-12T04:06:04.515796",
+  "messages": [
+    {
+      "role": "user",
+      "content": "hi",
+      "timestamp": "2025-10-12T04:06:04.515810"
+    },
+    {
+      "role": "assistant",
+      "content": "Hello! How can I assist you with decision-making today? Whether you're facing a big life choice, a work-related dilemma, or something else entirely, I'm here to help you think it through step by step. \n\nFeel free to share your situation, and we can break it down together!",
+      "timestamp": "2025-10-12T04:06:08.600708"
+    }
+  ],
+  "last_activity": "2025-10-12T04:06:08.600728"
+}

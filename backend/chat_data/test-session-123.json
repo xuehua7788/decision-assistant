@@ -1,0 +1,17 @@
+{
+  "session_id": "test-session-123",
+  "created_at": "2025-09-30T08:26:44.385487",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Test message for storage",
+      "timestamp": "2025-09-30T08:26:44.385497"
+    },
+    {
+      "role": "assistant",
+      "content": "It looks like you're testing how messages are stored or processed. If you're trying to decide on a system or method for storing messages, I can help you think through it! Here are a few clarifying questions to guide the discussion:\n\n1. **What kind of messages are you storing?**  \n   - Personal notes, logs, user messages, or something else?\n\n2. **What is your goal with storing these messages?**  \n   - Archiving, analysis, retrieval, or integration with another system?\n\n3. **What are your constraints or preferences?**  \n   - For example: cost, security, ease of access, scalability, or specific tools (like databases, cloud storage, or text files).\n\nLet me know more about your use case, and I’ll help you weigh the pros and cons of different storage approaches!",
+      "timestamp": "2025-09-30T08:26:52.733350"
+    }
+  ],
+  "last_activity": "2025-09-30T08:26:52.733362"
+}

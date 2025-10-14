@@ -1,0 +1,17 @@
+{
+  "session_id": "4e37bb85-c3a6-4eaf-9ec7-b81ce6ca5d5f",
+  "created_at": "2025-09-30T08:23:56.056020",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Testing DeepSeek integration now",
+      "timestamp": "2025-09-30T08:23:56.056030"
+    },
+    {
+      "role": "assistant",
+      "content": "Great! I'm here and ready to help with your decision-making needs. \n\nSince you're testing the integration, I'd be happy to demonstrate how I can assist with analytical decision support. For example, I could:\n\n- Help break down a complex decision into manageable parts\n- Create pros/cons lists for different options\n- Identify potential risks and opportunities\n- Suggest frameworks for evaluating alternatives\n\nDo you have a specific decision you'd like to work through, or would you prefer me to walk through a sample scenario to showcase the capabilities?\n\nI'm here to provide clear, structured, and thoughtful guidance whenever you're ready!",
+      "timestamp": "2025-09-30T08:24:02.781886"
+    }
+  ],
+  "last_activity": "2025-09-30T08:24:02.781899"
+}

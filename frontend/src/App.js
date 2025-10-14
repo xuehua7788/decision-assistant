@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import './App.css';
 import ChatViewer from './ChatViewer';
 
 function App() {
+  const API_URL = process.env.REACT_APP_API_URL || window.location.origin;
   const [currentMode, setCurrentMode] = useState('analysis');
   const [description, setDescription] = useState('');
   const [options, setOptions] = useState(['', '']);
@@ -46,7 +47,7 @@ function App() {
     setResult(null);
 
     try {
-      const response = await fetch('http://localhost:8000/api/decisions/analyze', {
+      const response = await fetch(`${API_URL}/api/decisions/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -75,7 +76,7 @@ function App() {
     setChatInput('');
 
     try {
-      const response = await fetch('http://localhost:8000/api/decisions/chat', {
+      const response = await fetch(`${API_URL}/api/decisions/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessage })
@@ -99,7 +100,7 @@ function App() {
         {/* Header */}
         <div style={{ textAlign: 'center', color: 'white', marginBottom: '20px' }}>
           <h1 style={{ fontSize: '2.5em', marginBottom: '10px', textShadow: '2px 2px 4px rgba(0,0,0,0.2)' }}>
-            ?? Decision Assistant
+            🤔 Decision Assistant
           </h1>
           <p>Powered by DeepSeek AI & Decision Algorithms</p>
         </div>
@@ -120,7 +121,7 @@ function App() {
               transform: currentMode === 'analysis' ? 'scale(1.05)' : 'scale(1)'
             }}
           >
-            ?? Decision Analysis
+            📊 Decision Analysis
           </button>
           <button
             onClick={() => switchMode('chat')}
@@ -136,7 +137,7 @@ function App() {
               transform: currentMode === 'chat' ? 'scale(1.05)' : 'scale(1)'
             }}
           >
-            ? Chat Mode
+            💬 Chat Mode
           </button>
         </div>
 
@@ -151,7 +152,7 @@ function App() {
           }}>
             <div style={{ marginBottom: '25px' }}>
               <label style={{ display: 'block', marginBottom: '8px', color: '#333', fontWeight: '600', fontSize: '1.1em' }}>
-                ?? Describe your decision:
+                📝 Describe your decision:
               </label>
               <textarea
                 value={description}
@@ -170,7 +171,7 @@ function App() {
 
             <div style={{ marginBottom: '25px' }}>
               <label style={{ display: 'block', marginBottom: '8px', color: '#333', fontWeight: '600', fontSize: '1.1em' }}>
-                ? Options to consider:
+                🎯 Options to consider:
               </label>
               {options.map((option, index) => (
                 <div key={index} style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
@@ -233,7 +234,7 @@ function App() {
                 fontWeight: '600'
               }}
             >
-              {loading ? '??Analyzing...' : '?? Analyze My Decision'}
+              {loading ? '⚙️ Analyzing...' : '🔍 Analyze My Decision'}
             </button>
           </div>
         )}
@@ -320,7 +321,7 @@ function App() {
             padding: '30px',
             boxShadow: '0 20px 40px rgba(0,0,0,0.1)'
           }}>
-            <h2>?? Decision Analysis Results</h2>
+            <h2>📊 Decision Analysis Results</h2>
             
             <div style={{
               background: 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)',
@@ -330,7 +331,7 @@ function App() {
               marginTop: '20px',
               marginBottom: '20px'
             }}>
-              <h3>? Recommendation</h3>
+              <h3>⭐ Recommendation</h3>
               <p style={{ fontSize: '1.3em', fontWeight: 'bold' }}>{result.recommendation}</p>
             </div>
 
@@ -340,7 +341,7 @@ function App() {
               padding: '20px',
               marginBottom: '20px'
             }}>
-              <h3>?? Summary</h3>
+              <h3>📋 Summary</h3>
               <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
                 {result.readable_summary}
               </div>
@@ -352,7 +353,7 @@ function App() {
                 borderRadius: '10px',
                 padding: '20px'
               }}>
-                <h3>?? Score Analysis</h3>
+                <h3>📊 Score Analysis</h3>
                 {Object.entries(result.algorithm_analysis.algorithms_used.weighted_score.results).map(([option, scores]) => (
                   <div key={option} style={{
                     background: 'white',
@@ -385,7 +386,7 @@ function App() {
                 marginTop: '20px'
               }}
             >
-              ??New Analysis
+              🔄 New Analysis
             </button>
           </div>
         )}
@@ -395,3 +396,4 @@ function App() {
 }
 
 export default App;
+

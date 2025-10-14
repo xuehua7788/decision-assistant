@@ -1,0 +1,17 @@
+{
+  "session_id": "a558ed00-98d4-40f6-963c-aae84a3e9cdd",
+  "created_at": "2025-10-13T06:28:21.805293",
+  "messages": [
+    {
+      "role": "user",
+      "content": "hi",
+      "timestamp": "2025-10-13T06:28:21.805345"
+    },
+    {
+      "role": "assistant",
+      "content": "I'm here to help you think through your decisions. Could you share more details about what you're trying to decide? The more context you provide, the better I can assist you in organizing your thoughts and evaluating your options.",
+      "timestamp": "2025-10-13T06:28:25.846911"
+    }
+  ],
+  "last_activity": "2025-10-13T06:28:25.846928"
+}

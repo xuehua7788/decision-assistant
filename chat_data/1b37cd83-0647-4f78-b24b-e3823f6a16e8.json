@@ -1,0 +1,17 @@
+{
+  "session_id": "1b37cd83-0647-4f78-b24b-e3823f6a16e8",
+  "created_at": "2025-10-12T06:23:46.249177",
+  "messages": [
+    {
+      "role": "user",
+      "content": "hi",
+      "timestamp": "2025-10-12T06:23:46.249330"
+    },
+    {
+      "role": "assistant",
+      "content": "Hello! I'm here to help you think through decisions or problems you might be facing. Whether it's a personal choice, a work-related dilemma, or anything else you'd like to discuss, feel free to share the details. I can help break things down, weigh pros and cons, and guide you toward a clearer perspective. What's on your mind?",
+      "timestamp": "2025-10-12T06:23:51.207543"
+    }
+  ],
+  "last_activity": "2025-10-12T06:23:51.207557"
+}
