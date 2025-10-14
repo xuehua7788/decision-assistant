@@ -1,0 +1,56 @@
+# Fly.io 部署配置
+# 使用方法：
+# 1. 安装 Fly CLI: https://fly.io/docs/hands-on/install-flyctl/
+# 2. 登录: fly auth login
+# 3. 部署: fly launch (首次) 或 fly deploy (更新)
+
+app = "decision-assistant-backend"
+primary_region = "sin"  # 新加坡，可选：nrt(东京), hkg(香港), sjc(旧金山)
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8000"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 25
+    soft_limit = 20
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 8000
+  processes = ["app"]
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+    force_https = true
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 25
+    soft_limit = 20
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256
+
+# 环境变量设置（使用 fly secrets 命令）:
+# fly secrets set DEEPSEEK_API_KEY=sk-your-key-here
+# fly secrets set ALLOWED_ORIGINS='["https://your-frontend.vercel.app"]'
+
