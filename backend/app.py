@@ -1,4 +1,4 @@
-import os
+﻿import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -8,21 +8,15 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# CORS configuration - allow frontend domains
-CORS(app, origins=[
-    "http://localhost:3000",
-    "http://localhost:5173", 
-    "https://*.vercel.app",
-    "https://decision-assistant-git-main-bruces-projects-409b2d51.vercel.app",
-    "https://decision-assistant-4rc7aai2-bruces-projects-409b2d51.vercel.app"
-])
+# CORS configuration
+CORS(app, origins=["*"])
 
 # OpenAI configuration
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
 @app.route('/')
 def home():
-    return jsonify({"status": "API is running", "version": "1.0"})
+    return jsonify({"status": "Decision Assistant API", "version": "1.0"})
 
 @app.route('/health')
 def health():
@@ -35,10 +29,14 @@ def analyze_decision():
     
     try:
         data = request.json
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+            
         # Decision analysis logic
         result = {
-            "analysis": "Decision analysis result",
-            "recommendations": ["Recommendation 1", "Recommendation 2"],
+            "status": "success",
+            "analysis": "Decision analysis completed",
+            "recommendations": ["Option 1", "Option 2", "Option 3"],
             "risk_score": 0.7
         }
         return jsonify(result)
