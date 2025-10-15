@@ -1,11 +1,40 @@
-﻿backend/
-frontend/
-docker/
+﻿# 忽略后端文件
+backend/
+*.py
+requirements.txt
+runtime.txt
+gunicorn_config.py
+
+# 忽略开发文件
+.git/
+.gitignore
+README.md
+*.md
+docs/
+
+# 忽略测试文件
+tests/
+test_*.py
+*_test.py
+
+# 忽略配置文件
+.env
+.env.*
+config.py
+
+# 忽略数据文件
 chat_data/
-*.bat
-*.sh
-*.yml
-*.backup
-.dockerignore
-Dockerfile
-docker-compose*.yml
+users_data.json
+*.json
+
+# 忽略其他不需要的文件
+node_modules/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.coverage
+.pytest_cache/

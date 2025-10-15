@@ -4,17 +4,23 @@ WSGI entry point for gunicorn
 生产环境入口点
 """
 import os
-from app_new import app
+import sys
 
-# 验证配置
+# 添加当前目录到 Python 路径
+sys.path.insert(0, os.path.dirname(__file__))
+
 try:
-    from config import config
-    app_config = config.get(os.getenv('FLASK_ENV', 'production'), config['default'])
-    app_config.validate_config()
-    print("✅ 配置验证成功")
-except Exception as e:
-    print(f"❌ 配置验证失败: {e}")
-    exit(1)
+    from app_new import app
+    print("✅ Flask 应用导入成功")
+except ImportError as e:
+    print(f"❌ 导入失败: {e}")
+    # 尝试导入原始 app
+    try:
+        from app import app
+        print("✅ 使用原始 app.py")
+    except ImportError as e2:
+        print(f"❌ 原始 app.py 也导入失败: {e2}")
+        raise
 
 if __name__ == "__main__":
     app.run()

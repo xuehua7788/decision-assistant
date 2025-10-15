@@ -24,11 +24,13 @@ class Config:
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'jwt-secret-key-change-in-production')
     
-    # CORS 配置
-    ALLOWED_ORIGINS = os.getenv('ALLOWED_ORIGINS', 'http://localhost:3000').split(',')
-    
-    # 数据库配置
-    DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///decision_assistant.db')
+    # CORS 配置 - 允许的域名列表
+    ALLOWED_ORIGINS = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "https://*.vercel.app",
+        "https://decision-assistant-frontend-prod-ngg7np6z9.vercel.app"
+    ]
     
     # 日志配置
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
