@@ -321,12 +321,18 @@ def get_me(current_user):
         'username': current_user["username"]
     })
 
+# 添加健康检查端点
+@app.route('/health')
+def health_check():
+    return jsonify({"status": "ok", "service": "backend", "ai": "DeepSeek"})
+
 if __name__ == '__main__':
     print("\n" + "="*50)
     print("  Decision Assistant Backend (Flask)")
     print("="*50)
     print(f"  🚀 Server starting on http://127.0.0.1:8000")
     print(f"  📚 API Endpoints:")
+    print(f"     - GET  /health              (健康检查)")
     print(f"     - POST /api/auth/register  (用户注册)")
     print(f"     - POST /api/auth/login     (用户登录)")
     print(f"     - POST /api/auth/logout    (用户退出)")
