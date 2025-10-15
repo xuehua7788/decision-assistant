@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
 function Register({ onRegister, onSwitchToLogin }) {
-  const API_URL = 'http://127.0.0.1:8000';
+  const API_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000';
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
