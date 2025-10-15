@@ -1,6 +1,5 @@
 ﻿import React, { useState, useEffect } from 'react';
 import './App.css';
-import ChatViewer from './ChatViewer';
 import Login from './Login';
 import Register from './Register';
 

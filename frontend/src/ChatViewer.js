@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 
 function ChatViewer() {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
@@ -10,9 +10,9 @@ function ChatViewer() {
 
   useEffect(() => {
     fetchSessions();
-  }, []);
+  }, [fetchSessions]);
 
-  const fetchSessions = async () => {
+  const fetchSessions = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -28,7 +28,7 @@ function ChatViewer() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_URL]);
 
   const fetchSessionDetail = async (sessionId) => {
     try {
