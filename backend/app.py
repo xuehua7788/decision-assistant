@@ -127,7 +127,10 @@ def chat():
         
         # 使用 OpenAI API 生成智能回复
         try:
-            response = openai.ChatCompletion.create(
+            from openai import OpenAI
+            client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+            
+            response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": "你是一个专业的决策助手，帮助用户做出明智的决策。请用中文回复，简洁明了。"},
@@ -146,6 +149,7 @@ def chat():
             
         except Exception as ai_error:
             # 如果 OpenAI API 失败，使用备用回复
+            print(f"OpenAI API Error: {str(ai_error)}")  # 记录错误到日志
             import random
             responses = [
                 "我理解你的问题。让我帮你分析一下...",
@@ -198,7 +202,10 @@ def analyze_decision():
 - algorithm_analysis.algorithms_used.weighted_score.results: 每个选项的分数
 """
             
-            response = openai.ChatCompletion.create(
+            from openai import OpenAI
+            client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+            
+            response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": "你是一个专业的决策助手，擅长分析各种决策场景并提供建议。请用中文回复，格式为 JSON。"},
