@@ -125,31 +125,50 @@ def chat():
         if not message:
             return jsonify({"error": "消息不能为空"}), 400
         
-        # 使用 OpenAI API 生成智能回复
+        # 使用 DeepSeek API 生成智能回复
         try:
-            from openai import OpenAI
-            client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+            import requests
             
-            response = client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
+            deepseek_api_key = os.getenv('DEEPSEEK_API_KEY')
+            if not deepseek_api_key:
+                raise Exception("DEEPSEEK_API_KEY not configured")
+            
+            headers = {
+                "Authorization": f"Bearer {deepseek_api_key}",
+                "Content-Type": "application/json",
+            }
+            
+            data = {
+                "model": "deepseek-chat",
+                "messages": [
                     {"role": "system", "content": "你是一个专业的决策助手，帮助用户做出明智的决策。请用中文回复，简洁明了。"},
                     {"role": "user", "content": message}
                 ],
-                max_tokens=500,
-                temperature=0.7
+                "temperature": 0.7,
+                "max_tokens": 1000,
+            }
+            
+            response = requests.post(
+                "https://api.deepseek.com/v1/chat/completions",
+                headers=headers,
+                json=data,
+                timeout=30
             )
             
-            ai_response = response.choices[0].message.content
-            
-            return jsonify({
-                "response": ai_response,
-                "session_id": session_id
-            }), 200
+            if response.status_code == 200:
+                result = response.json()
+                ai_response = result["choices"][0]["message"]["content"]
+                
+                return jsonify({
+                    "response": ai_response,
+                    "session_id": session_id
+                }), 200
+            else:
+                raise Exception(f"DeepSeek API error: {response.status_code}")
             
         except Exception as ai_error:
-            # 如果 OpenAI API 失败，使用备用回复
-            print(f"OpenAI API Error: {str(ai_error)}")  # 记录错误到日志
+            # 如果 DeepSeek API 失败，使用备用回复
+            print(f"DeepSeek API Error: {str(ai_error)}")  # 记录错误到日志
             import random
             responses = [
                 "我理解你的问题。让我帮你分析一下...",
@@ -202,20 +221,39 @@ def analyze_decision():
 - algorithm_analysis.algorithms_used.weighted_score.results: 每个选项的分数
 """
             
-            from openai import OpenAI
-            client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+            import requests
             
-            response = client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
+            deepseek_api_key = os.getenv('DEEPSEEK_API_KEY')
+            if not deepseek_api_key:
+                raise Exception("DEEPSEEK_API_KEY not configured")
+            
+            headers = {
+                "Authorization": f"Bearer {deepseek_api_key}",
+                "Content-Type": "application/json",
+            }
+            
+            data = {
+                "model": "deepseek-chat",
+                "messages": [
                     {"role": "system", "content": "你是一个专业的决策助手，擅长分析各种决策场景并提供建议。请用中文回复，格式为 JSON。"},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=1000,
-                temperature=0.7
+                "temperature": 0.7,
+                "max_tokens": 1000,
+            }
+            
+            response = requests.post(
+                "https://api.deepseek.com/v1/chat/completions",
+                headers=headers,
+                json=data,
+                timeout=30
             )
             
-            ai_response = response.choices[0].message.content
+            if response.status_code != 200:
+                raise Exception(f"DeepSeek API error: {response.status_code}")
+            
+            result = response.json()
+            ai_response = result["choices"][0]["message"]["content"]
             
             # 尝试解析 JSON 响应
             import json
