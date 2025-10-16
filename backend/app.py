@@ -129,7 +129,7 @@ def chat():
         try:
             import requests
             
-            deepseek_api_key = os.getenv('DEEPSEEK_API_KEY')
+            deepseek_api_key = os.getenv('DEEPSEEK_API_KEY')  # 使用 DEEPSEEK_API_KEY 环境变量名
             if not deepseek_api_key:
                 raise Exception("DEEPSEEK_API_KEY not configured")
             
@@ -223,7 +223,7 @@ def analyze_decision():
             
             import requests
             
-            deepseek_api_key = os.getenv('DEEPSEEK_API_KEY')
+            deepseek_api_key = os.getenv('DEEPSEEK_API_KEY')  # 使用 DEEPSEEK_API_KEY 环境变量名
             if not deepseek_api_key:
                 raise Exception("DEEPSEEK_API_KEY not configured")
             
