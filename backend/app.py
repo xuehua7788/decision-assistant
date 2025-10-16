@@ -1,5 +1,6 @@
 ﻿import os
 import json
+import requests
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -127,8 +128,6 @@ def chat():
         
         # 使用 DeepSeek API 生成智能回复
         try:
-            import requests
-            
             deepseek_api_key = os.getenv('DEEPSEEK_API_KEY')  # 使用 DEEPSEEK_API_KEY 环境变量名
             print(f"DEBUG: DEEPSEEK_API_KEY = {deepseek_api_key[:10] if deepseek_api_key else 'NOT SET'}...")
             if not deepseek_api_key:
@@ -224,8 +223,6 @@ def analyze_decision():
 - readable_summary: 详细分析（至少100字）
 - algorithm_analysis.algorithms_used.weighted_score.results: 每个选项的分数
 """
-            
-            import requests
             
             deepseek_api_key = os.getenv('DEEPSEEK_API_KEY')  # 使用 DEEPSEEK_API_KEY 环境变量名
             if not deepseek_api_key:
