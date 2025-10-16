@@ -4,7 +4,7 @@ import Login from './Login';
 import Register from './Register';
 
 function App() {
-  const API_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000';
+  const API_URL = process.env.REACT_APP_API_URL || 'https://decision-assistant-backend.onrender.com';
   const [currentView, setCurrentView] = useState('login'); // 'login', 'register', 'app'
   const [user, setUser] = useState(null);
   const [currentMode, setCurrentMode] = useState('analysis');
