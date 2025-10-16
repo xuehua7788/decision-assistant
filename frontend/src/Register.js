@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 
 function Register({ onRegister, onSwitchToLogin }) {
-  const API_URL = process.env.REACT_APP_API_URL || 'https://decision-assistant-backend.onrender.com';
+  // 硬编码 Render 后端地址，确保生产环境正确
+  const API_URL = 'https://decision-assistant-backend.onrender.com';
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
