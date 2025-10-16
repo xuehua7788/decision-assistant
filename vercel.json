@@ -1,6 +1,19 @@
 {
-  "buildCommand": "cd frontend && npm install && CI=false npm run build",
-  "outputDirectory": "frontend/build",
-  "installCommand": "cd frontend && npm install"
+  "version": 2,
+  "builds": [
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "build"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "frontend/build/$1"
+    }
+  ]
 }
 
