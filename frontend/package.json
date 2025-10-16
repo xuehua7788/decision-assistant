@@ -10,7 +10,7 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "cross-env CI=false react-scripts build",
+    "build": "react-scripts build",
     "build:win": "set CI=false && react-scripts build",
     "vercel-build": "CI=false react-scripts build",
     "test": "react-scripts test",
