@@ -125,21 +125,40 @@ def chat():
         if not message:
             return jsonify({"error": "消息不能为空"}), 400
         
-        # 简单的 AI 回复（生产环境应该使用 OpenAI API）
-        responses = [
-            "我理解你的问题。让我帮你分析一下...",
-            "这是一个很好的问题。从多个角度来看...",
-            "基于你提供的信息，我建议...",
-            "让我从不同角度帮你分析这个决策..."
-        ]
-        
-        import random
-        response = random.choice(responses)
-        
-        return jsonify({
-            "response": response,
-            "session_id": session_id
-        }), 200
+        # 使用 OpenAI API 生成智能回复
+        try:
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "你是一个专业的决策助手，帮助用户做出明智的决策。请用中文回复，简洁明了。"},
+                    {"role": "user", "content": message}
+                ],
+                max_tokens=500,
+                temperature=0.7
+            )
+            
+            ai_response = response.choices[0].message.content
+            
+            return jsonify({
+                "response": ai_response,
+                "session_id": session_id
+            }), 200
+            
+        except Exception as ai_error:
+            # 如果 OpenAI API 失败，使用备用回复
+            import random
+            responses = [
+                "我理解你的问题。让我帮你分析一下...",
+                "这是一个很好的问题。从多个角度来看...",
+                "基于你提供的信息，我建议...",
+                "让我从不同角度帮你分析这个决策..."
+            ]
+            response = random.choice(responses)
+            
+            return jsonify({
+                "response": response,
+                "session_id": session_id
+            }), 200
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
