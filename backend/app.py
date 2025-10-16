@@ -111,24 +111,81 @@ def login():
     except Exception as e:
         return jsonify({"detail": str(e)}), 500
 
-@app.route('/api/decision', methods=['POST', 'OPTIONS'])
-def analyze_decision():
+@app.route('/api/decisions/chat', methods=['POST', 'OPTIONS'])
+def chat():
+    """聊天功能"""
     if request.method == 'OPTIONS':
         return jsonify({}), 200
     
     try:
         data = request.json
-        if not data:
-            return jsonify({"error": "No data provided"}), 400
-            
-        # Decision analysis logic
+        message = data.get('message', '')
+        session_id = data.get('session_id', '')
+        
+        if not message:
+            return jsonify({"error": "消息不能为空"}), 400
+        
+        # 简单的 AI 回复（生产环境应该使用 OpenAI API）
+        responses = [
+            "我理解你的问题。让我帮你分析一下...",
+            "这是一个很好的问题。从多个角度来看...",
+            "基于你提供的信息，我建议...",
+            "让我从不同角度帮你分析这个决策..."
+        ]
+        
+        import random
+        response = random.choice(responses)
+        
+        return jsonify({
+            "response": response,
+            "session_id": session_id
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/decisions/analyze', methods=['POST', 'OPTIONS'])
+def analyze_decision():
+    """决策分析功能"""
+    if request.method == 'OPTIONS':
+        return jsonify({}), 200
+    
+    try:
+        data = request.json
+        description = data.get('description', '')
+        options = data.get('options', [])
+        
+        if not description or not options:
+            return jsonify({"error": "描述和选项不能为空"}), 400
+        
+        # 简单的决策分析（生产环境应该使用 OpenAI API）
+        import random
+        
+        # 为每个选项生成随机分数
+        results = {}
+        for option in options:
+            if option.strip():
+                results[option] = {
+                    "total_score": round(random.uniform(6, 10), 1)
+                }
+        
+        # 找出最高分的选项
+        best_option = max(results.items(), key=lambda x: x[1]['total_score'])[0]
+        
         result = {
-            "status": "success",
-            "analysis": "Decision analysis completed",
-            "recommendations": ["Option 1", "Option 2", "Option 3"],
-            "risk_score": 0.7
+            "recommendation": best_option,
+            "readable_summary": f"基于分析，我推荐选择 '{best_option}'。这个选项的综合评分最高，是最佳选择。",
+            "algorithm_analysis": {
+                "algorithms_used": {
+                    "weighted_score": {
+                        "results": results
+                    }
+                }
+            }
         }
-        return jsonify(result)
+        
+        return jsonify(result), 200
+        
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
