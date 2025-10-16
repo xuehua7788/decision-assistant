@@ -130,6 +130,7 @@ def chat():
             import requests
             
             deepseek_api_key = os.getenv('DEEPSEEK_API_KEY')  # 使用 DEEPSEEK_API_KEY 环境变量名
+            print(f"DEBUG: DEEPSEEK_API_KEY = {deepseek_api_key[:10] if deepseek_api_key else 'NOT SET'}...")
             if not deepseek_api_key:
                 raise Exception("DEEPSEEK_API_KEY not configured")
             
@@ -155,15 +156,18 @@ def chat():
                 timeout=30
             )
             
+            print(f"DEBUG: DeepSeek API response status = {response.status_code}")
             if response.status_code == 200:
                 result = response.json()
                 ai_response = result["choices"][0]["message"]["content"]
+                print(f"DEBUG: DeepSeek API response = {ai_response[:50]}...")
                 
                 return jsonify({
                     "response": ai_response,
                     "session_id": session_id
                 }), 200
             else:
+                print(f"DEBUG: DeepSeek API error response = {response.text}")
                 raise Exception(f"DeepSeek API error: {response.status_code}")
             
         except Exception as ai_error:
