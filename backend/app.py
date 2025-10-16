@@ -177,31 +177,69 @@ def analyze_decision():
         if not description or not options:
             return jsonify({"error": "描述和选项不能为空"}), 400
         
-        # 简单的决策分析（生产环境应该使用 OpenAI API）
-        import random
-        
-        # 为每个选项生成随机分数
-        results = {}
-        for option in options:
-            if option.strip():
-                results[option] = {
-                    "total_score": round(random.uniform(6, 10), 1)
-                }
-        
-        # 找出最高分的选项
-        best_option = max(results.items(), key=lambda x: x[1]['total_score'])[0]
-        
-        result = {
-            "recommendation": best_option,
-            "readable_summary": f"基于分析，我推荐选择 '{best_option}'。这个选项的综合评分最高，是最佳选择。",
-            "algorithm_analysis": {
-                "algorithms_used": {
-                    "weighted_score": {
-                        "results": results
+        # 使用 OpenAI API 生成智能决策分析
+        try:
+            # 构建提示词
+            prompt = f"""作为一个专业的决策助手，请分析以下决策场景：
+
+决策描述：{description}
+
+选项：
+{chr(10).join([f'{i+1}. {opt}' for i, opt in enumerate(options) if opt.strip()])}
+
+请：
+1. 为每个选项评分（1-10分）
+2. 给出推荐选项
+3. 提供详细的分析总结
+
+请以 JSON 格式回复，包含：
+- recommendation: 推荐的选项
+- readable_summary: 详细分析（至少100字）
+- algorithm_analysis.algorithms_used.weighted_score.results: 每个选项的分数
+"""
+            
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "你是一个专业的决策助手，擅长分析各种决策场景并提供建议。请用中文回复，格式为 JSON。"},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=1000,
+                temperature=0.7
+            )
+            
+            ai_response = response.choices[0].message.content
+            
+            # 尝试解析 JSON 响应
+            import json
+            result = json.loads(ai_response)
+            
+            return jsonify(result), 200
+            
+        except Exception as ai_error:
+            # 如果 OpenAI API 失败，使用随机分数作为备用
+            import random
+            
+            results = {}
+            for option in options:
+                if option.strip():
+                    results[option] = {
+                        "total_score": round(random.uniform(6, 10), 1)
+                    }
+            
+            best_option = max(results.items(), key=lambda x: x[1]['total_score'])[0]
+            
+            result = {
+                "recommendation": best_option,
+                "readable_summary": f"基于分析，我推荐选择 '{best_option}'。这个选项的综合评分最高，是最佳选择。",
+                "algorithm_analysis": {
+                    "algorithms_used": {
+                        "weighted_score": {
+                            "results": results
+                        }
                     }
                 }
             }
-        }
         
         return jsonify(result), 200
         
