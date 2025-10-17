@@ -15,6 +15,13 @@ function App() {
   const [chatInput, setChatInput] = useState('');
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  
+  // 算法分析相关状态
+  const [algorithms, setAlgorithms] = useState([]);
+  const [selectedAlgorithm, setSelectedAlgorithm] = useState('weighted_scoring');
+  const [algoQuestion, setAlgoQuestion] = useState('');
+  const [algoOptions, setAlgoOptions] = useState('[\n  {"name": "选项A", "价格": 8, "性能": 9, "外观": 7},\n  {"name": "选项B", "价格": 9, "性能": 7, "外观": 8}\n]');
+  const [algoResult, setAlgoResult] = useState(null);
 
   // 初始化用户聊天记录的函数
   const initializeChatForUser = React.useCallback((username) => {
@@ -42,6 +49,18 @@ function App() {
       localStorage.setItem(userChatKey, JSON.stringify(welcomeMessage));
     }
   }, []);
+
+  // 加载算法列表
+  useEffect(() => {
+    fetch(`${API_URL}/api/algorithms/list`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success') {
+          setAlgorithms(data.algorithms);
+        }
+      })
+      .catch(err => console.error('获取算法列表失败:', err));
+  }, [API_URL]);
 
   // 检查本地存储的登录状态
   useEffect(() => {
@@ -82,6 +101,50 @@ function App() {
   const switchMode = (mode) => {
     setCurrentMode(mode);
     setResult(null);
+    setAlgoResult(null);
+  };
+  
+  // 算法分析函数
+  const analyzeWithAlgorithm = async () => {
+    if (!algoQuestion.trim()) {
+      alert('请输入决策问题');
+      return;
+    }
+    
+    let parsedOptions;
+    try {
+      parsedOptions = JSON.parse(algoOptions);
+    } catch (e) {
+      alert('选项格式错误，请输入有效的JSON');
+      return;
+    }
+    
+    setLoading(true);
+    setAlgoResult(null);
+    
+    try {
+      const response = await fetch(`${API_URL}/api/algorithms/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          algorithm_id: selectedAlgorithm,
+          question: algoQuestion,
+          options: parsedOptions
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.status === 'success') {
+        setAlgoResult(data.result);
+      } else {
+        alert('分析失败: ' + data.message);
+      }
+    } catch (error) {
+      alert('请求失败: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const addOption = () => {
@@ -241,6 +304,22 @@ function App() {
             📊 Decision Analysis
           </button>
           <button
+            onClick={() => switchMode('algorithm')}
+            style={{
+              background: currentMode === 'algorithm' ? '#ffd700' : 'white',
+              color: currentMode === 'algorithm' ? '#333' : '#667eea',
+              padding: '10px 30px',
+              border: 'none',
+              borderRadius: '25px',
+              cursor: 'pointer',
+              fontSize: '1.1em',
+              fontWeight: '600',
+              transform: currentMode === 'algorithm' ? 'scale(1.05)' : 'scale(1)'
+            }}
+          >
+            🧮 Algorithm Mode
+          </button>
+          <button
             onClick={() => switchMode('chat')}
             style={{
               background: currentMode === 'chat' ? '#ffd700' : 'white',
@@ -353,6 +432,170 @@ function App() {
             >
               {loading ? '⚙️ Analyzing...' : '🔍 Analyze My Decision'}
             </button>
+          </div>
+        )}
+
+        {/* Algorithm Mode */}
+        {currentMode === 'algorithm' && (
+          <div style={{
+            background: 'white',
+            borderRadius: '15px',
+            padding: '30px',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+            marginBottom: '20px'
+          }}>
+            <h2 style={{ marginBottom: '20px', color: '#333' }}>🧮 算法分析模式</h2>
+            
+            {/* 选择算法 */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', color: '#333', fontWeight: '600' }}>
+                选择算法：
+              </label>
+              <select 
+                value={selectedAlgorithm} 
+                onChange={(e) => setSelectedAlgorithm(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '2px solid #e0e0e0',
+                  borderRadius: '8px',
+                  fontSize: '1em'
+                }}
+              >
+                {algorithms.map(algo => (
+                  <option key={algo.id} value={algo.id}>
+                    {algo.name} (v{algo.version})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 决策问题 */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', color: '#333', fontWeight: '600' }}>
+                决策问题：
+              </label>
+              <input
+                type="text"
+                value={algoQuestion}
+                onChange={(e) => setAlgoQuestion(e.target.value)}
+                placeholder="例如：选择哪款笔记本电脑？"
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '2px solid #e0e0e0',
+                  borderRadius: '8px',
+                  fontSize: '1em'
+                }}
+              />
+            </div>
+
+            {/* 选项JSON */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', color: '#333', fontWeight: '600' }}>
+                选项（JSON格式）：
+              </label>
+              <textarea
+                value={algoOptions}
+                onChange={(e) => setAlgoOptions(e.target.value)}
+                rows={10}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '2px solid #e0e0e0',
+                  borderRadius: '8px',
+                  fontSize: '0.9em',
+                  fontFamily: 'monospace'
+                }}
+              />
+            </div>
+
+            {/* 分析按钮 */}
+            <button 
+              onClick={analyzeWithAlgorithm}
+              disabled={loading}
+              style={{
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                width: '100%',
+                padding: '15px',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '1.1em',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                fontWeight: '600'
+              }}
+            >
+              {loading ? '⚙️ 分析中...' : '🔍 开始分析'}
+            </button>
+
+            {/* 显示结果 */}
+            {algoResult && (
+              <div style={{
+                marginTop: '30px',
+                padding: '20px',
+                backgroundColor: '#f8f9fa',
+                borderRadius: '10px'
+              }}>
+                <h3 style={{ color: '#333', marginBottom: '15px' }}>📊 分析结果</h3>
+                
+                <div style={{
+                  background: 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)',
+                  color: 'white',
+                  padding: '15px',
+                  borderRadius: '8px',
+                  marginBottom: '15px'
+                }}>
+                  <strong>推荐：</strong>
+                  <span style={{ fontSize: '1.5em', marginLeft: '10px' }}>
+                    {algoResult.recommendation}
+                  </span>
+                </div>
+
+                <div style={{ marginBottom: '15px' }}>
+                  <strong>得分：</strong>
+                  <div style={{ marginTop: '10px' }}>
+                    {Object.entries(algoResult.scores).map(([option, score]) => (
+                      <div key={option} style={{
+                        background: 'white',
+                        padding: '10px',
+                        marginBottom: '5px',
+                        borderRadius: '5px',
+                        display: 'flex',
+                        justifyContent: 'space-between'
+                      }}>
+                        <span>{option}</span>
+                        <strong>{typeof score === 'number' ? score.toFixed(2) : score}</strong>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {algoResult.summary && (
+                  <div style={{ marginBottom: '15px' }}>
+                    <strong>总结：</strong>
+                    <p style={{ marginTop: '8px', lineHeight: '1.6' }}>{algoResult.summary}</p>
+                  </div>
+                )}
+
+                {algoResult.analysis && (
+                  <details style={{ marginTop: '15px' }}>
+                    <summary style={{ cursor: 'pointer', fontWeight: '600' }}>详细分析</summary>
+                    <pre style={{
+                      whiteSpace: 'pre-wrap',
+                      background: 'white',
+                      padding: '15px',
+                      borderRadius: '5px',
+                      marginTop: '10px',
+                      fontSize: '0.9em',
+                      lineHeight: '1.6'
+                    }}>
+                      {algoResult.analysis}
+                    </pre>
+                  </details>
+                )}
+              </div>
+            )}
           </div>
         )}
 
