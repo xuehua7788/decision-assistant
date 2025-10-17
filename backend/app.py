@@ -18,6 +18,11 @@ openai.api_key = os.getenv('OPENAI_API_KEY')
 
 # 简单的用户存储（生产环境应该使用数据库）
 USERS_FILE = 'users_data.json'
+CHAT_DATA_DIR = 'chat_data'
+
+# 创建聊天数据目录
+if not os.path.exists(CHAT_DATA_DIR):
+    os.makedirs(CHAT_DATA_DIR)
 
 def load_users():
     """加载用户数据"""
@@ -30,6 +35,39 @@ def save_users(users):
     """保存用户数据"""
     with open(USERS_FILE, 'w', encoding='utf-8') as f:
         json.dump(users, f, ensure_ascii=False, indent=2)
+
+def save_chat_message(username, message, response):
+    """保存聊天消息"""
+    try:
+        chat_file = os.path.join(CHAT_DATA_DIR, f'{username}.json')
+        
+        # 加载现有聊天记录
+        if os.path.exists(chat_file):
+            with open(chat_file, 'r', encoding='utf-8') as f:
+                chat_data = json.load(f)
+        else:
+            chat_data = {"username": username, "messages": []}
+        
+        # 添加新消息
+        chat_data["messages"].append({
+            "user": message,
+            "assistant": response,
+            "timestamp": os.urandom(16).hex()  # 简单的时间戳
+        })
+        
+        # 保存
+        with open(chat_file, 'w', encoding='utf-8') as f:
+            json.dump(chat_data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"保存聊天记录失败: {str(e)}")
+
+def load_chat_data(username):
+    """加载用户的聊天记录"""
+    chat_file = os.path.join(CHAT_DATA_DIR, f'{username}.json')
+    if os.path.exists(chat_file):
+        with open(chat_file, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return None
 
 @app.route('/')
 def home():
@@ -63,12 +101,54 @@ def get_stats():
     """查看统计信息（管理员功能）"""
     try:
         users = load_users()
+        
+        # 统计聊天记录数量
+        chat_count = 0
+        if os.path.exists(CHAT_DATA_DIR):
+            chat_files = [f for f in os.listdir(CHAT_DATA_DIR) if f.endswith('.json')]
+            chat_count = len(chat_files)
+        
         return jsonify({
             "total_users": len(users),
-            "total_chat_sessions": 0,  # 需要实现聊天记录统计
+            "total_chat_sessions": chat_count,
             "api_status": "running",
             "deepseek_configured": bool(os.getenv('DEEPSEEK_API_KEY'))
         }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/admin/chats', methods=['GET'])
+def get_all_chats():
+    """查看所有聊天记录（管理员功能）"""
+    try:
+        chats = {}
+        if os.path.exists(CHAT_DATA_DIR):
+            for filename in os.listdir(CHAT_DATA_DIR):
+                if filename.endswith('.json'):
+                    username = filename.replace('.json', '')
+                    chat_data = load_chat_data(username)
+                    if chat_data:
+                        chats[username] = {
+                            "total_messages": len(chat_data.get("messages", [])),
+                            "last_messages": chat_data.get("messages", [])[-5:]  # 只显示最后 5 条
+                        }
+        
+        return jsonify({
+            "total_sessions": len(chats),
+            "chats": chats
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/admin/chats/<username>', methods=['GET'])
+def get_user_chat(username):
+    """查看特定用户的聊天记录（管理员功能）"""
+    try:
+        chat_data = load_chat_data(username)
+        if chat_data:
+            return jsonify(chat_data), 200
+        else:
+            return jsonify({"error": "聊天记录不存在"}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -193,6 +273,10 @@ def chat():
                 result = response.json()
                 ai_response = result["choices"][0]["message"]["content"]
                 print(f"DEBUG: DeepSeek API response = {ai_response[:50]}...")
+                
+                # 保存聊天记录
+                if session_id:
+                    save_chat_message(session_id, message, ai_response)
                 
                 return jsonify({
                     "response": ai_response,
