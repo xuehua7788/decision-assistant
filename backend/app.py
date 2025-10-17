@@ -33,6 +33,16 @@ except ImportError as e:
     db_init_bp = None
     print(f"⚠️  数据库初始化API导入失败: {e}")
 
+# 导入数据库同步模块
+try:
+    from database_sync import get_db_sync
+    DB_SYNC_AVAILABLE = True
+    print("✅ 数据库同步模块导入成功")
+except ImportError as e:
+    DB_SYNC_AVAILABLE = False
+    get_db_sync = None
+    print(f"⚠️  数据库同步模块导入失败: {e}")
+
 load_dotenv()
 
 app = Flask(__name__)
@@ -69,7 +79,7 @@ def save_users(users):
         json.dump(users, f, ensure_ascii=False, indent=2)
 
 def save_chat_message(username, message, response):
-    """保存聊天消息"""
+    """保存聊天消息（同时保存到JSON和数据库）"""
     try:
         chat_file = os.path.join(CHAT_DATA_DIR, f'{username}.json')
         
@@ -87,9 +97,18 @@ def save_chat_message(username, message, response):
             "timestamp": os.urandom(16).hex()  # 简单的时间戳
         })
         
-        # 保存
+        # 保存到JSON（主存储）
         with open(chat_file, 'w', encoding='utf-8') as f:
             json.dump(chat_data, f, ensure_ascii=False, indent=2)
+        
+        # 同步到数据库（备份存储）
+        if DB_SYNC_AVAILABLE and get_db_sync:
+            db_sync = get_db_sync()
+            if db_sync.is_available():
+                # 使用username作为session_id
+                db_sync.sync_chat_message(username, 'user', message, username)
+                db_sync.sync_chat_message(username, 'assistant', response, username)
+                
     except Exception as e:
         print(f"保存聊天记录失败: {str(e)}")
 
@@ -311,11 +330,20 @@ def register():
             return jsonify({"detail": "用户名已存在"}), 400
         
         # 简单的密码存储（生产环境应该使用哈希）
+        password_hash = password  # 简化处理，实际应该hash
+        created_at_hash = str(os.urandom(16).hex())
+        
         users[username] = {
-            "password": password,
-            "created_at": str(os.urandom(16).hex())
+            "password": password_hash,
+            "created_at": created_at_hash
         }
         save_users(users)
+        
+        # 同步到数据库
+        if DB_SYNC_AVAILABLE and get_db_sync:
+            db_sync = get_db_sync()
+            if db_sync.is_available():
+                db_sync.sync_user(username, password_hash, None)
         
         # 生成简单的 token（生产环境应该使用 JWT）
         token = os.urandom(32).hex()
