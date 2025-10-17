@@ -24,12 +24,26 @@ except ImportError as e:
     simple_db = None
     print(f"❌ 数据库模块导入失败: {e}")
 
+# 导入数据库初始化API
+try:
+    from database_init_api import db_init_bp
+    DB_INIT_AVAILABLE = True
+except ImportError as e:
+    DB_INIT_AVAILABLE = False
+    db_init_bp = None
+    print(f"⚠️  数据库初始化API导入失败: {e}")
+
 load_dotenv()
 
 app = Flask(__name__)
 
 # CORS configuration
 CORS(app, origins=["*"])
+
+# 注册数据库初始化API蓝图
+if DB_INIT_AVAILABLE and db_init_bp:
+    app.register_blueprint(db_init_bp)
+    print("✅ 数据库初始化API已注册")
 
 # OpenAI configuration
 openai.api_key = os.getenv('OPENAI_API_KEY')
