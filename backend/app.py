@@ -39,6 +39,39 @@ def home():
 def health():
     return jsonify({"status": "healthy"})
 
+@app.route('/api/admin/users', methods=['GET'])
+def get_users():
+    """查看所有用户（管理员功能）"""
+    try:
+        users = load_users()
+        # 隐藏密码
+        users_info = {}
+        for username, data in users.items():
+            users_info[username] = {
+                "created_at": data.get("created_at", "unknown"),
+                "has_password": bool(data.get("password"))
+            }
+        return jsonify({
+            "total_users": len(users),
+            "users": users_info
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/admin/stats', methods=['GET'])
+def get_stats():
+    """查看统计信息（管理员功能）"""
+    try:
+        users = load_users()
+        return jsonify({
+            "total_users": len(users),
+            "total_chat_sessions": 0,  # 需要实现聊天记录统计
+            "api_status": "running",
+            "deepseek_configured": bool(os.getenv('DEEPSEEK_API_KEY'))
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/auth/register', methods=['POST', 'OPTIONS'])
 def register():
     """用户注册"""
