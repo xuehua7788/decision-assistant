@@ -6,13 +6,23 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import openai
 
+# 修复导入路径
+import os
+import sys
+
+# 修复导入路径
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, current_dir)
+
 # 导入简化的数据库模块
 try:
     from simple_database import simple_db
     DATABASE_AVAILABLE = True
-except ImportError:
+    print("✅ simple_database导入成功")
+except ImportError as e:
     DATABASE_AVAILABLE = False
     simple_db = None
+    print(f"❌ 数据库模块导入失败: {e}")
 
 load_dotenv()
 
@@ -123,6 +133,52 @@ def test_database_simple():
             "status": "error",
             "message": str(e),
             "database_available": DATABASE_AVAILABLE
+        }), 500
+
+@app.route('/api/debug/imports', methods=['GET'])
+def debug_imports():
+    """调试导入问题"""
+    try:
+        import sys
+        import os
+        
+        debug_info = {
+            "status": "success",
+            "python_path": sys.path[:5],  # 只显示前5个路径
+            "current_directory": os.getcwd(),
+            "files_in_current_dir": os.listdir('.'),
+            "database_available": DATABASE_AVAILABLE,
+            "simple_db_available": simple_db is not None,
+            "environment_variables": {
+                "DATABASE_URL": "configured" if os.getenv('DATABASE_URL') else "not_set",
+                "USE_DATABASE": os.getenv('USE_DATABASE', 'not_set'),
+                "ENABLE_ANALYTICS": os.getenv('ENABLE_ANALYTICS', 'not_set')
+            }
+        }
+        
+        # 测试psycopg2导入
+        try:
+            import psycopg2
+            debug_info["psycopg2_available"] = True
+        except Exception as e:
+            debug_info["psycopg2_available"] = False
+            debug_info["psycopg2_error"] = str(e)
+        
+        # 测试simple_database导入
+        try:
+            from simple_database import simple_db as test_db
+            debug_info["simple_database_import"] = True
+            debug_info["test_db_available"] = test_db is not None
+        except Exception as e:
+            debug_info["simple_database_import"] = False
+            debug_info["simple_database_error"] = str(e)
+        
+        return jsonify(debug_info), 200
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
         }), 500
 
 @app.route('/api/admin/users', methods=['GET'])
