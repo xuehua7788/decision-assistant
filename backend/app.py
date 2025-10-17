@@ -100,6 +100,46 @@ def home():
 def health():
     return jsonify({"status": "healthy"})
 
+@app.route('/api/database/test', methods=['GET'])
+def test_database_simple():
+    """简单的数据库测试接口"""
+    try:
+        # 测试环境变量
+        database_url = os.getenv('DATABASE_URL')
+        db_host = os.getenv('DB_HOST')
+        db_user = os.getenv('DB_USER')
+        db_password = os.getenv('DB_PASSWORD')
+        
+        result = {
+            "status": "success",
+            "message": "数据库测试接口正常",
+            "environment_variables": {
+                "DATABASE_URL": "configured" if database_url else "not_set",
+                "DB_HOST": "configured" if db_host else "not_set",
+                "DB_USER": "configured" if db_user else "not_set",
+                "DB_PASSWORD": "configured" if db_password else "not_set"
+            },
+            "database_available": DATABASE_AVAILABLE,
+            "config_available": db_config is not None
+        }
+        
+        # 如果数据库模块可用，测试连接
+        if DATABASE_AVAILABLE and db_config:
+            try:
+                connection_test = test_database_connection()
+                result["connection_test"] = connection_test
+            except Exception as e:
+                result["connection_test"] = {"status": "error", "message": str(e)}
+        
+        return jsonify(result), 200
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e),
+            "database_available": DATABASE_AVAILABLE
+        }), 500
+
 @app.route('/api/admin/users', methods=['GET'])
 def get_users():
     """查看所有用户（管理员功能）"""
