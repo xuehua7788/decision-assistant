@@ -6,15 +6,13 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import openai
 
-# 导入数据库模块
+# 导入简化的数据库模块
 try:
-    from database.connection import get_database_connection, test_database_connection
-    from database.models import UserModel, ChatModel, DecisionAnalysisModel
-    from database.api import database_bp
-    from config.database import DatabaseConfig
+    from simple_database import simple_db
     DATABASE_AVAILABLE = True
 except ImportError:
     DATABASE_AVAILABLE = False
+    simple_db = None
 
 load_dotenv()
 
@@ -23,21 +21,8 @@ app = Flask(__name__)
 # CORS configuration
 CORS(app, origins=["*"])
 
-# 注册数据库API蓝图（如果可用）
-if DATABASE_AVAILABLE:
-    app.register_blueprint(database_bp)
-
 # OpenAI configuration
 openai.api_key = os.getenv('OPENAI_API_KEY')
-
-# 数据库配置
-if DATABASE_AVAILABLE:
-    db_config = DatabaseConfig()
-    user_model = UserModel()
-    chat_model = ChatModel()
-    analysis_model = DecisionAnalysisModel()
-else:
-    db_config = None
 
 # 简单的用户存储（生产环境应该使用数据库）
 USERS_FILE = 'users_data.json'
@@ -120,13 +105,13 @@ def test_database_simple():
                 "DB_PASSWORD": "configured" if db_password else "not_set"
             },
             "database_available": DATABASE_AVAILABLE,
-            "config_available": db_config is not None
+            "config_available": simple_db is not None
         }
         
         # 如果数据库模块可用，测试连接
-        if DATABASE_AVAILABLE and db_config:
+        if DATABASE_AVAILABLE and simple_db:
             try:
-                connection_test = test_database_connection()
+                connection_test = simple_db.test_connection()
                 result["connection_test"] = connection_test
             except Exception as e:
                 result["connection_test"] = {"status": "error", "message": str(e)}
@@ -179,12 +164,12 @@ def get_stats():
         }
         
         # 添加数据库状态信息
-        if DATABASE_AVAILABLE and db_config:
+        if DATABASE_AVAILABLE and simple_db:
             stats.update({
                 "database_available": True,
-                "database_configured": db_config.is_database_available(),
-                "use_database": db_config.USE_DATABASE,
-                "enable_analytics": db_config.ENABLE_ANALYTICS
+                "database_configured": simple_db.is_available(),
+                "use_database": simple_db.use_database,
+                "enable_analytics": simple_db.enable_analytics
             })
         else:
             stats.update({
