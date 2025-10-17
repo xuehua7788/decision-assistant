@@ -55,6 +55,16 @@ if DB_INIT_AVAILABLE and db_init_bp:
     app.register_blueprint(db_init_bp)
     print("✅ 数据库初始化API已注册")
 
+# 导入算法分析API
+try:
+    from algorithm_api import algorithm_bp
+    ALGORITHM_API_AVAILABLE = True
+    app.register_blueprint(algorithm_bp)
+    print("✅ 算法分析API已注册")
+except ImportError as e:
+    ALGORITHM_API_AVAILABLE = False
+    print(f"⚠️ 算法分析API导入失败: {e}")
+
 # OpenAI configuration
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
