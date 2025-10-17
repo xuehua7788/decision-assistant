@@ -495,7 +495,7 @@ def chat():
                             )
                             
                             # 生成友好的回复
-                            friendly_response = f"""📊 **算法分析结果**
+                            friendly_response = f"""🤖 **AI算法分析结果** (使用加权评分法)
 
 **推荐：{algo_result['recommendation']}**
 
