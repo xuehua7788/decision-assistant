@@ -63,17 +63,11 @@ function App() {
   }, [API_URL]);
 
   // 检查本地存储的登录状态
+  // 清除所有缓存登录数据，强制显示登陆界面
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const username = localStorage.getItem('username');
-    
-    if (token && username) {
-      setUser({ username, token });
-      setCurrentView('app');
-      // 加载该用户的聊天记录
-      initializeChatForUser(username);
-    }
-  }, [initializeChatForUser]);
+    localStorage.clear();
+    setCurrentView("login");
+  }, []);
 
   const handleLogin = (userData) => {
     setUser(userData);
