@@ -3,6 +3,7 @@ import './App.css';
 import Login from './Login';
 import Register from './Register';
 
+// Version: 2024-10-22-fix-login-cache
 function App() {
   // 硬编码 Render 后端地址，确保生产环境正确
   const API_URL = 'https://decision-assistant-backend.onrender.com';
