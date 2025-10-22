@@ -3,7 +3,7 @@ import './App.css';
 import Login from './Login';
 import Register from './Register';
 
-// Version: 2024-10-22-fix-option-strategy-v2
+// Version: 2024-10-22-force-login-v3
 function App() {
   // 硬编码 Render 后端地址，确保生产环境正确
   const API_URL = 'https://decision-assistant-backend.onrender.com';
@@ -69,14 +69,16 @@ function App() {
 
   // 检查本地存储的登录状态
   useEffect(() => {
-    console.log('App Version: 2024-10-22-fix-option-strategy-v2');
-    // 开发环境不清除，生产环境清除缓存
-    if (window.location.hostname === 'decision-assistant-frontend-prod.vercel.app') {
-      localStorage.clear();
-      sessionStorage.clear();
-      console.log('✅ Production: Cleared all cache');
-    }
+    console.log('App Version: 2024-10-22-force-login-v3');
+    
+    // 强制显示登录界面，不管任何情况
+    localStorage.clear();
+    sessionStorage.clear();
     setCurrentView("login");
+    setUser(null);
+    setChatMessages([]);
+    
+    console.log('✅ Forced login view - all storage cleared');
   }, []);
 
   const handleLogin = (userData) => {
@@ -249,6 +251,12 @@ function App() {
       }
     }
   };
+
+  // 添加额外保护：如果没有用户且不在登录/注册页面，强制跳转到登录
+  if (!user && currentView !== 'login' && currentView !== 'register') {
+    setCurrentView('login');
+    return null;
+  }
 
   // 如果未登录，显示登录或注册页面
   if (currentView === 'login') {
