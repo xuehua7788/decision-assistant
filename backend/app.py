@@ -65,6 +65,17 @@ except ImportError as e:
     ALGORITHM_API_AVAILABLE = False
     print(f"⚠️ 算法分析API导入失败: {e}")
 
+# 导入期权策略处理器
+try:
+    from option_strategy_handler import OptionStrategyHandler
+    option_handler = OptionStrategyHandler()
+    OPTION_STRATEGY_AVAILABLE = True
+    print("✅ 期权策略处理器已加载")
+except ImportError as e:
+    OPTION_STRATEGY_AVAILABLE = False
+    option_handler = None
+    print(f"⚠️ 期权策略处理器导入失败: {e}")
+
 # OpenAI configuration
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
@@ -399,6 +410,33 @@ def login():
     except Exception as e:
         return jsonify({"detail": str(e)}), 500
 
+@app.route('/api/options/strategy', methods=['POST', 'OPTIONS'])
+def option_strategy():
+    """期权策略推荐API"""
+    if request.method == 'OPTIONS':
+        return jsonify({}), 200
+    
+    if not OPTION_STRATEGY_AVAILABLE or not option_handler:
+        return jsonify({"error": "期权策略功能暂不可用"}), 503
+    
+    try:
+        data = request.json
+        user_input = data.get('message', '')
+        current_price = data.get('current_price', None)
+        
+        if not user_input:
+            return jsonify({"error": "输入不能为空"}), 400
+        
+        # 处理期权策略请求
+        result = option_handler.handle_option_strategy_request(user_input, current_price)
+        
+        return jsonify(result), 200
+        
+    except Exception as e:
+        print(f"期权策略处理错误: {str(e)}")
+        return jsonify({"error": f"处理失败: {str(e)}"}), 500
+
+
 @app.route('/api/decisions/chat', methods=['POST', 'OPTIONS'])
 def chat():
     """聊天功能"""
@@ -412,6 +450,34 @@ def chat():
         
         if not message:
             return jsonify({"error": "消息不能为空"}), 400
+        
+        # 优先检查是否是期权策略请求
+        if OPTION_STRATEGY_AVAILABLE and option_handler:
+            if option_handler.is_option_strategy_request(message):
+                print(f"DEBUG: 检测到期权策略请求")
+                try:
+                    option_result = option_handler.handle_option_strategy_request(message)
+                    
+                    if option_result['success']:
+                        # 生成文字回复
+                        text_response = option_handler.generate_text_response(option_result)
+                        
+                        # 保存聊天记录
+                        if session_id:
+                            save_chat_message(session_id, message, text_response)
+                        
+                        return jsonify({
+                            "response": text_response,
+                            "session_id": session_id,
+                            "option_strategy_used": True,
+                            "option_strategy_result": option_result
+                        }), 200
+                    else:
+                        # 置信度太低，继续使用AI处理
+                        print(f"DEBUG: 期权策略置信度太低，使用AI处理")
+                except Exception as option_error:
+                    print(f"期权策略处理失败: {option_error}")
+                    # 继续使用AI处理
         
         # 使用 DeepSeek API 生成智能回复
         try:

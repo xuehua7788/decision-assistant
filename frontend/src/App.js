@@ -2,6 +2,7 @@
 import './App.css';
 import Login from './Login';
 import Register from './Register';
+import OptionStrategy from './OptionStrategy';
 
 function App() {
   // 硬编码 Render 后端地址，确保生产环境正确
@@ -23,10 +24,8 @@ function App() {
   const [algoOptions, setAlgoOptions] = useState('[\n  {"name": "选项A", "价格": 8, "性能": 9, "外观": 7},\n  {"name": "选项B", "价格": 9, "性能": 7, "外观": 8}\n]');
   const [algoResult, setAlgoResult] = useState(null);
 
-  // 期权策略相关状态（预留给未来功能）
-  // eslint-disable-next-line no-unused-vars
+  // 期权策略相关状态
   const [optionStrategyResult, setOptionStrategyResult] = useState(null);
-  // eslint-disable-next-line no-unused-vars
   const [showOptionStrategy, setShowOptionStrategy] = useState(false);
 
   // 初始化用户聊天记录的函数
@@ -211,6 +210,14 @@ function App() {
       });
       
       const data = await response.json();
+      
+      // 检查是否返回了期权策略结果
+      if (data.option_strategy_used && data.option_strategy_result) {
+        console.log('🎯 检测到期权策略响应:', data.option_strategy_result);
+        setOptionStrategyResult(data.option_strategy_result);
+        setShowOptionStrategy(true);
+      }
+      
       const updatedMessages = [...newMessages, { type: 'assistant', text: data.response }];
       setChatMessages(updatedMessages);
       
@@ -747,6 +754,17 @@ function App() {
           </div>
         )}
       </div>
+
+      {/* 期权策略模态框 */}
+      {showOptionStrategy && optionStrategyResult && (
+        <OptionStrategy
+          optionResult={optionStrategyResult}
+          onClose={() => {
+            setShowOptionStrategy(false);
+            setOptionStrategyResult(null);
+          }}
+        />
+      )}
     </div>
   );
 }
