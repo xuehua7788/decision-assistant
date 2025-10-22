@@ -23,8 +23,10 @@ function App() {
   const [algoOptions, setAlgoOptions] = useState('[\n  {"name": "选项A", "价格": 8, "性能": 9, "外观": 7},\n  {"name": "选项B", "价格": 9, "性能": 7, "外观": 8}\n]');
   const [algoResult, setAlgoResult] = useState(null);
 
-  // 期权策略相关状态
+  // 期权策略相关状态（预留给未来功能）
+  // eslint-disable-next-line no-unused-vars
   const [optionStrategyResult, setOptionStrategyResult] = useState(null);
+  // eslint-disable-next-line no-unused-vars
   const [showOptionStrategy, setShowOptionStrategy] = useState(false);
 
   // 初始化用户聊天记录的函数
