@@ -1,58 +1,34 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import './App.css';
-import Login from './Login';
-import Register from './Register';
 
-// Version: 2024-10-22-force-login-debug
 function App() {
-  const API_URL = 'https://decision-assistant-backend.onrender.com';
-  const [currentView, setCurrentView] = useState('login');
-  const [user, setUser] = useState(null);
-
-  // 强制清除所有缓存并显示登录界面
-  useEffect(() => {
-    console.log('🔍 App Version: 2024-10-22-force-login-debug');
-    localStorage.clear();
-    sessionStorage.clear();
-    setCurrentView("login");
-    setUser(null);
-    console.log('✅ Forced login view - all storage cleared');
-  }, []);
-
-  const handleLogin = (userData) => {
-    console.log('✅ Login successful:', userData);
-    setUser(userData);
-    setCurrentView('app');
-  };
-
-  const handleRegister = (userData) => {
-    console.log('✅ Register successful:', userData);
-    setUser(userData);
-    setCurrentView('app');
-  };
-
-  // 🔴 临时调试：强制只显示登录界面
-  console.log('🔍 Render Debug - currentView:', currentView, 'user:', user);
-  
-  if (currentView === 'register') {
-    return <Register onRegister={handleRegister} onSwitchToLogin={() => setCurrentView('login')} />;
-  }
-  
-  if (currentView === 'app' && user) {
-    return (
-      <div style={{ padding: '50px', textAlign: 'center' }}>
-        <h1>✅ 登录成功！</h1>
-        <p>欢迎 {user.username}</p>
-        <button onClick={() => { setUser(null); setCurrentView('login'); localStorage.clear(); }}>
-          退出登录
+  return (
+    <div style={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      height: '100vh',
+      backgroundColor: '#f0f0f0'
+    }}>
+      <div style={{
+        padding: '40px',
+        backgroundColor: 'white',
+        borderRadius: '8px',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
+      }}>
+        <h1>登录测试页面</h1>
+        <p>版本: 2024-10-22-emergency-test</p>
+        <input type="text" placeholder="用户名" style={{display: 'block', margin: '10px 0', padding: '10px', width: '250px'}} />
+        <input type="password" placeholder="密码" style={{display: 'block', margin: '10px 0', padding: '10px', width: '250px'}} />
+        <button style={{padding: '10px 20px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px', width: '270px', marginTop: '10px'}}>
+          登录
         </button>
+        <p style={{marginTop: '20px', color: '#666', fontSize: '14px'}}>
+          如果您能看到这个页面，说明React正常工作
+        </p>
       </div>
-    );
-  }
-  
-  // 默认显示登录界面
-  return <Login onLogin={handleLogin} onSwitchToRegister={() => setCurrentView('register')} />;
+    </div>
+  );
 }
 
 export default App;
-
