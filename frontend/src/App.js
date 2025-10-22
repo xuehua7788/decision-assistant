@@ -3,7 +3,7 @@ import './App.css';
 import Login from './Login';
 import Register from './Register';
 
-// Version: 2024-10-22-fix-login-cache
+// Version: 2024-10-22-fix-option-strategy-v2
 function App() {
   // 硬编码 Render 后端地址，确保生产环境正确
   const API_URL = 'https://decision-assistant-backend.onrender.com';
@@ -23,6 +23,10 @@ function App() {
   const [algoQuestion, setAlgoQuestion] = useState('');
   const [algoOptions, setAlgoOptions] = useState('[\n  {"name": "选项A", "价格": 8, "性能": 9, "外观": 7},\n  {"name": "选项B", "价格": 9, "性能": 7, "外观": 8}\n]');
   const [algoResult, setAlgoResult] = useState(null);
+
+  // 期权策略相关状态
+  const [optionStrategyResult, setOptionStrategyResult] = useState(null);
+  const [showOptionStrategy, setShowOptionStrategy] = useState(false);
 
   // 初始化用户聊天记录的函数
   const initializeChatForUser = React.useCallback((username) => {
@@ -64,9 +68,14 @@ function App() {
   }, [API_URL]);
 
   // 检查本地存储的登录状态
-  // 清除所有缓存登录数据，强制显示登陆界面
   useEffect(() => {
-    localStorage.clear();
+    console.log('App Version: 2024-10-22-fix-option-strategy-v2');
+    // 开发环境不清除，生产环境清除缓存
+    if (window.location.hostname === 'decision-assistant-frontend-prod.vercel.app') {
+      localStorage.clear();
+      sessionStorage.clear();
+      console.log('✅ Production: Cleared all cache');
+    }
     setCurrentView("login");
   }, []);
 
@@ -212,6 +221,19 @@ function App() {
       const data = await response.json();
       const updatedMessages = [...newMessages, { type: 'assistant', text: data.response }];
       setChatMessages(updatedMessages);
+      
+      // 检查是否是期权策略响应
+      if (data.option_strategy_used && data.option_strategy_result) {
+        console.log('=== Option Strategy Detected ===');
+        console.log('Setting option strategy result:', data.option_strategy_result);
+        setOptionStrategyResult(data.option_strategy_result);
+        setShowOptionStrategy(true);
+        // 添加强制刷新
+        setTimeout(() => {
+          console.log('Option strategy should be visible now');
+          setShowOptionStrategy(true);
+        }, 100);
+      }
       
       // 保存到localStorage
       if (user?.username) {
@@ -746,6 +768,52 @@ function App() {
           </div>
         )}
       </div>
+
+      {/* 期权策略可视化组件 */}
+      {showOptionStrategy && optionStrategyResult && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 99999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'rgba(0, 0, 0, 0.5)'
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            padding: '30px',
+            maxWidth: '90%',
+            maxHeight: '90%',
+            overflow: 'auto',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+          }}>
+            <h2>期权策略分析</h2>
+            <pre>{JSON.stringify(optionStrategyResult, null, 2)}</pre>
+            <button
+              onClick={() => {
+                setShowOptionStrategy(false);
+                setOptionStrategyResult(null);
+              }}
+              style={{
+                marginTop: '20px',
+                padding: '10px 20px',
+                background: '#667eea',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer'
+              }}
+            >
+              关闭
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
