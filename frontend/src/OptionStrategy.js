@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { Chart, registerables } from 'chart.js';
 
 // Register Chart.js components
@@ -7,17 +7,110 @@ Chart.register(...registerables);
 const OptionStrategy = ({ optionResult, onClose }) => {
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
+  
+  // 可编辑的参数状态
+  const [editableParams, setEditableParams] = useState(null);
+  const [editedMetrics, setEditedMetrics] = useState(null);
+  const [editedPayoffData, setEditedPayoffData] = useState(null);
+  const [showParameterEditor, setShowParameterEditor] = useState(false);
+
+  // 初始化可编辑参数
+  useEffect(() => {
+    if (optionResult?.strategy) {
+      setEditableParams(optionResult.strategy.parameters);
+      setEditedMetrics(optionResult.strategy.metrics);
+      setEditedPayoffData(optionResult.strategy.payoff_data);
+    }
+  }, [optionResult]);
+
+  // 重新计算Payoff和指标的函数
+  const recalculateStrategy = (newParams) => {
+    const strategyType = optionResult.strategy.type;
+    const cp = newParams.current_price;
+    
+    // 重新计算指标
+    let newMetrics = { ...editedMetrics };
+    
+    if (strategyType === 'long_call') {
+      newMetrics.max_loss = -newParams.premium_paid * 100;
+      newMetrics.max_gain = 999999;
+      newMetrics.breakeven = newParams.buy_strike + newParams.premium_paid;
+    } else if (strategyType === 'bull_call_spread' || strategyType === 'bull_call_spread_wide') {
+      const netPremium = (newParams.premium_paid - newParams.premium_received) * 100;
+      newMetrics.max_loss = -netPremium;
+      newMetrics.max_gain = (newParams.sell_strike - newParams.buy_strike) * 100 - netPremium;
+      newMetrics.breakeven = newParams.buy_strike + (newParams.premium_paid - newParams.premium_received);
+    } else if (strategyType === 'sell_otm_put' || strategyType === 'sell_deep_otm_put') {
+      newMetrics.max_loss = -(newParams.sell_strike * 100 - newParams.premium_received * 100);
+      newMetrics.max_gain = newParams.premium_received * 100;
+      newMetrics.breakeven = newParams.sell_strike - newParams.premium_received;
+    } else if (strategyType === 'long_put') {
+      newMetrics.max_loss = -newParams.premium_paid * 100;
+      newMetrics.max_gain = (newParams.buy_strike - 0) * 100 - newParams.premium_paid * 100;
+      newMetrics.breakeven = newParams.buy_strike - newParams.premium_paid;
+    } else if (strategyType === 'bear_put_spread') {
+      const netPremium = (newParams.premium_paid - newParams.premium_received) * 100;
+      newMetrics.max_loss = -netPremium;
+      newMetrics.max_gain = (newParams.buy_strike - newParams.sell_strike) * 100 - netPremium;
+      newMetrics.breakeven = newParams.buy_strike - (newParams.premium_paid - newParams.premium_received);
+    }
+    
+    // 重新生成Payoff数据
+    const newPayoffData = [];
+    const minPrice = cp * 0.7;
+    const maxPrice = cp * 1.3;
+    const step = (maxPrice - minPrice) / 100;
+    
+    for (let i = 0; i <= 100; i++) {
+      const stockPrice = minPrice + i * step;
+      let payoff = 0;
+      
+      if (strategyType === 'long_call') {
+        payoff = (Math.max(0, stockPrice - newParams.buy_strike) - newParams.premium_paid) * 100;
+      } else if (strategyType === 'bull_call_spread' || strategyType === 'bull_call_spread_wide') {
+        const longCallPayoff = Math.max(0, stockPrice - newParams.buy_strike) - newParams.premium_paid;
+        const shortCallPayoff = newParams.premium_received - Math.max(0, stockPrice - newParams.sell_strike);
+        payoff = (longCallPayoff + shortCallPayoff) * 100;
+      } else if (strategyType === 'sell_otm_put' || strategyType === 'sell_deep_otm_put') {
+        payoff = (newParams.premium_received - Math.max(0, newParams.sell_strike - stockPrice)) * 100;
+      } else if (strategyType === 'long_put') {
+        payoff = (Math.max(0, newParams.buy_strike - stockPrice) - newParams.premium_paid) * 100;
+      } else if (strategyType === 'bear_put_spread') {
+        const longPutPayoff = Math.max(0, newParams.buy_strike - stockPrice) - newParams.premium_paid;
+        const shortPutPayoff = newParams.premium_received - Math.max(0, newParams.sell_strike - stockPrice);
+        payoff = (longPutPayoff + shortPutPayoff) * 100;
+      }
+      
+      newPayoffData.push({
+        price: parseFloat(stockPrice.toFixed(2)),
+        payoff: parseFloat(payoff.toFixed(2))
+      });
+    }
+    
+    setEditedMetrics(newMetrics);
+    setEditedPayoffData(newPayoffData);
+  };
+
+  // 更新参数的处理函数
+  const handleParamChange = (paramName, value) => {
+    const newParams = {
+      ...editableParams,
+      [paramName]: parseFloat(value) || 0
+    };
+    setEditableParams(newParams);
+    recalculateStrategy(newParams);
+  };
 
   useEffect(() => {
-    // 创建图表
-    if (chartRef.current && optionResult?.strategy?.payoff_data) {
+    // 创建图表 - 使用编辑后的数据
+    if (chartRef.current && editedPayoffData) {
       // 销毁之前的图表实例
       if (chartInstance.current) {
         chartInstance.current.destroy();
       }
 
       const ctx = chartRef.current.getContext('2d');
-      const payoffData = optionResult.strategy.payoff_data;
+      const payoffData = editedPayoffData;
 
       chartInstance.current = new Chart(ctx, {
         type: 'line',
@@ -136,7 +229,7 @@ const OptionStrategy = ({ optionResult, onClose }) => {
         chartInstance.current.destroy();
       }
     };
-  }, [optionResult]);
+  }, [editedPayoffData]); // 改为依赖编辑后的数据
 
   if (!optionResult || !optionResult.strategy) {
     return (
@@ -153,7 +246,9 @@ const OptionStrategy = ({ optionResult, onClose }) => {
   }
 
   const { parsed_intent, strategy } = optionResult;
-  const { parameters, metrics } = strategy;
+  // 使用编辑后的参数和指标，如果没有则使用原始值
+  const parameters = editableParams || strategy.parameters;
+  const metrics = editedMetrics || strategy.metrics;
 
   // 方向映射
   const directionMap = {
@@ -233,41 +328,111 @@ const OptionStrategy = ({ optionResult, onClose }) => {
 
           {/* 策略参数 */}
           <div style={styles.section}>
-            <h3 style={styles.sectionTitle}>📋 策略参数</h3>
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px'}}>
+              <h3 style={{...styles.sectionTitle, margin: 0}}>📋 策略参数</h3>
+              <button 
+                onClick={() => setShowParameterEditor(!showParameterEditor)}
+                style={styles.editButton}
+              >
+                {showParameterEditor ? '🔒 锁定参数' : '✏️ 调整参数'}
+              </button>
+            </div>
+            
             <div style={styles.paramsGrid}>
               <div style={styles.paramItem}>
                 <span style={styles.paramLabel}>当前股价:</span>
-                <span style={styles.paramValue}>${parameters.current_price.toFixed(2)}</span>
+                {showParameterEditor ? (
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={parameters.current_price}
+                    onChange={(e) => handleParamChange('current_price', e.target.value)}
+                    style={styles.paramInput}
+                  />
+                ) : (
+                  <span style={styles.paramValue}>${parameters.current_price.toFixed(2)}</span>
+                )}
               </div>
-              {parameters.buy_strike && (
+              
+              {parameters.buy_strike !== null && parameters.buy_strike !== undefined && (
                 <div style={styles.paramItem}>
                   <span style={styles.paramLabel}>买入执行价:</span>
-                  <span style={styles.paramValue}>${parameters.buy_strike.toFixed(2)}</span>
+                  {showParameterEditor ? (
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={parameters.buy_strike}
+                      onChange={(e) => handleParamChange('buy_strike', e.target.value)}
+                      style={styles.paramInput}
+                    />
+                  ) : (
+                    <span style={styles.paramValue}>${parameters.buy_strike.toFixed(2)}</span>
+                  )}
                 </div>
               )}
-              {parameters.sell_strike && (
+              
+              {parameters.sell_strike !== null && parameters.sell_strike !== undefined && (
                 <div style={styles.paramItem}>
                   <span style={styles.paramLabel}>卖出执行价:</span>
-                  <span style={styles.paramValue}>${parameters.sell_strike.toFixed(2)}</span>
+                  {showParameterEditor ? (
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={parameters.sell_strike}
+                      onChange={(e) => handleParamChange('sell_strike', e.target.value)}
+                      style={styles.paramInput}
+                    />
+                  ) : (
+                    <span style={styles.paramValue}>${parameters.sell_strike.toFixed(2)}</span>
+                  )}
                 </div>
               )}
-              {parameters.premium_paid && (
+              
+              {parameters.premium_paid !== null && parameters.premium_paid !== undefined && (
                 <div style={styles.paramItem}>
                   <span style={styles.paramLabel}>支付权利金:</span>
-                  <span style={styles.paramValue}>${parameters.premium_paid.toFixed(2)}</span>
+                  {showParameterEditor ? (
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={parameters.premium_paid}
+                      onChange={(e) => handleParamChange('premium_paid', e.target.value)}
+                      style={styles.paramInput}
+                    />
+                  ) : (
+                    <span style={styles.paramValue}>${parameters.premium_paid.toFixed(2)}</span>
+                  )}
                 </div>
               )}
-              {parameters.premium_received && (
+              
+              {parameters.premium_received !== null && parameters.premium_received !== undefined && (
                 <div style={styles.paramItem}>
                   <span style={styles.paramLabel}>收到权利金:</span>
-                  <span style={styles.paramValue}>${parameters.premium_received.toFixed(2)}</span>
+                  {showParameterEditor ? (
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={parameters.premium_received}
+                      onChange={(e) => handleParamChange('premium_received', e.target.value)}
+                      style={styles.paramInput}
+                    />
+                  ) : (
+                    <span style={styles.paramValue}>${parameters.premium_received.toFixed(2)}</span>
+                  )}
                 </div>
               )}
+              
               <div style={styles.paramItem}>
                 <span style={styles.paramLabel}>到期时间:</span>
                 <span style={styles.paramValue}>{parameters.expiry}</span>
               </div>
             </div>
+            
+            {showParameterEditor && (
+              <div style={styles.hint}>
+                💡 提示: 修改参数后，Payoff图表和风险指标会实时更新
+              </div>
+            )}
           </div>
 
           {/* 风险指标 */}
@@ -510,6 +675,38 @@ const styles = {
     cursor: 'pointer',
     fontWeight: '500',
     transition: 'background-color 0.2s'
+  },
+  editButton: {
+    padding: '8px 16px',
+    backgroundColor: '#FF9800',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    cursor: 'pointer',
+    fontWeight: '500',
+    transition: 'background-color 0.3s',
+  },
+  paramInput: {
+    width: '100px',
+    padding: '6px 10px',
+    border: '2px solid #2196F3',
+    borderRadius: '4px',
+    fontSize: '14px',
+    fontWeight: '600',
+    textAlign: 'right',
+    outline: 'none',
+    transition: 'border-color 0.2s'
+  },
+  hint: {
+    marginTop: '12px',
+    padding: '10px',
+    backgroundColor: '#E3F2FD',
+    border: '1px solid #2196F3',
+    borderRadius: '6px',
+    color: '#1976D2',
+    fontSize: '13px',
+    textAlign: 'center'
   }
 };
 
