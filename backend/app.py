@@ -507,31 +507,8 @@ def chat():
                 "Content-Type": "application/json",
             }
             
-            # 增强的系统提示，让AI识别是否需要算法分析
-            system_prompt = """你是一个专业的决策助手。当用户描述决策问题时：
-
-1. 如果用户明确提到多个选项及其评分/特点，回复JSON格式：
-{
-  "use_algorithm": true,
-  "question": "用户的问题",
-  "options": [{"name": "选项名", "属性1": 评分, "属性2": 评分}]
-}
-
-2. 否则，正常对话帮助用户。
-
-示例：
-用户："我要买笔记本，MacBook性能10分价格7分，ThinkPad性能8分价格9分"
-你应回复：
-{
-  "use_algorithm": true,
-  "question": "选择笔记本电脑",
-  "options": [
-    {"name": "MacBook", "性能": 10, "价格": 7},
-    {"name": "ThinkPad", "性能": 8, "价格": 9}
-  ]
-}
-
-用中文回复，简洁明了。"""
+            # 简化的系统提示
+            system_prompt = """你是一个专业的决策助手。帮助用户分析决策问题，提供清晰、理性的建议。用中文回复，简洁明了。"""
             
             data = {
                 "model": "deepseek-chat",
@@ -556,67 +533,7 @@ def chat():
                 ai_response = result["choices"][0]["message"]["content"]
                 print(f"DEBUG: DeepSeek API response = {ai_response[:100]}...")
                 
-                # 检测AI是否返回了结构化数据用于算法分析
-                try:
-                    # 尝试解析JSON
-                    parsed_response = json.loads(ai_response.strip())
-                    
-                    if isinstance(parsed_response, dict) and parsed_response.get('use_algorithm'):
-                        # AI识别到需要算法分析
-                        print(f"DEBUG: 检测到算法分析请求")
-                        
-                        # 调用算法分析
-                        try:
-                            from algorithms.algorithm_manager import get_algorithm_manager
-                            
-                            manager = get_algorithm_manager()
-                            algo_result = manager.analyze(
-                                algorithm_id='weighted_scoring',
-                                question=parsed_response.get('question', ''),
-                                options=parsed_response.get('options', [])
-                            )
-                            
-                            # 生成友好的回复
-                            friendly_response = f"""🤖 **AI算法分析结果** (使用加权评分法)
-
-**推荐：{algo_result['recommendation']}**
-
-**得分详情：**
-"""
-                            for option, score in algo_result['scores'].items():
-                                friendly_response += f"- {option}: {score:.2f}分\n"
-                            
-                            friendly_response += f"\n{algo_result['summary']}"
-                            
-                            # 保存聊天记录
-                            if session_id:
-                                save_chat_message(session_id, message, friendly_response)
-                            
-                            return jsonify({
-                                "response": friendly_response,
-                                "session_id": session_id,
-                                "algorithm_used": True,
-                                "algorithm_result": algo_result
-                            }), 200
-                            
-                        except Exception as algo_error:
-                            # 算法调用失败
-                            print(f"算法调用失败: {algo_error}")
-                            fallback_response = f"检测到您需要算法分析，但处理时出错: {str(algo_error)}"
-                            
-                            if session_id:
-                                save_chat_message(session_id, message, fallback_response)
-                            
-                            return jsonify({
-                                "response": fallback_response,
-                                "session_id": session_id
-                            }), 200
-                            
-                except (json.JSONDecodeError, ValueError):
-                    # 不是JSON，正常文本回复
-                    pass
-                
-                # 保存聊天记录（正常对话）
+                # 保存聊天记录
                 if session_id:
                     save_chat_message(session_id, message, ai_response)
                 
