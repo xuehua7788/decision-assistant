@@ -316,6 +316,22 @@ def get_all_chats():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/decisions/chat/<username>', methods=['GET', 'OPTIONS'])
+def get_user_chat_history(username):
+    """获取特定用户的聊天记录"""
+    if request.method == 'OPTIONS':
+        return jsonify({}), 200
+    
+    try:
+        chat_data = load_chat_data(username)
+        if chat_data:
+            return jsonify(chat_data), 200
+        else:
+            # 新用户，返回空消息列表
+            return jsonify({"username": username, "messages": []}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/admin/chats/<username>', methods=['GET'])
 def get_user_chat(username):
     """查看特定用户的聊天记录（管理员功能）"""

@@ -29,31 +29,55 @@ function App() {
   const [showOptionStrategy, setShowOptionStrategy] = useState(false);
 
   // 初始化用户聊天记录的函数
-  const initializeChatForUser = React.useCallback((username) => {
-    // 从localStorage获取该用户的聊天记录
+  const initializeChatForUser = React.useCallback(async (username) => {
+    // 优先从后端API获取该用户的聊天记录
+    try {
+      const response = await fetch(`${API_URL}/api/decisions/chat/${username}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.messages && data.messages.length > 0) {
+          // 将后端格式转换为前端格式
+          const formattedMessages = [];
+          data.messages.forEach(msg => {
+            if (msg.user) {
+              formattedMessages.push({ type: 'user', text: msg.user });
+            }
+            if (msg.assistant) {
+              formattedMessages.push({ type: 'assistant', text: msg.assistant });
+            }
+          });
+          
+          setChatMessages(formattedMessages);
+          // 同时更新localStorage作为缓存
+          localStorage.setItem(`chat_${username}`, JSON.stringify(formattedMessages));
+          return;
+        }
+      }
+    } catch (error) {
+      console.log('无法从后端加载聊天记录，使用本地缓存:', error);
+    }
+    
+    // 如果后端加载失败，尝试从localStorage获取
     const userChatKey = `chat_${username}`;
     const savedChat = localStorage.getItem(userChatKey);
     
     if (savedChat) {
       try {
         setChatMessages(JSON.parse(savedChat));
+        return;
       } catch (e) {
-        // 如果解析失败，使用默认欢迎消息
-        const welcomeMessage = [
-          { type: 'assistant', text: `Hello ${username}! I'm your decision assistant. Tell me what decision you're facing, and I'll help you think through it step by step. What's on your mind?` }
-        ];
-        setChatMessages(welcomeMessage);
-        localStorage.setItem(userChatKey, JSON.stringify(welcomeMessage));
+        console.log('localStorage解析失败:', e);
       }
-    } else {
-      // 新用户，创建欢迎消息
-      const welcomeMessage = [
-        { type: 'assistant', text: `Hello ${username}! I'm your decision assistant. Tell me what decision you're facing, and I'll help you think through it step by step. What's on your mind?` }
-      ];
-      setChatMessages(welcomeMessage);
-      localStorage.setItem(userChatKey, JSON.stringify(welcomeMessage));
     }
-  }, []);
+    
+    // 如果都失败，创建欢迎消息
+    const welcomeMessage = [
+      { type: 'assistant', text: `Hello ${username}! I'm your decision assistant. Tell me what decision you're facing, and I'll help you think through it step by step. What's on your mind?` }
+    ];
+    setChatMessages(welcomeMessage);
+    localStorage.setItem(userChatKey, JSON.stringify(welcomeMessage));
+  }, [API_URL]);
 
   // 加载算法列表
   useEffect(() => {
@@ -71,6 +95,21 @@ function App() {
   // 用户必须手动登录才能进入应用
 
   const handleLogin = (userData) => {
+    // 清理其他用户的localStorage缓存
+    const currentUsername = userData.username;
+    const keysToRemove = [];
+    
+    // 找出所有不属于当前用户的聊天记录键
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('chat_') && key !== `chat_${currentUsername}`) {
+        keysToRemove.push(key);
+      }
+    }
+    
+    // 删除其他用户的聊天记录
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+    
     setUser(userData);
     setCurrentView('app');
     // 为当前用户加载或初始化聊天记录
@@ -78,6 +117,21 @@ function App() {
   };
 
   const handleRegister = (userData) => {
+    // 清理所有旧的localStorage缓存
+    const currentUsername = userData.username;
+    const keysToRemove = [];
+    
+    // 找出所有不属于当前用户的聊天记录键
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('chat_') && key !== `chat_${currentUsername}`) {
+        keysToRemove.push(key);
+      }
+    }
+    
+    // 删除其他用户的聊天记录
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+    
     setUser(userData);
     setCurrentView('app');
     // 新用户，初始化欢迎消息
