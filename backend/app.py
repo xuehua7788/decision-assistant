@@ -141,6 +141,56 @@ def load_chat_data(username):
             return json.load(f)
     return None
 
+def load_recent_chat_history(session_id, max_messages=10):
+    """
+    加载最近的聊天历史（用于AI上下文）
+    
+    Args:
+        session_id: 用户会话ID（username）
+        max_messages: 最多加载多少条消息（默认10条 = 5轮对话）
+    
+    Returns:
+        列表，每个元素是 {"sender": "user"/"assistant", "text": "..."}
+    """
+    try:
+        chat_data = load_chat_data(session_id)
+        if not chat_data or 'messages' not in chat_data:
+            return []
+        
+        # 将旧格式转换为统一格式
+        history = []
+        for msg in chat_data['messages']:
+            # 旧格式: {"user": "...", "assistant": "...", "timestamp": "..."}
+            if 'user' in msg:
+                history.append({"sender": "user", "text": msg['user']})
+            if 'assistant' in msg:
+                history.append({"sender": "assistant", "text": msg['assistant']})
+        
+        # 只返回最近的N条消息
+        return history[-max_messages:] if len(history) > max_messages else history
+        
+    except Exception as e:
+        print(f"加载聊天历史失败: {str(e)}")
+        return []
+
+def build_messages_from_history(chat_history):
+    """
+    将聊天历史转换为DeepSeek API消息格式
+    
+    Args:
+        chat_history: [{"sender": "user"/"assistant", "text": "..."}]
+    
+    Returns:
+        [{"role": "user"/"assistant", "content": "..."}]
+    """
+    messages = []
+    for msg in chat_history:
+        if msg['sender'] == 'user':
+            messages.append({"role": "user", "content": msg['text']})
+        else:
+            messages.append({"role": "assistant", "content": msg['text']})
+    return messages
+
 @app.route('/')
 def home():
     return jsonify({"status": "Decision Assistant API", "version": "1.0"})
@@ -453,6 +503,69 @@ def option_strategy():
         return jsonify({"error": f"处理失败: {str(e)}"}), 500
 
 
+def call_ai_for_chat(message, chat_history, deepseek_api_key, intent_context=None):
+    """
+    AI #2: 聊天助手
+    提供自然的对话回复
+    
+    Args:
+        message: 用户当前消息
+        chat_history: 聊天历史 [{"sender": "user"/"assistant", "text": "..."}]
+        deepseek_api_key: DeepSeek API密钥
+        intent_context: AI #1的意图分析结果（可选）
+    
+    Returns:
+        AI的聊天回复文本
+    """
+    system_prompt = """你是一个专业、友好的决策助手。
+
+**你的职责**：
+- 与用户自然地聊天，回答各种问题
+- 如果用户询问投资相关的信息（如股票行情、公司新闻），可以讨论，但不要主动推荐期权策略
+- 如果用户明确表达了投资观点，系统会自动触发期权分析，你不需要提及
+
+**回复风格**：
+- 自然、友好、专业
+- 不要生硬地提示"如果您想要期权策略..."
+- 根据上下文理解用户意图
+
+请用中文自然地回复用户。"""
+
+    if intent_context:
+        system_prompt += f"\n\n**当前分析**: {intent_context}"
+    
+    # 构建消息列表（带聊天历史）
+    messages = [{"role": "system", "content": system_prompt}]
+    messages.extend(build_messages_from_history(chat_history))
+    messages.append({"role": "user", "content": message})
+    
+    # 调用DeepSeek API
+    headers = {
+        "Authorization": f"Bearer {deepseek_api_key}",
+        "Content-Type": "application/json",
+    }
+    
+    data = {
+        "model": "deepseek-chat",
+        "messages": messages,
+        "temperature": 0.7,
+        "max_tokens": 1000,
+    }
+    
+    response = requests.post(
+        "https://api.deepseek.com/v1/chat/completions",
+        headers=headers,
+        json=data,
+        timeout=30
+    )
+    
+    if response.status_code == 200:
+        result = response.json()
+        return result["choices"][0]["message"]["content"]
+    else:
+        raise Exception(f"DeepSeek API error: {response.status_code}")
+
+
 @app.route('/api/decisions/chat', methods=['POST', 'OPTIONS'])
 def chat():
     """聊天功能"""
@@ -549,12 +662,19 @@ def chat():
 
 用中文回复，JSON格式要完整。"""
             
+            # 加载聊天历史（最近5轮对话 = 10条消息）
+            chat_history = load_recent_chat_history(session_id, max_messages=10)
+            
+            # 构建带历史的消息列表（AI #1: 意图监听）
+            messages = [{"role": "system", "content": system_prompt}]
+            messages.extend(build_messages_from_history(chat_history))
+            messages.append({"role": "user", "content": message})
+            
+            print(f"DEBUG: AI #1 意图分析，消息数={len(messages)}，历史消息数={len(chat_history)}")
+            
             data = {
                 "model": "deepseek-chat",
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": message}
-                ],
+                "messages": messages,
                 "temperature": 0.7,
                 "max_tokens": 1000,
             }
@@ -660,18 +780,40 @@ def chat():
                                 print(f"期权策略处理失败: {strategy_error}")
                                 # 继续返回普通对话
                     
-                    # 如果不需要期权策略，返回AI的reasoning作为回复
+                    # 如果不需要期权策略，使用AI #2进行自然聊天
                     if isinstance(intent_analysis, dict) and not intent_analysis.get('need_option_strategy'):
-                        reasoning = intent_analysis.get('reasoning', '')
-                        friendly_response = f"我理解了。{reasoning}\n\n如果您有自己的投资观点想要分析期权策略，请直接告诉我您的看法，例如：\"我看涨某某股票\"。"
+                        print("DEBUG: 不需要期权策略，调用AI #2进行自然聊天")
                         
-                        if session_id:
-                            save_chat_message(session_id, message, friendly_response)
-                        
-                        return jsonify({
-                            "response": friendly_response,
-                            "session_id": session_id
-                        }), 200
+                        try:
+                            # 调用AI #2聊天助手（带上下文和AI #1的分析结果）
+                            chat_response = call_ai_for_chat(
+                                message=message,
+                                chat_history=chat_history,  # 复用之前加载的历史
+                                deepseek_api_key=deepseek_api_key,
+                                intent_context=intent_analysis.get('reasoning')
+                            )
+                            
+                            if session_id:
+                                save_chat_message(session_id, message, chat_response)
+                            
+                            return jsonify({
+                                "response": chat_response,
+                                "session_id": session_id
+                            }), 200
+                            
+                        except Exception as chat_error:
+                            print(f"AI #2聊天失败: {chat_error}")
+                            # 如果AI #2失败，使用简单回复
+                            reasoning = intent_analysis.get('reasoning', '')
+                            fallback_response = f"我理解了。{reasoning}"
+                            
+                            if session_id:
+                                save_chat_message(session_id, message, fallback_response)
+                            
+                            return jsonify({
+                                "response": fallback_response,
+                                "session_id": session_id
+                            }), 200
                         
                 except (json.JSONDecodeError, ValueError, KeyError) as parse_error:
                     # JSON解析失败，当作普通对话
