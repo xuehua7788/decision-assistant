@@ -467,35 +467,7 @@ def chat():
         if not message:
             return jsonify({"error": "消息不能为空"}), 400
         
-        # 优先检查是否是期权策略请求
-        if OPTION_STRATEGY_AVAILABLE and option_handler:
-            if option_handler.is_option_strategy_request(message):
-                print(f"DEBUG: 检测到期权策略请求")
-                try:
-                    option_result = option_handler.handle_option_strategy_request(message)
-                    
-                    if option_result['success']:
-                        # 生成文字回复
-                        text_response = option_handler.generate_text_response(option_result)
-                        
-                        # 保存聊天记录
-                        if session_id:
-                            save_chat_message(session_id, message, text_response)
-                        
-                        return jsonify({
-                            "response": text_response,
-                            "session_id": session_id,
-                            "option_strategy_used": True,
-                            "option_strategy_result": option_result
-                        }), 200
-                    else:
-                        # 置信度太低，继续使用AI处理
-                        print(f"DEBUG: 期权策略置信度太低，使用AI处理")
-                except Exception as option_error:
-                    print(f"期权策略处理失败: {option_error}")
-                    # 继续使用AI处理
-        
-        # 使用 DeepSeek API 生成智能回复
+        # 使用 AI 先分析用户意图，判断是否需要期权策略分析
         try:
             deepseek_api_key = os.getenv('DEEPSEEK_API_KEY')  # 使用 DEEPSEEK_API_KEY 环境变量名
             print(f"DEBUG: DEEPSEEK_API_KEY = {deepseek_api_key[:10] if deepseek_api_key else 'NOT SET'}...")
@@ -507,8 +479,75 @@ def chat():
                 "Content-Type": "application/json",
             }
             
-            # 简化的系统提示
-            system_prompt = """你是一个专业的决策助手。帮助用户分析决策问题，提供清晰、理性的建议。用中文回复，简洁明了。"""
+            # AI意图分析系统提示
+            system_prompt = """你是一个专业的决策助手。分析用户的投资意图并判断是否需要期权策略推荐。
+
+如果用户表达了自己的投资观点（看涨/看跌某只股票），请返回JSON格式：
+{
+  "need_option_strategy": true,
+  "user_intent": {
+    "ticker": "股票代码",
+    "direction": "bullish/bearish/neutral",
+    "strength": "strong/moderate/slight",
+    "risk_profile": "aggressive/balanced/conservative"
+  },
+  "reasoning": "简短解释用户的意图"
+}
+
+重要规则：
+1. 只有当用户明确表达**自己**的投资观点时才返回期权策略
+2. 如果用户仅描述他人观点（"我朋友看涨"、"他人认为"），没有表达自己态度，返回need_option_strategy: false
+3. 如果用户表达了与他人相反的观点（"我朋友看涨，但我不认同"、"他看涨但我不同意"），这是用户的投资观点，返回need_option_strategy: true，direction为相反方向
+4. 如果用户说"我不看涨"、"我不认为会涨"，direction应该是bearish或neutral
+5. 否则，正常对话
+
+示例1：
+用户："我朋友强烈看涨特斯拉"
+回复：{
+  "need_option_strategy": false,
+  "reasoning": "这是朋友的观点，不是用户自己的投资意图"
+}
+
+示例2：
+用户："我强烈看涨特斯拉"
+回复：{
+  "need_option_strategy": true,
+  "user_intent": {
+    "ticker": "TSLA",
+    "direction": "bullish",
+    "strength": "strong",
+    "risk_profile": "balanced"
+  },
+  "reasoning": "用户明确表达了看涨TSLA的观点"
+}
+
+示例3：
+用户："我不看涨特斯拉"
+回复：{
+  "need_option_strategy": true,
+  "user_intent": {
+    "ticker": "TSLA",
+    "direction": "bearish",
+    "strength": "moderate",
+    "risk_profile": "balanced"
+  },
+  "reasoning": "用户表达了不看涨，即看跌或中性的观点"
+}
+
+示例4：
+用户："我朋友强烈看涨特斯拉，但我不认同"
+回复：{
+  "need_option_strategy": true,
+  "user_intent": {
+    "ticker": "TSLA",
+    "direction": "bearish",
+    "strength": "moderate",
+    "risk_profile": "balanced"
+  },
+  "reasoning": "用户明确表示不认同朋友的看涨观点，表达了自己看跌或中性的立场"
+}
+
+用中文回复，JSON格式要完整。"""
             
             data = {
                 "model": "deepseek-chat",
@@ -531,9 +570,115 @@ def chat():
             if response.status_code == 200:
                 result = response.json()
                 ai_response = result["choices"][0]["message"]["content"]
-                print(f"DEBUG: DeepSeek API response = {ai_response[:100]}...")
+                print(f"DEBUG: DeepSeek AI response = {ai_response[:200]}...")
                 
-                # 保存聊天记录
+                # 尝试解析AI的意图分析结果
+                try:
+                    intent_analysis = json.loads(ai_response.strip())
+                    
+                    # 检查AI是否判断需要期权策略
+                    if isinstance(intent_analysis, dict) and intent_analysis.get('need_option_strategy'):
+                        print(f"DEBUG: AI判断需要期权策略")
+                        
+                        if OPTION_STRATEGY_AVAILABLE and option_handler:
+                            try:
+                                user_intent = intent_analysis.get('user_intent', {})
+                                reasoning = intent_analysis.get('reasoning', '')
+                                
+                                # 使用AI提取的意图构建ParsedIntent对象
+                                from algorithms.option_nlp_parser import ParsedIntent
+                                
+                                parsed_intent = ParsedIntent(
+                                    ticker=user_intent.get('ticker'),
+                                    direction=user_intent.get('direction'),
+                                    strength=user_intent.get('strength', 'moderate'),
+                                    timeframe=user_intent.get('timeframe', 'short'),
+                                    risk_profile=user_intent.get('risk_profile', 'balanced'),
+                                    confidence=0.9,  # AI分析的置信度较高
+                                    raw_text=message
+                                )
+                                
+                                # 获取当前价格
+                                price_map = {
+                                    'TSLA': 250.0, 'AAPL': 180.0, 'NVDA': 450.0,
+                                    'MSFT': 380.0, 'GOOGL': 140.0, 'AMZN': 150.0, 'META': 320.0
+                                }
+                                current_price = price_map.get(parsed_intent.ticker, 300.0)
+                                
+                                # 调用策略映射器
+                                from algorithms.option_strategy_mapper import StrategyMapper
+                                mapper = StrategyMapper()
+                                strategy = mapper.map_strategy(parsed_intent, current_price)
+                                
+                                # 构建期权策略结果
+                                option_result = {
+                                    'success': True,
+                                    'parsed_intent': {
+                                        'ticker': parsed_intent.ticker,
+                                        'direction': parsed_intent.direction,
+                                        'strength': parsed_intent.strength,
+                                        'timeframe': parsed_intent.timeframe,
+                                        'risk_profile': parsed_intent.risk_profile,
+                                        'confidence': parsed_intent.confidence
+                                    },
+                                    'strategy': {
+                                        'name': strategy.name,
+                                        'type': strategy.type,
+                                        'description': strategy.description,
+                                        'risk_level': strategy.risk_level,
+                                        'parameters': strategy.parameters,
+                                        'metrics': strategy.metrics,
+                                        'payoff_data': strategy.payoff_data
+                                    }
+                                }
+                                
+                                # 生成文字回复
+                                text_response = f"""🤖 **AI分析**: {reasoning}
+
+📊 **投资意图识别**
+- 标的: {parsed_intent.ticker}
+- 方向: {parsed_intent.direction}
+- 强度: {parsed_intent.strength}
+
+💡 **推荐策略: {strategy.name}**
+{strategy.description}
+
+📋 详细的策略参数和Payoff图表已生成，请点击查看。"""
+                                
+                                # 保存聊天记录
+                                if session_id:
+                                    save_chat_message(session_id, message, text_response)
+                                
+                                return jsonify({
+                                    "response": text_response,
+                                    "session_id": session_id,
+                                    "option_strategy_used": True,
+                                    "option_strategy_result": option_result
+                                }), 200
+                                
+                            except Exception as strategy_error:
+                                print(f"期权策略处理失败: {strategy_error}")
+                                # 继续返回普通对话
+                    
+                    # 如果不需要期权策略，返回AI的reasoning作为回复
+                    if isinstance(intent_analysis, dict) and not intent_analysis.get('need_option_strategy'):
+                        reasoning = intent_analysis.get('reasoning', '')
+                        friendly_response = f"我理解了。{reasoning}\n\n如果您有自己的投资观点想要分析期权策略，请直接告诉我您的看法，例如："我看涨某某股票"。"
+                        
+                        if session_id:
+                            save_chat_message(session_id, message, friendly_response)
+                        
+                        return jsonify({
+                            "response": friendly_response,
+                            "session_id": session_id
+                        }), 200
+                        
+                except (json.JSONDecodeError, ValueError, KeyError) as parse_error:
+                    # JSON解析失败，当作普通对话
+                    print(f"意图解析失败: {parse_error}")
+                    pass
+                
+                # 保存聊天记录（普通对话）
                 if session_id:
                     save_chat_message(session_id, message, ai_response)
                 
