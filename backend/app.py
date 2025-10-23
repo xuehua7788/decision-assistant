@@ -663,7 +663,7 @@ def chat():
                     # 如果不需要期权策略，返回AI的reasoning作为回复
                     if isinstance(intent_analysis, dict) and not intent_analysis.get('need_option_strategy'):
                         reasoning = intent_analysis.get('reasoning', '')
-                        friendly_response = f"我理解了。{reasoning}\n\n如果您有自己的投资观点想要分析期权策略，请直接告诉我您的看法，例如："我看涨某某股票"。"
+                        friendly_response = f"我理解了。{reasoning}\n\n如果您有自己的投资观点想要分析期权策略，请直接告诉我您的看法，例如：\"我看涨某某股票\"。"
                         
                         if session_id:
                             save_chat_message(session_id, message, friendly_response)
