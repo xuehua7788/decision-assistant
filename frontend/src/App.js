@@ -30,13 +30,17 @@ function App() {
 
   // 初始化用户聊天记录的函数
   const initializeChatForUser = React.useCallback(async (username) => {
+    console.log(`🔄 正在为用户 ${username} 加载聊天记录...`);
+    
     // 优先从后端API获取该用户的聊天记录
     try {
       const response = await fetch(`${API_URL}/api/decisions/chat/${username}`);
       
       if (response.ok) {
         const data = await response.json();
-        if (data.messages && data.messages.length > 0) {
+        console.log(`✅ 从后端加载到 ${data.messages?.length || 0} 条消息`);
+        
+        if (data.messages) {
           // 将后端格式转换为前端格式
           const formattedMessages = [];
           data.messages.forEach(msg => {
@@ -48,30 +52,39 @@ function App() {
             }
           });
           
-          setChatMessages(formattedMessages);
-          // 同时更新localStorage作为缓存
-          localStorage.setItem(`chat_${username}`, JSON.stringify(formattedMessages));
-          return;
+          // 即使是空数组也要设置，避免后续创建欢迎消息
+          if (formattedMessages.length > 0) {
+            console.log(`📝 显示 ${formattedMessages.length} 条历史消息`);
+            setChatMessages(formattedMessages);
+            localStorage.setItem(`chat_${username}`, JSON.stringify(formattedMessages));
+            return;
+          } else {
+            // 后端返回空消息，但用户已存在，说明是新用户或聊天已清空
+            console.log(`📝 新用户或空聊天记录`);
+          }
         }
       }
     } catch (error) {
-      console.log('无法从后端加载聊天记录，使用本地缓存:', error);
+      console.log('⚠️ 无法从后端加载聊天记录，尝试使用本地缓存:', error);
     }
     
-    // 如果后端加载失败，尝试从localStorage获取
+    // 如果后端没有消息，尝试从localStorage获取
     const userChatKey = `chat_${username}`;
     const savedChat = localStorage.getItem(userChatKey);
     
     if (savedChat) {
       try {
-        setChatMessages(JSON.parse(savedChat));
+        const parsedChat = JSON.parse(savedChat);
+        console.log(`📦 从localStorage加载到 ${parsedChat.length} 条消息`);
+        setChatMessages(parsedChat);
         return;
       } catch (e) {
-        console.log('localStorage解析失败:', e);
+        console.log('❌ localStorage解析失败:', e);
       }
     }
     
-    // 如果都失败，创建欢迎消息
+    // 只有在后端和localStorage都没有数据时，才创建欢迎消息
+    console.log(`🆕 创建欢迎消息`);
     const welcomeMessage = [
       { type: 'assistant', text: `Hello ${username}! I'm your decision assistant. Tell me what decision you're facing, and I'll help you think through it step by step. What's on your mind?` }
     ];
