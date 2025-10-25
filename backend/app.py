@@ -144,6 +144,9 @@ def save_chat_message(username, message, response):
                 # 使用username作为session_id
                 db_sync.sync_chat_message(username, 'user', message, username)
                 db_sync.sync_chat_message(username, 'assistant', response, username)
+                print(f"✅ 消息已同步到数据库 (用户: {username})")
+            else:
+                print(f"⚠️ 数据库不可用，消息只保存到JSON (用户: {username})")
                 
     except Exception as e:
         print(f"保存聊天记录失败: {str(e)}")
@@ -984,6 +987,15 @@ if __name__ == '__main__':
     print("🚀 Decision Assistant Backend 启动中...")
     print(f"📊 Profile API: {'已加载' if PROFILE_API_AVAILABLE else '未加载'}")
     print(f"🔧 Database Sync: {'已启用' if DB_SYNC_AVAILABLE else '未启用'}")
+    
+    # 测试数据库同步连接
+    if DB_SYNC_AVAILABLE and get_db_sync:
+        print("🔍 测试数据库同步连接...")
+        db_sync = get_db_sync()
+        if db_sync.is_available():
+            print("✅ 数据库同步连接成功！消息将自动同步到PostgreSQL")
+        else:
+            print("❌ 数据库同步连接失败！消息只会保存到JSON文件")
     
     port = int(os.environ.get('PORT', 8000))
     app.run(host='0.0.0.0', port=port, debug=False)
