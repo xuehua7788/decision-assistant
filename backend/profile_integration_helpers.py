@@ -84,13 +84,13 @@ def load_chat_history_from_db(username: str, days: int = 30) -> List[Dict]:
     try:
         cursor = conn.cursor()
         
-        # 查询聊天记录
+        # 查询聊天记录（使用session_id，因为username字段可能不存在）
         cutoff_date = datetime.now() - timedelta(days=days)
         cursor.execute("""
             SELECT cm.role, cm.content, cm.created_at
             FROM chat_messages cm
             JOIN chat_sessions cs ON cm.session_id = cs.id
-            WHERE cs.username = %s
+            WHERE cs.session_id = %s
             AND cm.created_at > %s
             ORDER BY cm.created_at ASC
         """, (username, cutoff_date))

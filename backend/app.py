@@ -250,11 +250,11 @@ def debug_db_sync_status():
                     total_messages = cursor.fetchone()[0]
                     status["total_messages_in_db"] = total_messages
                     
-                    # 查询bbb用户的消息
+                    # 查询bbb用户的消息（使用session_id）
                     cursor.execute("""
                         SELECT COUNT(*) FROM chat_messages cm
                         JOIN chat_sessions cs ON cm.session_id = cs.id
-                        WHERE cs.username = 'bbb'
+                        WHERE cs.session_id = 'bbb'
                     """)
                     bbb_messages = cursor.fetchone()[0]
                     status["bbb_messages_in_db"] = bbb_messages
