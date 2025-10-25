@@ -217,6 +217,44 @@ def home():
 def health():
     return jsonify({"status": "healthy"})
 
+@app.route('/api/debug/db-sync-status')
+def debug_db_sync_status():
+    """调试：检查数据库同步状态"""
+    try:
+        status = {
+            "db_sync_available": DB_SYNC_AVAILABLE,
+            "db_sync_module_loaded": get_db_sync is not None if DB_SYNC_AVAILABLE else False
+        }
+        
+        if DB_SYNC_AVAILABLE and get_db_sync:
+            db_sync = get_db_sync()
+            status["db_connection_available"] = db_sync.is_available()
+            
+            # 尝试查询数据库中的消息数量
+            if db_sync.is_available():
+                try:
+                    cursor = db_sync.conn.cursor()
+                    cursor.execute("SELECT COUNT(*) FROM chat_messages")
+                    total_messages = cursor.fetchone()[0]
+                    status["total_messages_in_db"] = total_messages
+                    
+                    # 查询bbb用户的消息
+                    cursor.execute("""
+                        SELECT COUNT(*) FROM chat_messages cm
+                        JOIN chat_sessions cs ON cm.session_id = cs.id
+                        WHERE cs.username = 'bbb'
+                    """)
+                    bbb_messages = cursor.fetchone()[0]
+                    status["bbb_messages_in_db"] = bbb_messages
+                    
+                    cursor.close()
+                except Exception as e:
+                    status["db_query_error"] = str(e)
+        
+        return jsonify(status), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/database/test', methods=['GET'])
 def test_database_simple():
     """简单的数据库测试接口"""
