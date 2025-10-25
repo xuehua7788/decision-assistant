@@ -74,34 +74,54 @@ class DatabaseSync:
     def sync_chat_message(self, session_id, role, content, username=None):
         """同步聊天消息到数据库"""
         if not self.is_available():
+            print(f"⚠️ 数据库连接不可用", flush=True)
+            sys.stdout.flush()
             return False
         
         try:
             cursor = self.conn.cursor()
             
             # 确保会话存在
+            print(f"🔍 检查会话是否存在: {session_id}", flush=True)
+            sys.stdout.flush()
             cursor.execute("SELECT id FROM chat_sessions WHERE session_id = %s", (session_id,))
             result = cursor.fetchone()
+            print(f"🔍 会话查询结果: {result}", flush=True)
+            sys.stdout.flush()
             
             if not result:
                 # 创建会话（兼容有/无username字段的表结构）
+                print(f"📝 创建新会话: {session_id}", flush=True)
+                sys.stdout.flush()
                 try:
                     # 尝试使用username字段
+                    print(f"🔄 尝试使用username字段插入", flush=True)
+                    sys.stdout.flush()
                     cursor.execute("""
                         INSERT INTO chat_sessions (session_id, username, created_at)
                         VALUES (%s, %s, %s)
                         RETURNING id
                     """, (session_id, username, datetime.now()))
                     session_db_id = cursor.fetchone()[0]
+                    print(f"✅ 会话创建成功（使用username）: {session_db_id}", flush=True)
+                    sys.stdout.flush()
                 except Exception as e:
-                    # 如果失败，尝试不使用username字段
-                    if 'username' in str(e):
+                    # 如果失败，回滚事务并尝试不使用username字段
+                    print(f"⚠️ 第一次插入失败: {e}", flush=True)
+                    sys.stdout.flush()
+                    if 'username' in str(e) or 'does not exist' in str(e) or 'column' in str(e):
+                        print(f"🔄 回滚事务并重试（不使用username）", flush=True)
+                        sys.stdout.flush()
+                        self.conn.rollback()  # 回滚失败的事务
+                        cursor = self.conn.cursor()  # 重新获取cursor
                         cursor.execute("""
                             INSERT INTO chat_sessions (session_id, created_at)
                             VALUES (%s, %s)
                             RETURNING id
                         """, (session_id, datetime.now()))
                         session_db_id = cursor.fetchone()[0]
+                        print(f"✅ 会话创建成功（不使用username）: {session_db_id}", flush=True)
+                        sys.stdout.flush()
                     else:
                         raise
             else:
