@@ -976,8 +976,14 @@ if __name__ == '__main__':
         from profile_integration_helpers import ensure_profile_tables_exist
         if ensure_profile_tables_exist():
             print("✅ 用户画像表已就绪")
+        else:
+            print("⚠️ 用户画像表创建失败，但应用继续运行")
     except Exception as e:
         print(f"⚠️ 用户画像表检查失败: {e}")
+    
+    print("🚀 Decision Assistant Backend 启动中...")
+    print(f"📊 Profile API: {'已加载' if PROFILE_API_AVAILABLE else '未加载'}")
+    print(f"🔧 Database Sync: {'已启用' if DB_SYNC_AVAILABLE else '未启用'}")
     
     port = int(os.environ.get('PORT', 8000))
     app.run(host='0.0.0.0', port=port, debug=False)
