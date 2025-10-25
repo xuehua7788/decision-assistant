@@ -971,5 +971,13 @@ def analyze_decision():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
+    # 自动创建用户画像数据库表
+    try:
+        from profile_integration_helpers import ensure_profile_tables_exist
+        if ensure_profile_tables_exist():
+            print("✅ 用户画像表已就绪")
+    except Exception as e:
+        print(f"⚠️ 用户画像表检查失败: {e}")
+    
     port = int(os.environ.get('PORT', 8000))
     app.run(host='0.0.0.0', port=port, debug=False)

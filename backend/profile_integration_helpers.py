@@ -223,7 +223,7 @@ def get_profile_summary(profile: Dict) -> str:
 
 # 数据库初始化检查
 def ensure_profile_tables_exist():
-    """确保用户画像表存在"""
+    """确保用户画像表存在，如果不存在则自动创建"""
     conn = get_db_connection()
     if not conn:
         print("⚠️ 数据库连接不可用，用户画像功能将被禁用")
@@ -242,18 +242,60 @@ def ensure_profile_tables_exist():
         """)
         
         exists = cursor.fetchone()[0]
-        cursor.close()
-        conn.close()
         
         if not exists:
-            print("⚠️ user_profiles表不存在，请运行: python create_user_profile_tables.py")
-            return False
+            print("⚠️ user_profiles表不存在，正在自动创建...")
+            
+            # 创建用户画像表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS user_profiles (
+                    id SERIAL PRIMARY KEY,
+                    username VARCHAR(100) UNIQUE NOT NULL,
+                    risk_tolerance VARCHAR(20),
+                    investment_style VARCHAR(20),
+                    time_horizon VARCHAR(20),
+                    chat_frequency INTEGER,
+                    decision_speed VARCHAR(20),
+                    information_depth VARCHAR(20),
+                    financial_knowledge VARCHAR(20),
+                    option_experience VARCHAR(20),
+                    sentiment_tendency VARCHAR(20),
+                    confidence_level FLOAT,
+                    ai_analysis JSONB,
+                    analysis_summary TEXT,
+                    last_analyzed_at TIMESTAMP,
+                    total_messages_analyzed INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX IF NOT EXISTS idx_user_profiles_username ON user_profiles(username);
+            """)
+            
+            # 创建策略推荐表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS strategy_recommendations (
+                    id SERIAL PRIMARY KEY,
+                    username VARCHAR(100) NOT NULL,
+                    user_intent JSONB,
+                    user_profile_snapshot JSONB,
+                    strategy_type VARCHAR(50),
+                    strategy_parameters JSONB,
+                    adjustment_reason TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+            
+            conn.commit()
+            print("✅ 用户画像表创建成功")
         
+        cursor.close()
+        conn.close()
         return True
         
     except Exception as e:
-        print(f"检查数据库表失败: {e}")
+        print(f"检查/创建数据库表失败: {e}")
         if conn:
+            conn.rollback()
             conn.close()
         return False
 
