@@ -43,6 +43,16 @@ except ImportError as e:
     get_db_sync = None
     print(f"⚠️  数据库同步模块导入失败: {e}")
 
+# 导入用户画像API模块
+try:
+    from profile_api_routes import profile_bp
+    PROFILE_API_AVAILABLE = True
+    print("✅ 用户画像API模块导入成功")
+except ImportError as e:
+    PROFILE_API_AVAILABLE = False
+    profile_bp = None
+    print(f"⚠️  用户画像API模块导入失败: {e}")
+
 load_dotenv()
 
 app = Flask(__name__)
@@ -64,6 +74,11 @@ try:
 except ImportError as e:
     ALGORITHM_API_AVAILABLE = False
     print(f"⚠️ 算法分析API导入失败: {e}")
+
+# 注册用户画像API蓝图
+if PROFILE_API_AVAILABLE and profile_bp:
+    app.register_blueprint(profile_bp)
+    print("✅ 用户画像API已注册")
 
 # 导入期权策略处理器
 try:
