@@ -496,9 +496,16 @@ def register():
         
         # 同步到数据库
         if DB_SYNC_AVAILABLE and get_db_sync:
+            print(f"🔄 同步用户到数据库: {username}", flush=True)
+            sys.stdout.flush()
             db_sync = get_db_sync()
             if db_sync.is_available():
-                db_sync.sync_user(username, password_hash, None)
+                result = db_sync.sync_user(username, password_hash, None)
+                if result:
+                    print(f"✅ 用户同步成功: {username}", flush=True)
+                else:
+                    print(f"⚠️ 用户同步失败: {username}", flush=True)
+                sys.stdout.flush()
         
         # 生成简单的 token（生产环境应该使用 JWT）
         token = os.urandom(32).hex()
@@ -513,7 +520,7 @@ def register():
 
 @app.route('/api/auth/login', methods=['POST', 'OPTIONS'])
 def login():
-    """用户登录"""
+    """用户登录（优先从数据库读取）"""
     if request.method == 'OPTIONS':
         return jsonify({}), 200
     
@@ -525,12 +532,41 @@ def login():
         if not username or not password:
             return jsonify({"detail": "用户名和密码不能为空"}), 400
         
-        users = load_users()
+        # 优先从数据库读取用户信息
+        user_found = False
+        password_match = False
         
-        if username not in users:
+        if DB_SYNC_AVAILABLE and get_db_sync:
+            db_sync = get_db_sync()
+            if db_sync.is_available():
+                try:
+                    cursor = db_sync.conn.cursor()
+                    cursor.execute("SELECT password_hash FROM users WHERE username = %s", (username,))
+                    result = cursor.fetchone()
+                    cursor.close()
+                    
+                    if result:
+                        user_found = True
+                        password_match = (result[0] == password)
+                        print(f"✅ 从数据库验证用户: {username}", flush=True)
+                        sys.stdout.flush()
+                except Exception as e:
+                    print(f"⚠️ 数据库查询失败: {e}", flush=True)
+                    sys.stdout.flush()
+        
+        # 如果数据库没有，尝试从JSON读取（向后兼容）
+        if not user_found:
+            users = load_users()
+            if username in users:
+                user_found = True
+                password_match = (users[username]['password'] == password)
+                print(f"✅ 从JSON验证用户: {username}", flush=True)
+                sys.stdout.flush()
+        
+        if not user_found:
             return jsonify({"detail": "用户名或密码错误"}), 401
         
-        if users[username]['password'] != password:
+        if not password_match:
             return jsonify({"detail": "用户名或密码错误"}), 401
         
         # 生成简单的 token（生产环境应该使用 JWT）
