@@ -6,6 +6,7 @@
 """
 
 import os
+import sys
 import psycopg2
 from datetime import datetime
 import json
@@ -113,11 +114,13 @@ class DatabaseSync:
             """, (session_db_id, role, content, datetime.now()))
             
             self.conn.commit()
-            print(f"✅ 消息同步到数据库 (会话: {session_id})")
+            print(f"✅ 消息同步到数据库 (会话: {session_id})", flush=True)
+            sys.stdout.flush()
             return True
             
         except Exception as e:
-            print(f"❌ 同步消息失败: {e}")
+            print(f"❌ 同步消息失败: {e}", flush=True)
+            sys.stdout.flush()
             self.conn.rollback()
             return False
     

@@ -1,6 +1,7 @@
 ﻿import os
 import json
 import requests
+import sys
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -139,20 +140,25 @@ def save_chat_message(username, message, response):
         
         # 同步到数据库（备份存储）
         if DB_SYNC_AVAILABLE and get_db_sync:
-            print(f"🔄 开始同步消息到数据库 (用户: {username})")
+            print(f"🔄 开始同步消息到数据库 (用户: {username})", flush=True)
+            sys.stdout.flush()
             db_sync = get_db_sync()
             if db_sync.is_available():
                 # 使用username作为session_id
                 result1 = db_sync.sync_chat_message(username, 'user', message, username)
                 result2 = db_sync.sync_chat_message(username, 'assistant', response, username)
                 if result1 and result2:
-                    print(f"✅ 消息已同步到数据库 (用户: {username})")
+                    print(f"✅ 消息已同步到数据库 (用户: {username})", flush=True)
+                    sys.stdout.flush()
                 else:
-                    print(f"❌ 消息同步失败 (用户: {username}, result1={result1}, result2={result2})")
+                    print(f"❌ 消息同步失败 (用户: {username}, result1={result1}, result2={result2})", flush=True)
+                    sys.stdout.flush()
             else:
-                print(f"⚠️ 数据库不可用，消息只保存到JSON (用户: {username})")
+                print(f"⚠️ 数据库不可用，消息只保存到JSON (用户: {username})", flush=True)
+                sys.stdout.flush()
         else:
-            print(f"⚠️ 数据库同步模块不可用 (DB_SYNC_AVAILABLE={DB_SYNC_AVAILABLE})")
+            print(f"⚠️ 数据库同步模块不可用 (DB_SYNC_AVAILABLE={DB_SYNC_AVAILABLE})", flush=True)
+            sys.stdout.flush()
                 
     except Exception as e:
         print(f"保存聊天记录失败: {str(e)}")
