@@ -83,13 +83,26 @@ class DatabaseSync:
             result = cursor.fetchone()
             
             if not result:
-                # 创建会话
-                cursor.execute("""
-                    INSERT INTO chat_sessions (session_id, username, created_at)
-                    VALUES (%s, %s, %s)
-                    RETURNING id
-                """, (session_id, username, datetime.now()))
-                session_db_id = cursor.fetchone()[0]
+                # 创建会话（兼容有/无username字段的表结构）
+                try:
+                    # 尝试使用username字段
+                    cursor.execute("""
+                        INSERT INTO chat_sessions (session_id, username, created_at)
+                        VALUES (%s, %s, %s)
+                        RETURNING id
+                    """, (session_id, username, datetime.now()))
+                    session_db_id = cursor.fetchone()[0]
+                except Exception as e:
+                    # 如果失败，尝试不使用username字段
+                    if 'username' in str(e):
+                        cursor.execute("""
+                            INSERT INTO chat_sessions (session_id, created_at)
+                            VALUES (%s, %s)
+                            RETURNING id
+                        """, (session_id, datetime.now()))
+                        session_db_id = cursor.fetchone()[0]
+                    else:
+                        raise
             else:
                 session_db_id = result[0]
             
