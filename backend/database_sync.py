@@ -18,13 +18,21 @@ class DatabaseSync:
         self.use_database = os.getenv('USE_DATABASE', 'false').lower() == 'true'
         self.conn = None
         
+        print(f"🔍 DatabaseSync初始化: USE_DATABASE={self.use_database}, DATABASE_URL={'已设置' if self.database_url else '未设置'}")
+        
         if self.use_database and self.database_url:
             try:
+                print(f"🔄 正在连接数据库...")
                 self.conn = psycopg2.connect(self.database_url)
-                print("✅ 数据库连接成功")
+                print("✅ 数据库连接成功！")
             except Exception as e:
-                print(f"⚠️ 数据库连接失败: {e}")
+                print(f"❌ 数据库连接失败: {type(e).__name__}: {e}")
                 self.conn = None
+        else:
+            if not self.use_database:
+                print("⚠️ USE_DATABASE=false，数据库同步已禁用")
+            if not self.database_url:
+                print("⚠️ DATABASE_URL未设置")
     
     def is_available(self):
         """检查数据库是否可用"""
