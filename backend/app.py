@@ -54,6 +54,19 @@ except ImportError as e:
     profile_bp = None
     print(f"⚠️  用户画像API模块导入失败: {e}")
 
+# 导入策略优化器和辅助函数
+try:
+    from profile_based_strategy_optimizer import ProfileBasedStrategyOptimizer
+    from profile_integration_helpers import load_user_profile_from_db
+    from strategy_recommendation_helper import save_strategy_recommendation
+    STRATEGY_OPTIMIZER_AVAILABLE = True
+    strategy_optimizer = ProfileBasedStrategyOptimizer()
+    print("✅ 策略优化器导入成功")
+except ImportError as e:
+    STRATEGY_OPTIMIZER_AVAILABLE = False
+    strategy_optimizer = None
+    print(f"⚠️  策略优化器导入失败: {e}")
+
 load_dotenv()
 
 app = Flask(__name__)
@@ -834,6 +847,50 @@ def chat():
                                 mapper = StrategyMapper()
                                 strategy = mapper.map_strategy(parsed_intent, current_price)
                                 
+                                # 🎯 应用用户画像优化策略
+                                optimized_strategy = None
+                                adjustment_reason = ""
+                                
+                                if STRATEGY_OPTIMIZER_AVAILABLE and strategy_optimizer:
+                                    try:
+                                        # 加载用户画像
+                                        user_profile = load_user_profile_from_db(session_id)
+                                        
+                                        if user_profile:
+                                            print(f"✅ 加载到用户画像，开始优化策略...")
+                                            
+                                            # 构建基础策略字典
+                                            base_strategy = {
+                                                'strategy_type': strategy.type,
+                                                'parameters': strategy.parameters,
+                                                'metrics': strategy.metrics
+                                            }
+                                            
+                                            # 应用优化
+                                            optimized_strategy = strategy_optimizer.optimize_strategy(
+                                                base_strategy=base_strategy,
+                                                user_profile=user_profile,
+                                                parsed_intent=user_intent
+                                            )
+                                            
+                                            # 更新策略参数
+                                            strategy.parameters = optimized_strategy.get('parameters', strategy.parameters)
+                                            adjustment_reason = optimized_strategy.get('adjustment_reason', '')
+                                            
+                                            print(f"✅ 策略优化完成")
+                                            
+                                            # 保存推荐记录
+                                            save_strategy_recommendation(
+                                                username=session_id,
+                                                user_intent=user_intent,
+                                                user_profile_snapshot=user_profile,
+                                                optimized_strategy=optimized_strategy
+                                            )
+                                        else:
+                                            print(f"⚠️ 未找到用户画像，使用默认策略")
+                                    except Exception as opt_error:
+                                        print(f"⚠️ 策略优化失败: {opt_error}")
+                                
                                 # 构建期权策略结果
                                 option_result = {
                                     'success': True,
@@ -853,10 +910,18 @@ def chat():
                                         'parameters': strategy.parameters,
                                         'metrics': strategy.metrics,
                                         'payoff_data': strategy.payoff_data
+                                    },
+                                    'personalization': {
+                                        'optimized': optimized_strategy is not None,
+                                        'adjustment_reason': adjustment_reason
                                     }
                                 }
                                 
-                                # 生成文字回复
+                                # 生成文字回复（包含个性化说明）
+                                personalization_note = ""
+                                if adjustment_reason:
+                                    personalization_note = f"\n\n🎯 **个性化调整**\n{adjustment_reason}"
+                                
                                 text_response = f"""🤖 **AI分析**: {reasoning}
 
 📊 **投资意图识别**
@@ -865,7 +930,7 @@ def chat():
 - 强度: {parsed_intent.strength}
 
 💡 **推荐策略: {strategy.name}**
-{strategy.description}
+{strategy.description}{personalization_note}
 
 📋 详细的策略参数和Payoff图表已生成，请点击查看。"""
                                 

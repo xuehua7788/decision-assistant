@@ -5,6 +5,8 @@ function UserProfile({ username, apiUrl }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [recommendations, setRecommendations] = useState([]);
+  const [loadingRecs, setLoadingRecs] = useState(false);
 
   // 加载用户画像
   const loadProfile = async () => {
@@ -97,9 +99,31 @@ function UserProfile({ username, apiUrl }) {
     return map[value] || value;
   };
 
+  // 加载历史推荐记录
+  const loadRecommendations = async () => {
+    setLoadingRecs(true);
+    
+    try {
+      const response = await fetch(`${apiUrl}/api/profile/${username}/recommendations`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        setRecommendations(data.recommendations || []);
+      } else {
+        setRecommendations([]);
+      }
+    } catch (err) {
+      console.error('加载推荐记录失败:', err);
+      setRecommendations([]);
+    } finally {
+      setLoadingRecs(false);
+    }
+  };
+
   useEffect(() => {
     if (username) {
       loadProfile();
+      loadRecommendations();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [username]);
@@ -149,7 +173,7 @@ function UserProfile({ username, apiUrl }) {
   // eslint-disable-next-line no-unused-vars
   const behav = profile.behavioral_traits || {};
   const insights = profile.key_insights || {};
-  const recommendations = profile.recommendations || {};
+  const profileRecommendations = profile.recommendations || {};
 
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
@@ -253,8 +277,8 @@ function UserProfile({ username, apiUrl }) {
       }}>
         <h3 style={{ color: '#667eea', marginBottom: '15px' }}>💡 AI推荐</h3>
         <div style={{ lineHeight: '1.8' }}>
-          <p><strong>推荐策略类型:</strong> {(recommendations.recommended_strategy_types || []).join(', ') || 'N/A'}</p>
-          <p><strong>个性化建议:</strong> {recommendations.personalization_notes || 'N/A'}</p>
+          <p><strong>推荐策略类型:</strong> {(profileRecommendations.recommended_strategy_types || []).join(', ') || 'N/A'}</p>
+          <p><strong>个性化建议:</strong> {profileRecommendations.personalization_notes || 'N/A'}</p>
         </div>
       </div>
 
@@ -282,6 +306,70 @@ function UserProfile({ username, apiUrl }) {
           ❌ {error}
         </div>
       )}
+
+      {/* 历史推荐记录 */}
+      <div style={{
+        marginTop: '30px',
+        padding: '25px',
+        background: 'white',
+        borderRadius: '15px',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
+      }}>
+        <h3 style={{ color: '#667eea', marginBottom: '15px' }}>📈 历史策略推荐记录</h3>
+        
+        {loadingRecs ? (
+          <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
+            ⏳ 加载中...
+          </div>
+        ) : recommendations.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
+            暂无推荐记录
+          </div>
+        ) : (
+          <div>
+            {recommendations.map((rec, index) => (
+              <div key={rec.id || index} style={{
+                marginBottom: '15px',
+                padding: '15px',
+                background: '#f8f9fa',
+                borderRadius: '10px',
+                borderLeft: '4px solid #667eea'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                  <div style={{ fontWeight: 'bold', color: '#333' }}>
+                    {rec.strategy_type || '未知策略'}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#999' }}>
+                    {rec.created_at ? new Date(rec.created_at).toLocaleString('zh-CN') : ''}
+                  </div>
+                </div>
+                
+                {rec.strategy_parameters && (
+                  <div style={{ fontSize: '14px', color: '#666', marginBottom: '8px' }}>
+                    <strong>参数:</strong>
+                    <pre style={{
+                      background: 'white',
+                      padding: '10px',
+                      borderRadius: '5px',
+                      fontSize: '12px',
+                      overflow: 'auto',
+                      marginTop: '5px'
+                    }}>
+                      {JSON.stringify(rec.strategy_parameters, null, 2)}
+                    </pre>
+                  </div>
+                )}
+                
+                {rec.adjustment_reason && (
+                  <div style={{ fontSize: '14px', color: '#555', marginTop: '8px' }}>
+                    <strong>调整原因:</strong> {rec.adjustment_reason}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

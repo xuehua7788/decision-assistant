@@ -323,6 +323,24 @@ const OptionStrategy = ({ optionResult, onClose }) => {
               <div style={styles.riskBadge}>
                 风险等级: <strong>{strategy.risk_level}</strong>
               </div>
+              
+              {/* 个性化调整说明 */}
+              {optionResult.personalization && optionResult.personalization.optimized && (
+                <div style={{
+                  marginTop: '15px',
+                  padding: '15px',
+                  background: 'linear-gradient(135deg, #667eea15 0%, #764ba215 100%)',
+                  borderRadius: '10px',
+                  borderLeft: '4px solid #667eea'
+                }}>
+                  <div style={{ fontWeight: 'bold', color: '#667eea', marginBottom: '8px' }}>
+                    🎯 根据您的投资画像个性化调整
+                  </div>
+                  <div style={{ fontSize: '14px', lineHeight: '1.6', color: '#555' }}>
+                    {optionResult.personalization.adjustment_reason}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
