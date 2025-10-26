@@ -3,6 +3,7 @@ import './App.css';
 import Login from './Login';
 import Register from './Register';
 import OptionStrategy from './OptionStrategy';
+import UserProfile from './UserProfile';
 
 function App() {
   // 硬编码 Render 后端地址，确保生产环境正确
@@ -404,6 +405,22 @@ function App() {
             }}
           >
             💬 Chat Mode
+          </button>
+          <button
+            onClick={() => switchMode('profile')}
+            style={{
+              background: currentMode === 'profile' ? '#ffd700' : 'white',
+              color: currentMode === 'profile' ? '#333' : '#667eea',
+              padding: '10px 30px',
+              border: 'none',
+              borderRadius: '25px',
+              cursor: 'pointer',
+              fontSize: '1.1em',
+              fontWeight: '600',
+              transform: currentMode === 'profile' ? 'scale(1.05)' : 'scale(1)'
+            }}
+          >
+            👤 User Profile
           </button>
         </div>
 
@@ -821,6 +838,11 @@ function App() {
           </div>
         )}
       </div>
+
+      {/* User Profile Mode */}
+      {currentMode === 'profile' && (
+        <UserProfile username={user?.username} apiUrl={API_URL} />
+      )}
 
       {/* 期权策略模态框 */}
       {showOptionStrategy && optionStrategyResult && (
