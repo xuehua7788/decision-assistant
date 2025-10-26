@@ -334,7 +334,7 @@
     </div>
 
     <script>
-        const API_BASE = 'https://decision-assistant-githubv3.onrender.com';
+        const API_BASE = 'https://decision-assistant-backend.onrender.com';
         // const API_BASE = 'http://localhost:8000'; // 本地测试用
 
         function showLoading() {
@@ -367,7 +367,8 @@
                     return;
                 }
 
-                displayUserProfile(data);
+                // API返回 {profile: {...}, status: 'success'}
+                displayUserProfile(data.profile || data);
             } catch (error) {
                 showError(`网络错误: ${error.message}`);
             }

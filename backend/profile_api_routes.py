@@ -178,9 +178,8 @@ def get_recommendation_history(username):
         cursor = conn.cursor()
         cursor.execute("""
             SELECT 
-                id, strategy_type, strategy_name, 
-                confidence_score, adjustment_reason,
-                user_accepted, created_at
+                id, strategy_type, strategy_parameters,
+                adjustment_reason, created_at
             FROM strategy_recommendations
             WHERE username = %s
             ORDER BY created_at DESC
@@ -192,11 +191,9 @@ def get_recommendation_history(username):
             recommendations.append({
                 "id": row[0],
                 "strategy_type": row[1],
-                "strategy_name": row[2],
-                "confidence_score": row[3],
-                "adjustment_reason": row[4],
-                "user_accepted": row[5],
-                "created_at": row[6].isoformat() if row[6] else None
+                "strategy_parameters": row[2],
+                "adjustment_reason": row[3],
+                "created_at": row[4].isoformat() if row[4] else None
             })
         
         cursor.close()
