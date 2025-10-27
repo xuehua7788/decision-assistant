@@ -71,8 +71,12 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# CORS configuration
-CORS(app, origins=["*"])
+# CORS configuration - 允许所有来源和方法
+CORS(app, 
+     resources={r"/*": {"origins": "*"}},
+     allow_headers=["Content-Type", "Authorization"],
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+     supports_credentials=False)
 
 # 注册数据库初始化API蓝图
 if DB_INIT_AVAILABLE and db_init_bp:
