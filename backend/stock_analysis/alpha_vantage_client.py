@@ -22,7 +22,7 @@ class AlphaVantageClient:
         
         self.base_url = "https://www.alphavantage.co/query"
         self.cache = {}  # 简单的内存缓存
-        self.cache_ttl = 300  # 5分钟缓存
+        self.cache_ttl = 900  # 15分钟缓存（避免API限制）
         
         print(f"✅ AlphaVantageClient initialized with key: {self.api_key[:10]}...")
     
@@ -104,6 +104,7 @@ class AlphaVantageClient:
             
             if 'Note' in data:
                 print(f"⚠️ API限制: {data['Note']}")
+                print(f"💡 提示: Alpha Vantage免费版限制为每分钟5次请求，每天25次请求，请稍后再试")
                 return None
             
             # 解析数据
