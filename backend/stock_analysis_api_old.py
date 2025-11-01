@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-股票分析API路由 - 修复路由顺序
+股票分析API路由
 提供股票数据获取和AI分析接口
 """
 
@@ -22,30 +22,35 @@ except ImportError as e:
 # 创建Blueprint
 stock_bp = Blueprint('stock', __name__, url_prefix='/api/stock')
 
-# ============================================================
-# 路由顺序很重要！具体的路由必须在通用的 /<symbol> 之前
-# ============================================================
-
 @stock_bp.route('/health', methods=['GET'])
 def health_check():
     """健康检查 - 股票分析API"""
     return jsonify({
         "status": "healthy",
         "stock_analysis_available": STOCK_ANALYSIS_AVAILABLE,
-        "version": "1.2.0"  # 版本号更新，表示路由已修复
+        "version": "1.1.0"
     }), 200
 
-@stock_bp.route('/trending', methods=['GET'])
-def get_trending_stocks():
+@stock_bp.route('/<symbol>/news', methods=['GET'])
+def get_stock_news(symbol):
     """
-    获取热门股票列表
+    获取股票相关新闻
     
-    GET /api/stock/trending
+    GET /api/stock/{symbol}/news?limit=5
     
     Returns:
         {
             "status": "success",
-            "stocks": ["AAPL", "GOOGL", "MSFT", "TSLA", "NVDA"]
+            "news": [
+                {
+                    "title": "新闻标题",
+                    "summary": "新闻摘要",
+                    "url": "新闻链接",
+                    "time_published": "2025-11-01 12:00",
+                    "sentiment": "positive",
+                    "sentiment_score": 0.35
+                }
+            ]
         }
     """
     if not STOCK_ANALYSIS_AVAILABLE:
@@ -55,17 +60,109 @@ def get_trending_stocks():
         }), 503
     
     try:
+        symbol = symbol.upper()
+        limit = request.args.get('limit', 5, type=int)
+        
+        print(f"📰 获取新闻: {symbol} (limit={limit})", flush=True)
+        sys.stdout.flush()
+        
+        # 获取新闻
         client = get_alpha_vantage_client()
-        trending = client.get_trending_stocks()
+        news = client.get_news(symbol, limit=limit)
+        
+        print(f"✅ 新闻获取成功: {symbol} - {len(news)}条", flush=True)
+        sys.stdout.flush()
         
         return jsonify({
             "status": "success",
-            "stocks": trending
+            "news": news
         }), 200
         
     except Exception as e:
-        print(f"❌ 获取热门股票失败: {e}", flush=True)
+        print(f"❌ 获取新闻失败: {e}", flush=True)
         sys.stdout.flush()
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+@stock_bp.route('/<symbol>', methods=['GET'])
+def get_stock_data(symbol):
+    """
+    获取股票数据和技术指标
+    
+    GET /api/stock/AAPL
+    
+    Returns:
+        {
+            "status": "success",
+            "data": {
+                "quote": {...},
+                "history": [...],
+                "indicators": {
+                    "rsi": 65.5
+                }
+            }
+        }
+    """
+    if not STOCK_ANALYSIS_AVAILABLE:
+        return jsonify({
+            "status": "error",
+            "message": "股票分析功能暂不可用"
+        }), 503
+    
+    try:
+        symbol = symbol.upper()
+        print(f"📊 获取股票数据: {symbol}", flush=True)
+        sys.stdout.flush()
+        
+        # 获取客户端
+        client = get_alpha_vantage_client()
+        
+        # 获取实时报价
+        quote = client.get_quote(symbol)
+        if not quote:
+            return jsonify({
+                "status": "error",
+                "message": f"未找到该股票: {symbol}"
+            }), 404
+        
+        # 获取历史数据
+        history = client.get_daily_history(symbol, days=30)
+        if not history:
+            return jsonify({
+                "status": "error",
+                "message": "无法获取历史数据"
+            }), 500
+        
+        # 计算技术指标
+        closes = [h['close'] for h in history]
+        rsi = client.calculate_rsi(closes)
+        volatility = client.calculate_volatility(closes)
+        
+        print(f"✅ 数据获取成功: {symbol} - ${quote['price']}", flush=True)
+        sys.stdout.flush()
+        
+        return jsonify({
+            "status": "success",
+            "data": {
+                "quote": quote,
+                "history": history,
+                "indicators": {
+                    "rsi": rsi,
+                    "volatility": volatility
+                }
+            }
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ 获取股票数据失败: {e}", flush=True)
+        sys.stdout.flush()
+        import traceback
+        traceback.print_exc()
         
         return jsonify({
             "status": "error",
@@ -242,26 +339,17 @@ def analyze_stock():
             "message": str(e)
         }), 500
 
-@stock_bp.route('/<symbol>/news', methods=['GET'])
-def get_stock_news(symbol):
+@stock_bp.route('/trending', methods=['GET'])
+def get_trending_stocks():
     """
-    获取股票相关新闻
+    获取热门股票列表
     
-    GET /api/stock/{symbol}/news?limit=5
+    GET /api/stock/trending
     
     Returns:
         {
             "status": "success",
-            "news": [
-                {
-                    "title": "新闻标题",
-                    "summary": "新闻摘要",
-                    "url": "新闻链接",
-                    "time_published": "2025-11-01 12:00",
-                    "sentiment": "positive",
-                    "sentiment_score": 0.35
-                }
-            ]
+            "stocks": ["AAPL", "GOOGL", "MSFT", "TSLA", "NVDA"]
         }
     """
     if not STOCK_ANALYSIS_AVAILABLE:
@@ -271,114 +359,20 @@ def get_stock_news(symbol):
         }), 503
     
     try:
-        symbol = symbol.upper()
-        limit = request.args.get('limit', 5, type=int)
-        
-        print(f"📰 获取新闻: {symbol} (limit={limit})", flush=True)
-        sys.stdout.flush()
-        
-        # 获取新闻
         client = get_alpha_vantage_client()
-        news = client.get_news(symbol, limit=limit)
-        
-        print(f"✅ 新闻获取成功: {symbol} - {len(news)}条", flush=True)
-        sys.stdout.flush()
+        trending = client.get_trending_stocks()
         
         return jsonify({
             "status": "success",
-            "news": news
+            "stocks": trending
         }), 200
         
     except Exception as e:
-        print(f"❌ 获取新闻失败: {e}", flush=True)
+        print(f"❌ 获取热门股票失败: {e}", flush=True)
         sys.stdout.flush()
-        import traceback
-        traceback.print_exc()
         
         return jsonify({
             "status": "error",
             "message": str(e)
         }), 500
-
-# 注意：/<symbol> 路由必须放在最后！
-@stock_bp.route('/<symbol>', methods=['GET'])
-def get_stock_data(symbol):
-    """
-    获取股票数据和技术指标
-    
-    GET /api/stock/AAPL
-    
-    Returns:
-        {
-            "status": "success",
-            "data": {
-                "quote": {...},
-                "history": [...],
-                "indicators": {
-                    "rsi": 65.5
-                }
-            }
-        }
-    """
-    if not STOCK_ANALYSIS_AVAILABLE:
-        return jsonify({
-            "status": "error",
-            "message": "股票分析功能暂不可用"
-        }), 503
-    
-    try:
-        symbol = symbol.upper()
-        print(f"📊 获取股票数据: {symbol}", flush=True)
-        sys.stdout.flush()
-        
-        # 获取客户端
-        client = get_alpha_vantage_client()
-        
-        # 获取实时报价
-        quote = client.get_quote(symbol)
-        if not quote:
-            return jsonify({
-                "status": "error",
-                "message": f"未找到该股票: {symbol}"
-            }), 404
-        
-        # 获取历史数据
-        history = client.get_daily_history(symbol, days=30)
-        if not history:
-            return jsonify({
-                "status": "error",
-                "message": "无法获取历史数据"
-            }), 500
-        
-        # 计算技术指标
-        closes = [h['close'] for h in history]
-        rsi = client.calculate_rsi(closes)
-        volatility = client.calculate_volatility(closes)
-        
-        print(f"✅ 数据获取成功: {symbol} - ${quote['price']}", flush=True)
-        sys.stdout.flush()
-        
-        return jsonify({
-            "status": "success",
-            "data": {
-                "quote": quote,
-                "history": history,
-                "indicators": {
-                    "rsi": rsi,
-                    "volatility": volatility
-                }
-            }
-        }), 200
-        
-    except Exception as e:
-        print(f"❌ 获取股票数据失败: {e}", flush=True)
-        sys.stdout.flush()
-        import traceback
-        traceback.print_exc()
-        
-        return jsonify({
-            "status": "error",
-            "message": str(e)
-        }), 500
-
 
