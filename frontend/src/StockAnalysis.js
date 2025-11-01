@@ -8,25 +8,14 @@ function StockAnalysis({ apiUrl }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [riskPreference, setRiskPreference] = useState('balanced');
-  const [trendingStocks, setTrendingStocks] = useState([]);
-
-  // 加载热门股票
-  useEffect(() => {
-    loadTrendingStocks();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const loadTrendingStocks = async () => {
-    try {
-      const response = await fetch(`${apiUrl}/api/stock/trending`);
-      const data = await response.json();
-      if (data.status === 'success') {
-        setTrendingStocks(data.stocks);
-      }
-    } catch (err) {
-      console.error('加载热门股票失败:', err);
-    }
-  };
+  // 热门股票列表（硬编码，不再从API获取）
+  const trendingStocks = [
+    { code: 'AAPL', name: '苹果' },
+    { code: 'GOOGL', name: '谷歌' },
+    { code: 'MSFT', name: '微软' },
+    { code: 'TSLA', name: '特斯拉' },
+    { code: 'NVDA', name: '英伟达' }
+  ];
 
   const searchStock = async (searchSymbol) => {
     const targetSymbol = searchSymbol || symbol;
@@ -147,13 +136,7 @@ function StockAnalysis({ apiUrl }) {
         {/* 热门股票快捷按钮 */}
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
           <span style={{ color: '#666', fontWeight: '600' }}>热门股票:</span>
-          {[
-            { code: 'AAPL', name: '苹果' },
-            { code: 'GOOGL', name: '谷歌' },
-            { code: 'MSFT', name: '微软' },
-            { code: 'TSLA', name: '特斯拉' },
-            { code: 'NVDA', name: '英伟达' }
-          ].map(stock => (
+          {trendingStocks.map(stock => (
             <button
               key={stock.code}
               onClick={() => {
