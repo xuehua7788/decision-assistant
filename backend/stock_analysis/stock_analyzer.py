@@ -26,7 +26,9 @@ class StockAnalyzer:
                      current_data: Dict,
                      history_data: list,
                      rsi: float,
-                     risk_preference: str = "balanced") -> Optional[Dict]:
+                     risk_preference: str = "balanced",
+                     user_opinion: str = None,
+                     news_context: str = None) -> Optional[Dict]:
         """
         分析股票并给出投资建议
         
@@ -36,6 +38,8 @@ class StockAnalyzer:
             history_data: 历史数据（30天）
             rsi: RSI指标
             risk_preference: 风险偏好（conservative/balanced/aggressive）
+            user_opinion: 用户观点或研报内容
+            news_context: 相关新闻或消息
         
         Returns:
             {
@@ -58,7 +62,7 @@ class StockAnalyzer:
             # 构建分析提示词
             system_prompt = self._build_system_prompt(risk_preference)
             user_prompt = self._build_user_prompt(
-                symbol, current_data, history_data, rsi
+                symbol, current_data, history_data, rsi, user_opinion, news_context
             )
             
             # 调用DeepSeek API
@@ -138,13 +142,15 @@ class StockAnalyzer:
 **用户画像**: {risk_desc}
 
 **你的任务**：
-分析给定的股票数据，给出投资建议。
+综合分析股票数据、市场消息和用户观点，给出全面的投资建议。
 
 **分析维度**：
-1. **技术面分析**：价格走势、RSI指标、成交量变化
-2. **短期趋势**：最近5天的价格变化
-3. **风险评估**：波动率、支撑位、阻力位
-4. **操作建议**：买入/观望/卖出
+1. **技术面分析**：价格走势、RSI指标、成交量变化、波动率
+2. **基本面分析**：相关新闻、市场消息对股价的影响
+3. **用户观点整合**：结合用户提供的研报或个人观点
+4. **短期趋势**：最近5天的价格变化
+5. **风险评估**：波动率、支撑位、阻力位
+6. **综合策略**：技术面+基本面的投资策略
 
 **输出格式**（严格JSON）：
 {{
@@ -154,11 +160,13 @@ class StockAnalyzer:
   "target_price": 190.0,
   "stop_loss": 175.0,
   "key_points": [
-    "技术面分析要点1",
-    "技术面分析要点2",
+    "技术面分析要点",
+    "基本面分析要点",
+    "用户观点评估",
     "风险提示"
   ],
-  "analysis_summary": "综合分析总结（100字以内）"
+  "analysis_summary": "综合分析总结（150字以内）",
+  "strategy": "具体投资策略建议（结合技术面和基本面，100字以内）"
 }}
 
 **评分标准**（0-100分）：
@@ -187,7 +195,8 @@ class StockAnalyzer:
 请用中文分析，JSON键名用英文。"""
     
     def _build_user_prompt(self, symbol: str, current_data: Dict, 
-                          history_data: list, rsi: float) -> str:
+                          history_data: list, rsi: float,
+                          user_opinion: str = None, news_context: str = None) -> str:
         """构建用户提示词"""
         
         # 计算最近5天涨跌
@@ -240,6 +249,16 @@ class StockAnalyzer:
         recent_10_days = history_data[-10:] if len(history_data) >= 10 else history_data
         for day in recent_10_days:
             prompt += f"\n{day['date']}: ${day['close']:.2f} (成交量: {day['volume']:,})"
+        
+        # 添加新闻/消息
+        if news_context:
+            prompt += f"\n\n**相关新闻/消息**:\n{news_context}"
+            prompt += "\n\n请评估该消息对股价的影响（利好/利空/中性），并纳入分析。"
+        
+        # 添加用户观点
+        if user_opinion:
+            prompt += f"\n\n**用户观点/研报**:\n{user_opinion}"
+            prompt += "\n\n请结合用户观点，评估其合理性，并给出综合建议。"
         
         prompt += "\n\n请按照系统提示的JSON格式返回分析结果。"
         

@@ -30,6 +30,64 @@ def health_check():
         "stock_analysis_available": STOCK_ANALYSIS_AVAILABLE
     }), 200
 
+@stock_bp.route('/<symbol>/news', methods=['GET'])
+def get_stock_news(symbol):
+    """
+    获取股票相关新闻
+    
+    GET /api/stock/{symbol}/news?limit=5
+    
+    Returns:
+        {
+            "status": "success",
+            "news": [
+                {
+                    "title": "新闻标题",
+                    "summary": "新闻摘要",
+                    "url": "新闻链接",
+                    "time_published": "2025-11-01 12:00",
+                    "sentiment": "positive",
+                    "sentiment_score": 0.35
+                }
+            ]
+        }
+    """
+    if not STOCK_ANALYSIS_AVAILABLE:
+        return jsonify({
+            "status": "error",
+            "message": "股票分析功能暂不可用"
+        }), 503
+    
+    try:
+        symbol = symbol.upper()
+        limit = request.args.get('limit', 5, type=int)
+        
+        print(f"📰 获取新闻: {symbol} (limit={limit})", flush=True)
+        sys.stdout.flush()
+        
+        # 获取新闻
+        client = get_alpha_vantage_client()
+        news = client.get_news(symbol, limit=limit)
+        
+        print(f"✅ 新闻获取成功: {symbol} - {len(news)}条", flush=True)
+        sys.stdout.flush()
+        
+        return jsonify({
+            "status": "success",
+            "news": news
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ 获取新闻失败: {e}", flush=True)
+        sys.stdout.flush()
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
 @stock_bp.route('/<symbol>', methods=['GET'])
 def get_stock_data(symbol):
     """
@@ -118,7 +176,9 @@ def analyze_stock():
     POST /api/stock/analyze
     Body: {
         "symbol": "AAPL",
-        "risk_preference": "balanced"  // conservative/balanced/aggressive
+        "risk_preference": "balanced",  // conservative/balanced/aggressive
+        "user_opinion": "我认为苹果新产品会大卖...",  // 可选
+        "news_context": "苹果发布新款iPhone..."  // 可选
     }
     
     Returns:
@@ -131,7 +191,8 @@ def analyze_stock():
                 "target_price": 190.0,
                 "stop_loss": 175.0,
                 "key_points": [...],
-                "analysis_summary": "..."
+                "analysis_summary": "...",
+                "strategy": "具体投资策略..."
             }
         }
     """
@@ -145,6 +206,8 @@ def analyze_stock():
         data = request.json
         symbol = data.get('symbol', '').upper()
         risk_preference = data.get('risk_preference', 'balanced')
+        user_opinion = data.get('user_opinion', '').strip()
+        news_context = data.get('news_context', '').strip()
         
         if not symbol:
             return jsonify({
@@ -158,6 +221,10 @@ def analyze_stock():
             risk_preference = 'balanced'
         
         print(f"🤖 开始分析: {symbol} (风险偏好: {risk_preference})", flush=True)
+        if user_opinion:
+            print(f"   用户观点: {user_opinion[:50]}...", flush=True)
+        if news_context:
+            print(f"   新闻消息: {news_context[:50]}...", flush=True)
         sys.stdout.flush()
         
         # 获取股票数据
@@ -188,7 +255,9 @@ def analyze_stock():
             current_data=quote,
             history_data=history,
             rsi=rsi,
-            risk_preference=risk_preference
+            risk_preference=risk_preference,
+            user_opinion=user_opinion if user_opinion else None,
+            news_context=news_context if news_context else None
         )
         
         if not analysis:

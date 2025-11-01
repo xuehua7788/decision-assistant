@@ -8,6 +8,10 @@ function StockAnalysis({ apiUrl }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [riskPreference, setRiskPreference] = useState('balanced');
+  const [newsContext, setNewsContext] = useState('');
+  const [userOpinion, setUserOpinion] = useState('');
+  const [newsList, setNewsList] = useState([]);
+  const [loadingNews, setLoadingNews] = useState(false);
   // 热门股票列表（硬编码，不再从API获取）
   const trendingStocks = [
     { code: 'AAPL', name: '苹果' },
@@ -42,13 +46,18 @@ function StockAnalysis({ apiUrl }) {
 
       setStockData(dataResult.data);
 
+      // 1.5 获取新闻（并行）
+      loadNews(targetSymbol.toUpperCase());
+
       // 2. 获取AI分析
       const analysisResponse = await fetch(`${apiUrl}/api/stock/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           symbol: targetSymbol.toUpperCase(),
-          risk_preference: riskPreference
+          risk_preference: riskPreference,
+          news_context: newsContext,
+          user_opinion: userOpinion
         })
       });
 
@@ -65,6 +74,32 @@ function StockAnalysis({ apiUrl }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadNews = async (targetSymbol) => {
+    setLoadingNews(true);
+    try {
+      const newsResponse = await fetch(`${apiUrl}/api/stock/${targetSymbol}/news?limit=5`);
+      const newsResult = await newsResponse.json();
+      
+      if (newsResult.status === 'success') {
+        setNewsList(newsResult.news);
+      } else {
+        console.error('获取新闻失败:', newsResult.message);
+        setNewsList([]);
+      }
+    } catch (err) {
+      console.error('获取新闻失败:', err);
+      setNewsList([]);
+    } finally {
+      setLoadingNews(false);
+    }
+  };
+
+  const selectNews = (news) => {
+    // 点击新闻，自动填充到输入框
+    const newsText = `${news.title}\n\n${news.summary}`;
+    setNewsContext(newsText);
   };
 
   const handleKeyPress = (e) => {
@@ -183,6 +218,104 @@ function StockAnalysis({ apiUrl }) {
               </label>
             ))}
           </div>
+        </div>
+
+        {/* 最新新闻列表 */}
+        {newsList.length > 0 && (
+          <div style={{ marginTop: '15px', padding: '15px', background: '#e7f3ff', borderRadius: '8px' }}>
+            <label style={{ display: 'block', marginBottom: '10px', color: '#333', fontWeight: '600' }}>
+              📰 最新相关新闻（点击选择）：
+            </label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {newsList.map((news, index) => (
+                <div
+                  key={index}
+                  onClick={() => selectNews(news)}
+                  style={{
+                    padding: '12px',
+                    background: 'white',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    border: '2px solid transparent',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#667eea';
+                    e.currentTarget.style.transform = 'translateX(5px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'transparent';
+                    e.currentTarget.style.transform = 'translateX(0)';
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '5px' }}>
+                    <div style={{ fontWeight: '600', fontSize: '0.95em', flex: 1 }}>
+                      {news.sentiment === 'positive' && '🟢 '}
+                      {news.sentiment === 'negative' && '🔴 '}
+                      {news.sentiment === 'neutral' && '⚪ '}
+                      {news.title}
+                    </div>
+                    <div style={{ fontSize: '0.8em', color: '#999', marginLeft: '10px', whiteSpace: 'nowrap' }}>
+                      {news.time_published}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '0.85em', color: '#666', lineHeight: '1.4' }}>
+                    {news.summary}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {loadingNews && (
+          <div style={{ marginTop: '15px', padding: '15px', background: '#e7f3ff', borderRadius: '8px', textAlign: 'center' }}>
+            <div style={{ color: '#667eea' }}>🔄 正在加载新闻...</div>
+          </div>
+        )}
+
+        {/* 新闻/消息输入 */}
+        <div style={{ marginTop: '15px', padding: '15px', background: '#fff3cd', borderRadius: '8px' }}>
+          <label style={{ display: 'block', marginBottom: '10px', color: '#333', fontWeight: '600' }}>
+            📝 选中的新闻/自定义消息（可选）：
+          </label>
+          <textarea
+            value={newsContext}
+            onChange={(e) => setNewsContext(e.target.value)}
+            placeholder="点击上方新闻自动填充，或手动输入..."
+            style={{
+              width: '100%',
+              minHeight: '80px',
+              padding: '10px',
+              border: '1px solid #ddd',
+              borderRadius: '5px',
+              fontSize: '14px',
+              fontFamily: 'inherit',
+              resize: 'vertical'
+            }}
+          />
+        </div>
+
+        {/* 用户观点输入 */}
+        <div style={{ marginTop: '15px', padding: '15px', background: '#d1ecf1', borderRadius: '8px' }}>
+          <label style={{ display: 'block', marginBottom: '10px', color: '#333', fontWeight: '600' }}>
+            💭 您的观点/研报（可选）：
+          </label>
+          <textarea
+            value={userOpinion}
+            onChange={(e) => setUserOpinion(e.target.value)}
+            placeholder="例如：我认为该公司基本面良好，技术创新能力强，长期看好..."
+            style={{
+              width: '100%',
+              minHeight: '80px',
+              padding: '10px',
+              border: '1px solid #ddd',
+              borderRadius: '5px',
+              fontSize: '14px',
+              fontFamily: 'inherit',
+              resize: 'vertical'
+            }}
+          />
         </div>
       </div>
 
@@ -371,7 +504,8 @@ function StockAnalysis({ apiUrl }) {
               <div style={{
                 background: '#f8f9fa',
                 padding: '20px',
-                borderRadius: '10px'
+                borderRadius: '10px',
+                marginBottom: '20px'
               }}>
                 <h3 style={{ color: '#333', marginBottom: '15px' }}>📌 分析要点</h3>
                 <ul style={{ margin: 0, paddingLeft: '20px', lineHeight: '1.8' }}>
@@ -395,6 +529,32 @@ function StockAnalysis({ apiUrl }) {
                   </div>
                 )}
               </div>
+
+              {/* 投资策略 */}
+              {analysis.strategy && (
+                <div style={{
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  padding: '20px',
+                  borderRadius: '10px'
+                }}>
+                  <h3 style={{ marginBottom: '15px', display: 'flex', alignItems: 'center' }}>
+                    🎯 综合投资策略
+                  </h3>
+                  <p style={{ margin: 0, lineHeight: '1.8', fontSize: '1.05em' }}>
+                    {analysis.strategy}
+                  </p>
+                  <div style={{
+                    marginTop: '15px',
+                    padding: '10px',
+                    background: 'rgba(255,255,255,0.2)',
+                    borderRadius: '5px',
+                    fontSize: '0.9em'
+                  }}>
+                    💡 此策略综合了技术指标、基本面消息和您的观点
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

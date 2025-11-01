@@ -301,6 +301,116 @@ class AlphaVantageClient:
     def get_trending_stocks(self) -> List[str]:
         """获取热门股票列表"""
         return ['AAPL', 'GOOGL', 'MSFT', 'TSLA', 'NVDA']
+    
+    def get_news(self, symbol: str, limit: int = 5) -> List[Dict]:
+        """
+        获取股票相关新闻
+        
+        Args:
+            symbol: 股票代码
+            limit: 返回新闻数量，默认5条
+        
+        Returns:
+            [
+                {
+                    "title": "新闻标题",
+                    "summary": "新闻摘要",
+                    "url": "新闻链接",
+                    "time_published": "发布时间",
+                    "sentiment": "positive/neutral/negative",
+                    "sentiment_score": 0.35
+                }
+            ]
+        """
+        cache_key = self._get_cache_key('NEWS', symbol)
+        
+        # 检查缓存（新闻缓存1小时）
+        if cache_key in self.cache:
+            cached_time = self.cache[cache_key].get('timestamp', 0)
+            if (time.time() - cached_time) < 3600:  # 1小时缓存
+                print(f"📰 使用缓存的新闻: {symbol}")
+                return self.cache[cache_key]['data']
+        
+        print(f"📰 获取新闻: {symbol}")
+        
+        try:
+            params = {
+                'function': 'NEWS_SENTIMENT',
+                'tickers': symbol,
+                'apikey': self.api_key,
+                'limit': 50  # 获取更多，然后筛选
+            }
+            
+            response = requests.get(self.base_url, params=params, timeout=10)
+            
+            if response.status_code != 200:
+                print(f"❌ API请求失败: {response.status_code}")
+                return []
+            
+            data = response.json()
+            
+            # 检查错误
+            if 'Error Message' in data:
+                print(f"❌ API错误: {data['Error Message']}")
+                return []
+            
+            if 'Note' in data:
+                print(f"⚠️ API限制: {data['Note']}")
+                return []
+            
+            # 解析新闻
+            news_list = []
+            feed = data.get('feed', [])
+            
+            for item in feed[:limit]:  # 只取前limit条
+                # 查找该股票的情绪分数
+                sentiment_score = 0.0
+                sentiment_label = 'neutral'
+                
+                for ticker_sentiment in item.get('ticker_sentiment', []):
+                    if ticker_sentiment.get('ticker') == symbol:
+                        sentiment_score = float(ticker_sentiment.get('ticker_sentiment_score', 0))
+                        # 根据分数判断情绪
+                        if sentiment_score > 0.15:
+                            sentiment_label = 'positive'
+                        elif sentiment_score < -0.15:
+                            sentiment_label = 'negative'
+                        break
+                
+                # 格式化时间
+                time_str = item.get('time_published', '')
+                if len(time_str) >= 8:
+                    formatted_time = f"{time_str[0:4]}-{time_str[4:6]}-{time_str[6:8]}"
+                    if len(time_str) >= 15:
+                        formatted_time += f" {time_str[9:11]}:{time_str[11:13]}"
+                else:
+                    formatted_time = time_str
+                
+                news_item = {
+                    'title': item.get('title', ''),
+                    'summary': item.get('summary', '')[:200] + '...' if len(item.get('summary', '')) > 200 else item.get('summary', ''),
+                    'url': item.get('url', ''),
+                    'time_published': formatted_time,
+                    'sentiment': sentiment_label,
+                    'sentiment_score': round(sentiment_score, 2)
+                }
+                
+                news_list.append(news_item)
+            
+            # 缓存结果
+            self.cache[cache_key] = {
+                'data': news_list,
+                'timestamp': time.time()
+            }
+            
+            print(f"✅ 获取到 {len(news_list)} 条新闻")
+            return news_list
+            
+        except Exception as e:
+            print(f"❌ 获取新闻失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
 
 
 # 全局单例
