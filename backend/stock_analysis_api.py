@@ -24,10 +24,11 @@ stock_bp = Blueprint('stock', __name__, url_prefix='/api/stock')
 
 @stock_bp.route('/health', methods=['GET'])
 def health_check():
-    """健康检查"""
+    """健康检查 - 股票分析API"""
     return jsonify({
         "status": "healthy",
-        "stock_analysis_available": STOCK_ANALYSIS_AVAILABLE
+        "stock_analysis_available": STOCK_ANALYSIS_AVAILABLE,
+        "version": "1.1.0"
     }), 200
 
 @stock_bp.route('/<symbol>/news', methods=['GET'])
