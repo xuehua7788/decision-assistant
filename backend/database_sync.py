@@ -6,7 +6,6 @@
 """
 
 import os
-import sys
 import psycopg2
 from datetime import datetime
 import json
@@ -19,21 +18,13 @@ class DatabaseSync:
         self.use_database = os.getenv('USE_DATABASE', 'false').lower() == 'true'
         self.conn = None
         
-        print(f"🔍 DatabaseSync初始化: USE_DATABASE={self.use_database}, DATABASE_URL={'已设置' if self.database_url else '未设置'}")
-        
         if self.use_database and self.database_url:
             try:
-                print(f"🔄 正在连接数据库...")
                 self.conn = psycopg2.connect(self.database_url)
-                print("✅ 数据库连接成功！")
+                print("✅ 数据库连接成功")
             except Exception as e:
-                print(f"❌ 数据库连接失败: {type(e).__name__}: {e}")
+                print(f"⚠️ 数据库连接失败: {e}")
                 self.conn = None
-        else:
-            if not self.use_database:
-                print("⚠️ USE_DATABASE=false，数据库同步已禁用")
-            if not self.database_url:
-                print("⚠️ DATABASE_URL未设置")
     
     def is_available(self):
         """检查数据库是否可用"""
@@ -74,56 +65,23 @@ class DatabaseSync:
     def sync_chat_message(self, session_id, role, content, username=None):
         """同步聊天消息到数据库"""
         if not self.is_available():
-            print(f"⚠️ 数据库连接不可用", flush=True)
-            sys.stdout.flush()
             return False
         
         try:
             cursor = self.conn.cursor()
             
             # 确保会话存在
-            print(f"🔍 检查会话是否存在: {session_id}", flush=True)
-            sys.stdout.flush()
             cursor.execute("SELECT id FROM chat_sessions WHERE session_id = %s", (session_id,))
             result = cursor.fetchone()
-            print(f"🔍 会话查询结果: {result}", flush=True)
-            sys.stdout.flush()
             
             if not result:
-                # 创建会话（兼容有/无username字段的表结构）
-                print(f"📝 创建新会话: {session_id}", flush=True)
-                sys.stdout.flush()
-                try:
-                    # 尝试使用username字段
-                    print(f"🔄 尝试使用username字段插入", flush=True)
-                    sys.stdout.flush()
-                    cursor.execute("""
-                        INSERT INTO chat_sessions (session_id, username, created_at)
-                        VALUES (%s, %s, %s)
-                        RETURNING id
-                    """, (session_id, username, datetime.now()))
-                    session_db_id = cursor.fetchone()[0]
-                    print(f"✅ 会话创建成功（使用username）: {session_db_id}", flush=True)
-                    sys.stdout.flush()
-                except Exception as e:
-                    # 如果失败，回滚事务并尝试不使用username字段
-                    print(f"⚠️ 第一次插入失败: {e}", flush=True)
-                    sys.stdout.flush()
-                    if 'username' in str(e) or 'does not exist' in str(e) or 'column' in str(e):
-                        print(f"🔄 回滚事务并重试（不使用username）", flush=True)
-                        sys.stdout.flush()
-                        self.conn.rollback()  # 回滚失败的事务
-                        cursor = self.conn.cursor()  # 重新获取cursor
-                        cursor.execute("""
-                            INSERT INTO chat_sessions (session_id, created_at)
-                            VALUES (%s, %s)
-                            RETURNING id
-                        """, (session_id, datetime.now()))
-                        session_db_id = cursor.fetchone()[0]
-                        print(f"✅ 会话创建成功（不使用username）: {session_db_id}", flush=True)
-                        sys.stdout.flush()
-                    else:
-                        raise
+                # 创建会话
+                cursor.execute("""
+                    INSERT INTO chat_sessions (session_id, username, created_at)
+                    VALUES (%s, %s, %s)
+                    RETURNING id
+                """, (session_id, username, datetime.now()))
+                session_db_id = cursor.fetchone()[0]
             else:
                 session_db_id = result[0]
             
@@ -134,13 +92,11 @@ class DatabaseSync:
             """, (session_db_id, role, content, datetime.now()))
             
             self.conn.commit()
-            print(f"✅ 消息同步到数据库 (会话: {session_id})", flush=True)
-            sys.stdout.flush()
+            print(f"✅ 消息同步到数据库 (会话: {session_id})")
             return True
             
         except Exception as e:
-            print(f"❌ 同步消息失败: {e}", flush=True)
-            sys.stdout.flush()
+            print(f"❌ 同步消息失败: {e}")
             self.conn.rollback()
             return False
     

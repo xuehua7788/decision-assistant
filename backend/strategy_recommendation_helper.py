@@ -67,3 +67,8 @@ def save_strategy_recommendation(username: str,
             conn.close()
         return False
 
+
+
+
+
+

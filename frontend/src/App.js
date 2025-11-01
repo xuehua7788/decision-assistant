@@ -4,6 +4,7 @@ import Login from './Login';
 import Register from './Register';
 import OptionStrategy from './OptionStrategy';
 import UserProfile from './UserProfile';
+import StockAnalysis from './StockAnalysis';
 
 function App() {
   // 硬编码 Render 后端地址，确保生产环境正确
@@ -372,7 +373,7 @@ function App() {
               transform: currentMode === 'analysis' ? 'scale(1.05)' : 'scale(1)'
             }}
           >
-            📊 Decision Analysis
+            📈 Stock Analysis
           </button>
           <button
             onClick={() => switchMode('algorithm')}
@@ -424,102 +425,9 @@ function App() {
           </button>
         </div>
 
-        {/* Analysis Mode */}
+        {/* Stock Analysis Mode */}
         {currentMode === 'analysis' && (
-          <div style={{
-            background: 'white',
-            borderRadius: '15px',
-            padding: '30px',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
-            marginBottom: '20px'
-          }}>
-            <div style={{ marginBottom: '25px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', color: '#333', fontWeight: '600', fontSize: '1.1em' }}>
-                📝 Describe your decision:
-              </label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows="3"
-                placeholder="e.g., I'm considering buying a new laptop for work..."
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  border: '2px solid #e0e0e0',
-                  borderRadius: '8px',
-                  fontSize: '1em'
-                }}
-              />
-            </div>
-
-            <div style={{ marginBottom: '25px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', color: '#333', fontWeight: '600', fontSize: '1.1em' }}>
-                🎯 Options to consider:
-              </label>
-              {options.map((option, index) => (
-                <div key={index} style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-                  <input
-                    type="text"
-                    value={option}
-                    onChange={(e) => updateOption(index, e.target.value)}
-                    placeholder={`Option ${index + 1}`}
-                    style={{
-                      flex: 1,
-                      padding: '12px',
-                      border: '2px solid #e0e0e0',
-                      borderRadius: '8px',
-                      fontSize: '1em'
-                    }}
-                  />
-                  <button
-                    onClick={() => removeOption(index)}
-                    style={{
-                      background: '#f56565',
-                      color: 'white',
-                      padding: '8px 16px',
-                      border: 'none',
-                      borderRadius: '8px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
-              <button
-                onClick={addOption}
-                style={{
-                  background: '#48bb78',
-                  color: 'white',
-                  padding: '8px 16px',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  marginTop: '10px'
-                }}
-              >
-                + Add Option
-              </button>
-            </div>
-
-            <button
-              onClick={analyzeDecision}
-              disabled={loading}
-              style={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                color: 'white',
-                width: '100%',
-                padding: '15px',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '1.1em',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                fontWeight: '600'
-              }}
-            >
-              {loading ? '⚙️ Analyzing...' : '🔍 Analyze My Decision'}
-            </button>
-          </div>
+          <StockAnalysis apiUrl={API_URL} />
         )}
 
         {/* Algorithm Mode */}

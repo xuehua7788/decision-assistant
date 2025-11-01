@@ -98,6 +98,16 @@ if PROFILE_API_AVAILABLE and profile_bp:
     app.register_blueprint(profile_bp)
     print("✅ 用户画像API已注册")
 
+# 导入股票分析API
+try:
+    from stock_analysis_api import stock_bp
+    STOCK_API_AVAILABLE = True
+    app.register_blueprint(stock_bp)
+    print("✅ 股票分析API已注册")
+except ImportError as e:
+    STOCK_API_AVAILABLE = False
+    print(f"⚠️ 股票分析API导入失败: {e}")
+
 # 导入期权策略处理器
 try:
     from option_strategy_handler import OptionStrategyHandler
