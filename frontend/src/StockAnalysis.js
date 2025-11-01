@@ -33,6 +33,7 @@ function StockAnalysis({ apiUrl }) {
     setError('');
     setStockData(null);
     setAnalysis(null);
+    setOptionStrategy(null);
 
     try {
       // 1. 获取股票数据
@@ -50,12 +51,31 @@ function StockAnalysis({ apiUrl }) {
       // 1.5 获取新闻（并行）
       loadNews(targetSymbol.toUpperCase());
 
-      // 2. 获取AI分析
+    } catch (err) {
+      setError('网络连接失败: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const analyzeStock = async () => {
+    if (!stockData) {
+      setError('请先搜索股票');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setAnalysis(null);
+    setOptionStrategy(null);
+
+    try {
+      // 获取AI分析
       const analysisResponse = await fetch(`${apiUrl}/api/stock/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          symbol: targetSymbol.toUpperCase(),
+          symbol: stockData.quote.symbol,
           risk_preference: riskPreference,
           news_context: newsContext,
           user_opinion: userOpinion
@@ -322,6 +342,45 @@ function StockAnalysis({ apiUrl }) {
             }}
           />
         </div>
+
+        {/* AI分析按钮 */}
+        {stockData && (
+          <div style={{ marginTop: '20px', textAlign: 'center' }}>
+            <button
+              onClick={analyzeStock}
+              disabled={loading}
+              style={{
+                padding: '15px 40px',
+                background: loading ? '#ccc' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '10px',
+                fontSize: '1.1em',
+                fontWeight: 'bold',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+                transition: 'all 0.3s'
+              }}
+              onMouseEnter={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.6)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.4)';
+              }}
+            >
+              {loading ? '🔄 分析中...' : '🤖 开始AI综合分析'}
+            </button>
+            <div style={{ marginTop: '10px', fontSize: '0.9em', color: '#666' }}>
+              {newsContext && '✅ 已选择新闻 '}
+              {userOpinion && '✅ 已输入观点 '}
+              {!newsContext && !userOpinion && '💡 提示：选择新闻或输入观点可获得更全面的分析'}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 错误提示 */}

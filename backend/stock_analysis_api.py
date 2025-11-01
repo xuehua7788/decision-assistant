@@ -221,10 +221,16 @@ def analyze_stock():
             risk_preference = 'balanced'
         
         print(f"🤖 开始分析: {symbol} (风险偏好: {risk_preference})", flush=True)
+        print(f"   📝 用户观点长度: {len(user_opinion)} 字符", flush=True)
+        print(f"   📰 新闻消息长度: {len(news_context)} 字符", flush=True)
         if user_opinion:
-            print(f"   用户观点: {user_opinion[:50]}...", flush=True)
+            print(f"   用户观点内容: {user_opinion[:50]}...", flush=True)
+        else:
+            print(f"   ⚠️ 用户观点为空", flush=True)
         if news_context:
-            print(f"   新闻消息: {news_context[:50]}...", flush=True)
+            print(f"   新闻消息内容: {news_context[:50]}...", flush=True)
+        else:
+            print(f"   ⚠️ 新闻消息为空", flush=True)
         sys.stdout.flush()
         
         # 获取股票数据

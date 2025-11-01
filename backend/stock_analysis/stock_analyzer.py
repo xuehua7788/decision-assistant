@@ -265,14 +265,24 @@ class StockAnalyzer:
         # 添加新闻/消息
         if news_context:
             prompt += f"\n\n**相关新闻/消息**:\n{news_context}"
-            prompt += "\n\n请评估该消息对股价的影响（利好/利空/中性），并纳入分析。"
+            prompt += "\n\n⚠️ 重要：请务必在key_points中包含一条「基本面分析要点」，评估该新闻对股价的影响（利好/利空/中性），并在analysis_summary中总结新闻影响。"
         
         # 添加用户观点
         if user_opinion:
             prompt += f"\n\n**用户观点/研报**:\n{user_opinion}"
-            prompt += "\n\n请结合用户观点，评估其合理性，并给出综合建议。"
+            prompt += "\n\n⚠️ 重要：请务必在key_points中包含一条「用户观点评估」，评估观点的合理性，并在analysis_summary中总结您对用户观点的看法。"
         
         prompt += "\n\n请按照系统提示的JSON格式返回分析结果。"
+        
+        # 如果有新闻或用户观点，强调综合分析
+        if news_context or user_opinion:
+            prompt += "\n\n⚠️ 特别提醒：您的分析必须综合考虑："
+            prompt += "\n1. 技术指标（RSI、价格走势、波动率）"
+            if news_context:
+                prompt += "\n2. 新闻消息的影响（必须在key_points和analysis_summary中体现）"
+            if user_opinion:
+                prompt += f"\n{3 if news_context else 2}. 用户观点的合理性（必须在key_points和analysis_summary中体现）"
+            prompt += "\n\n请确保analysis_summary是一个完整的综合分析，而不仅仅是技术面分析。"
         
         return prompt
     
