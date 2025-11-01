@@ -208,6 +208,7 @@ def analyze_stock():
         risk_preference = data.get('risk_preference', 'balanced')
         user_opinion = data.get('user_opinion', '').strip()
         news_context = data.get('news_context', '').strip()
+        language = data.get('language', 'zh')  # 默认中文
         
         if not symbol:
             return jsonify({
@@ -263,7 +264,8 @@ def analyze_stock():
             rsi=rsi,
             risk_preference=risk_preference,
             user_opinion=user_opinion if user_opinion else None,
-            news_context=news_context if news_context else None
+            news_context=news_context if news_context else None,
+            language=language
         )
         
         if not analysis:

@@ -28,7 +28,8 @@ class StockAnalyzer:
                      rsi: float,
                      risk_preference: str = "balanced",
                      user_opinion: str = None,
-                     news_context: str = None) -> Optional[Dict]:
+                     news_context: str = None,
+                     language: str = "zh") -> Optional[Dict]:
         """
         分析股票并给出投资建议
         
@@ -60,9 +61,9 @@ class StockAnalyzer:
         
         try:
             # 构建分析提示词
-            system_prompt = self._build_system_prompt(risk_preference)
+            system_prompt = self._build_system_prompt(risk_preference, language)
             user_prompt = self._build_user_prompt(
-                symbol, current_data, history_data, rsi, user_opinion, news_context
+                symbol, current_data, history_data, rsi, user_opinion, news_context, language
             )
             
             # 调用DeepSeek API
@@ -126,14 +127,21 @@ class StockAnalyzer:
             traceback.print_exc()
             return None
     
-    def _build_system_prompt(self, risk_preference: str) -> str:
+    def _build_system_prompt(self, risk_preference: str, language: str = "zh") -> str:
         """构建系统提示词"""
         
-        risk_profiles = {
-            "conservative": "保守型投资者，注重资本保护，偏好低风险投资",
-            "balanced": "平衡型投资者，追求风险与收益的平衡",
-            "aggressive": "激进型投资者，愿意承担较高风险以追求更高收益"
-        }
+        if language == "en":
+            risk_profiles = {
+                "conservative": "Conservative investor, focusing on capital protection and preferring low-risk investments",
+                "balanced": "Balanced investor, seeking balance between risk and return",
+                "aggressive": "Aggressive investor, willing to take higher risks for higher returns"
+            }
+        else:
+            risk_profiles = {
+                "conservative": "保守型投资者，注重资本保护，偏好低风险投资",
+                "balanced": "平衡型投资者，追求风险与收益的平衡",
+                "aggressive": "激进型投资者，愿意承担较高风险以追求更高收益"
+            }
         
         risk_desc = risk_profiles.get(risk_preference, risk_profiles["balanced"])
         
@@ -204,11 +212,12 @@ class StockAnalyzer:
 3. 提供具体的价格目标和止损位
 4. key_points要简洁明了，每条不超过30字
 
-请用中文分析，JSON键名用英文。"""
+请用{'中文' if language == 'zh' else '英文'}分析，JSON键名用英文。"""
     
     def _build_user_prompt(self, symbol: str, current_data: Dict, 
                           history_data: list, rsi: float,
-                          user_opinion: str = None, news_context: str = None) -> str:
+                          user_opinion: str = None, news_context: str = None,
+                          language: str = "zh") -> str:
         """构建用户提示词"""
         
         # 计算最近5天涨跌

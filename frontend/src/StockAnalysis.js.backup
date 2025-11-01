@@ -88,8 +88,7 @@ function StockAnalysis({ apiUrl }) {
           symbol: stockData.quote.symbol,
           risk_preference: riskPreference,
           news_context: newsContext,
-          user_opinion: userOpinion,
-          language: language
+          user_opinion: userOpinion
         })
       });
 
@@ -168,26 +167,7 @@ function StockAnalysis({ apiUrl }) {
     }}>
       {/* 搜索区域 */}
       <div style={{ marginBottom: '30px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h2 style={{ color: '#333', margin: 0 }}>
-            {language === 'zh' ? '📈 智能股票分析' : '📈 Intelligent Stock Analysis'}
-          </h2>
-          <button
-            onClick={toggleLanguage}
-            style={{
-              padding: '8px 16px',
-              background: '#667eea',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontWeight: '600',
-              fontSize: '0.9em'
-            }}
-          >
-            {language === 'zh' ? '🌐 English' : '🌐 中文'}
-          </button>
-        </div>
+        <h2 style={{ color: '#333', marginBottom: '20px' }}>📈 智能股票分析</h2>
         
         {/* 搜索框 */}
         <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
