@@ -13,6 +13,7 @@ function StockAnalysis({ apiUrl }) {
   // 加载热门股票
   useEffect(() => {
     loadTrendingStocks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadTrendingStocks = async () => {

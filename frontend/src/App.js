@@ -12,11 +12,8 @@ function App() {
   const [currentView, setCurrentView] = useState('login'); // 'login', 'register', 'app'
   const [user, setUser] = useState(null);
   const [currentMode, setCurrentMode] = useState('analysis');
-  const [description, setDescription] = useState('');
-  const [options, setOptions] = useState(['', '']);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
-  const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   
   // 算法分析相关状态
@@ -164,7 +161,6 @@ function App() {
 
   const switchMode = (mode) => {
     setCurrentMode(mode);
-    setResult(null);
     setAlgoResult(null);
   };
   
@@ -211,54 +207,6 @@ function App() {
     }
   };
 
-  const addOption = () => {
-    setOptions([...options, '']);
-  };
-
-  const removeOption = (index) => {
-    if (options.length > 1) {
-      setOptions(options.filter((_, i) => i !== index));
-    }
-  };
-
-  const updateOption = (index, value) => {
-    const newOptions = [...options];
-    newOptions[index] = value;
-    setOptions(newOptions);
-  };
-
-  const analyzeDecision = async () => {
-    const validOptions = options.filter(o => o.trim() !== '');
-    
-    if (!description || validOptions.length === 0) {
-      alert('Please provide a description and at least one option');
-      return;
-    }
-
-    setLoading(true);
-    setResult(null);
-
-    try {
-      const response = await fetch(`${API_URL}/api/decisions/analyze`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          description: description,
-          options: validOptions
-        })
-      });
-      
-      const data = await response.json();
-      setResult(data);
-      setLoading(false);
-    } catch (error) {
-      setResult({
-        recommendation: 'Error',
-        readable_summary: 'Could not connect to server: ' + error.message
-      });
-      setLoading(false);
-    }
-  };
 
   const sendMessage = async () => {
     if (!chatInput.trim()) return;
@@ -668,83 +616,6 @@ function App() {
           </div>
         )}
 
-        {/* Results */}
-        {result && (
-          <div style={{
-            background: 'white',
-            borderRadius: '15px',
-            padding: '30px',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.1)'
-          }}>
-            <h2>📊 Decision Analysis Results</h2>
-            
-            <div style={{
-              background: 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)',
-              color: 'white',
-              padding: '20px',
-              borderRadius: '10px',
-              marginTop: '20px',
-              marginBottom: '20px'
-            }}>
-              <h3>⭐ Recommendation</h3>
-              <p style={{ fontSize: '1.3em', fontWeight: 'bold' }}>{result.recommendation}</p>
-            </div>
-
-            <div style={{
-              background: '#f8f9fa',
-              borderRadius: '10px',
-              padding: '20px',
-              marginBottom: '20px'
-            }}>
-              <h3>📋 Summary</h3>
-              <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
-                {result.readable_summary}
-              </div>
-            </div>
-
-            {result.algorithm_analysis?.algorithms_used?.weighted_score?.results && (
-              <div style={{
-                background: '#f8f9fa',
-                borderRadius: '10px',
-                padding: '20px'
-              }}>
-                <h3>📊 Score Analysis</h3>
-                {Object.entries(result.algorithm_analysis.algorithms_used.weighted_score.results).map(([option, scores]) => (
-                  <div key={option} style={{
-                    background: 'white',
-                    padding: '10px 15px',
-                    borderRadius: '8px',
-                    marginBottom: '10px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}>
-                    <span><strong>{option}</strong></span>
-                    <span>{scores.total_score}/10</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <button
-              onClick={() => window.location.reload()}
-              style={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                color: 'white',
-                width: '100%',
-                padding: '15px',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '1.1em',
-                cursor: 'pointer',
-                fontWeight: '600',
-                marginTop: '20px'
-              }}
-            >
-              🔄 New Analysis
-            </button>
-          </div>
-        )}
       </div>
 
       {/* User Profile Mode */}
