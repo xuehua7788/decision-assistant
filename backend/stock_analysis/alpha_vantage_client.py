@@ -222,6 +222,33 @@ class AlphaVantageClient:
             print(f"❌ 获取历史数据失败: {e}")
             return None
     
+    def calculate_volatility(self, prices: List[float]) -> Optional[float]:
+        """
+        计算实现波动率（30天）
+        
+        Args:
+            prices: 价格列表（从旧到新）
+        
+        Returns:
+            年化波动率（百分比）
+        """
+        if len(prices) < 2:
+            return None
+        
+        # 计算日收益率
+        daily_returns = [(prices[i] - prices[i-1]) / prices[i-1] 
+                        for i in range(1, len(prices))]
+        
+        # 计算标准差
+        mean_return = sum(daily_returns) / len(daily_returns)
+        variance = sum((r - mean_return) ** 2 for r in daily_returns) / len(daily_returns)
+        std_dev = variance ** 0.5
+        
+        # 年化波动率（假设252个交易日）
+        annualized_volatility = std_dev * (252 ** 0.5) * 100
+        
+        return round(annualized_volatility, 2)
+    
     def calculate_rsi(self, prices: List[float], period: int = 14) -> Optional[float]:
         """
         计算RSI指标

@@ -82,6 +82,7 @@ def get_stock_data(symbol):
         # 计算技术指标
         closes = [h['close'] for h in history]
         rsi = client.calculate_rsi(closes)
+        volatility = client.calculate_volatility(closes)
         
         print(f"✅ 数据获取成功: {symbol} - ${quote['price']}", flush=True)
         sys.stdout.flush()
@@ -92,7 +93,8 @@ def get_stock_data(symbol):
                 "quote": quote,
                 "history": history,
                 "indicators": {
-                    "rsi": rsi
+                    "rsi": rsi,
+                    "volatility": volatility
                 }
             }
         }), 200

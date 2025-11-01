@@ -117,7 +117,7 @@ function StockAnalysis({ apiUrl }) {
             value={symbol}
             onChange={(e) => setSymbol(e.target.value.toUpperCase())}
             onKeyPress={handleKeyPress}
-            placeholder="输入股票代码（如 AAPL）"
+            placeholder="输入美股代码（如 AAPL=苹果, TSLA=特斯拉）"
             style={{
               flex: 1,
               padding: '12px',
@@ -145,14 +145,20 @@ function StockAnalysis({ apiUrl }) {
         </div>
 
         {/* 热门股票快捷按钮 */}
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          <span style={{ color: '#666', marginRight: '10px', lineHeight: '36px' }}>热门股票:</span>
-          {trendingStocks.map(stock => (
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ color: '#666', fontWeight: '600' }}>热门股票:</span>
+          {[
+            { code: 'AAPL', name: '苹果' },
+            { code: 'GOOGL', name: '谷歌' },
+            { code: 'MSFT', name: '微软' },
+            { code: 'TSLA', name: '特斯拉' },
+            { code: 'NVDA', name: '英伟达' }
+          ].map(stock => (
             <button
-              key={stock}
+              key={stock.code}
               onClick={() => {
-                setSymbol(stock);
-                searchStock(stock);
+                setSymbol(stock.code);
+                searchStock(stock.code);
               }}
               style={{
                 padding: '8px 16px',
@@ -164,8 +170,9 @@ function StockAnalysis({ apiUrl }) {
                 fontWeight: '600',
                 fontSize: '0.9em'
               }}
+              title={`${stock.name} (${stock.code})`}
             >
-              {stock}
+              {stock.code} {stock.name}
             </button>
           ))}
         </div>
@@ -287,7 +294,7 @@ function StockAnalysis({ apiUrl }) {
               borderRadius: '10px'
             }}>
               <h3 style={{ color: '#333', marginBottom: '15px' }}>📋 关键指标</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '15px' }}>
                 <div>
                   <div style={{ color: '#666', fontSize: '0.9em' }}>今日最高</div>
                   <div style={{ fontSize: '1.2em', fontWeight: '600' }}>${stockData.quote.high.toFixed(2)}</div>
@@ -311,6 +318,17 @@ function StockAnalysis({ apiUrl }) {
                            stockData.indicators.rsi < 30 ? '#48bb78' : '#333'
                   }}>
                     {stockData.indicators.rsi?.toFixed(2) || 'N/A'}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ color: '#666', fontSize: '0.9em' }}>30日波动率</div>
+                  <div style={{ 
+                    fontSize: '1.2em', 
+                    fontWeight: '600',
+                    color: stockData.indicators.volatility > 40 ? '#f56565' : 
+                           stockData.indicators.volatility < 20 ? '#48bb78' : '#333'
+                  }}>
+                    {stockData.indicators.volatility?.toFixed(2)}%
                   </div>
                 </div>
               </div>
