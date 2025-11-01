@@ -156,18 +156,30 @@ class StockAnalyzer:
 {{
   "score": 75,
   "recommendation": "买入",
+  "market_direction": "bullish",
+  "direction_strength": "strong",
   "position_size": "20%",
   "target_price": 190.0,
   "stop_loss": 175.0,
   "key_points": [
     "技术面分析要点",
-    "基本面分析要点",
-    "用户观点评估",
+    "基本面分析要点（如果有新闻）",
+    "用户观点评估（如果有）",
     "风险提示"
   ],
   "analysis_summary": "综合分析总结（150字以内）",
   "strategy": "具体投资策略建议（结合技术面和基本面，100字以内）"
 }}
+
+**market_direction说明**（必须返回）：
+- "bullish": 看涨（技术面强势 + 新闻利好）
+- "bearish": 看跌（技术面走弱 + 新闻利空）
+- "neutral": 震荡（信号不明确或新闻中性）
+
+**direction_strength说明**：
+- "strong": 强烈（评分>80或<20）
+- "moderate": 一般（评分50-80或20-50）
+- "weak": 略微（评分接近50）
 
 **评分标准**（0-100分）：
 - 90-100: 强烈买入信号

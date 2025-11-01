@@ -12,6 +12,7 @@ function StockAnalysis({ apiUrl }) {
   const [userOpinion, setUserOpinion] = useState('');
   const [newsList, setNewsList] = useState([]);
   const [loadingNews, setLoadingNews] = useState(false);
+  const [optionStrategy, setOptionStrategy] = useState(null);
   // 热门股票列表（硬编码，不再从API获取）
   const trendingStocks = [
     { code: 'AAPL', name: '苹果' },
@@ -65,6 +66,10 @@ function StockAnalysis({ apiUrl }) {
 
       if (analysisResult.status === 'success') {
         setAnalysis(analysisResult.analysis);
+        // 如果有期权策略，也保存
+        if (analysisResult.option_strategy) {
+          setOptionStrategy(analysisResult.option_strategy);
+        }
       } else {
         setError('AI分析失败: ' + analysisResult.message);
       }
@@ -365,6 +370,56 @@ function StockAnalysis({ apiUrl }) {
                 更新时间: {stockData.quote.updated_at}
               </div>
             </div>
+
+            {/* 期权策略推荐 */}
+            {optionStrategy && (
+              <div style={{
+                background: '#fff',
+                border: '2px solid #667eea',
+                padding: '20px',
+                borderRadius: '10px',
+                marginBottom: '20px'
+              }}>
+                <h3 style={{ color: '#667eea', marginBottom: '15px', display: 'flex', alignItems: 'center' }}>
+                  📊 推荐期权策略: {optionStrategy.name}
+                </h3>
+                <div style={{ fontSize: '0.9em', color: '#666', marginBottom: '10px' }}>
+                  {optionStrategy.description}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '15px' }}>
+                  <div style={{ padding: '10px', background: '#f8f9fa', borderRadius: '5px' }}>
+                    <div style={{ fontSize: '0.8em', color: '#666' }}>风险等级</div>
+                    <div style={{ fontWeight: '600', color: '#333' }}>{optionStrategy.risk_level}</div>
+                  </div>
+                  <div style={{ padding: '10px', background: '#f8f9fa', borderRadius: '5px' }}>
+                    <div style={{ fontSize: '0.8em', color: '#666' }}>当前股价</div>
+                    <div style={{ fontWeight: '600', color: '#333' }}>${optionStrategy.parameters.current_price.toFixed(2)}</div>
+                  </div>
+                </div>
+                <div style={{ padding: '15px', background: '#e7f3ff', borderRadius: '8px' }}>
+                  <div style={{ fontWeight: '600', marginBottom: '10px', color: '#333' }}>策略参数：</div>
+                  {optionStrategy.parameters.buy_strike && (
+                    <div style={{ marginBottom: '5px' }}>
+                      • 买入执行价: ${optionStrategy.parameters.buy_strike.toFixed(2)}
+                    </div>
+                  )}
+                  {optionStrategy.parameters.sell_strike && (
+                    <div style={{ marginBottom: '5px' }}>
+                      • 卖出执行价: ${optionStrategy.parameters.sell_strike.toFixed(2)}
+                    </div>
+                  )}
+                  <div style={{ marginBottom: '5px' }}>
+                    • 到期时间: {optionStrategy.parameters.expiry}
+                  </div>
+                  <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #ddd' }}>
+                    <div style={{ fontWeight: '600', marginBottom: '5px' }}>风险指标：</div>
+                    <div>最大收益: {optionStrategy.metrics.max_gain >= 999999 ? '无限' : `$${optionStrategy.metrics.max_gain.toFixed(2)}`}</div>
+                    <div>最大损失: ${optionStrategy.metrics.max_loss.toFixed(2)}</div>
+                    <div>盈亏平衡: ${optionStrategy.metrics.breakeven.toFixed(2)}</div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* K线图 */}
             <div style={{

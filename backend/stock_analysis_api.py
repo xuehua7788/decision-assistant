@@ -267,12 +267,57 @@ def analyze_stock():
             }), 500
         
         print(f"✅ 分析完成: {symbol} - 评分{analysis['score']}, 建议{analysis['recommendation']}", flush=True)
+        
+        # 根据AI分析结果生成期权策略
+        option_strategy = None
+        if 'market_direction' in analysis and 'direction_strength' in analysis:
+            try:
+                from option_strategy_handler import OptionStrategyHandler
+                
+                # 构建期权策略请求文本
+                direction_map = {
+                    'bullish': '看涨',
+                    'bearish': '看跌',
+                    'neutral': '震荡'
+                }
+                strength_map = {
+                    'strong': '强烈',
+                    'moderate': '一般',
+                    'weak': '略微'
+                }
+                
+                direction_cn = direction_map.get(analysis['market_direction'], '震荡')
+                strength_cn = strength_map.get(analysis['direction_strength'], '一般')
+                
+                option_text = f"我{strength_cn}{direction_cn}{symbol}股票，{risk_preference}风险偏好"
+                
+                print(f"🎯 生成期权策略: {option_text}", flush=True)
+                
+                handler = OptionStrategyHandler()
+                option_result = handler.handle_option_strategy_request(
+                    option_text,
+                    current_price=quote['price']
+                )
+                
+                if option_result['success']:
+                    option_strategy = option_result['strategy']
+                    print(f"✅ 期权策略: {option_strategy['name']}", flush=True)
+                
+            except Exception as e:
+                print(f"⚠️ 期权策略生成失败: {e}", flush=True)
+        
         sys.stdout.flush()
         
-        return jsonify({
+        # 返回结果（包含期权策略）
+        response_data = {
             "status": "success",
             "analysis": analysis
-        }), 200
+        }
+        
+        if option_strategy:
+            response_data["option_strategy"] = option_strategy
+        
+        return jsonify(response_data), 200
         
     except Exception as e:
         print(f"❌ 分析失败: {e}", flush=True)
