@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import React, { useState, useEffect, useCallback } from 'react';
 
 function StrategyEvaluation({ apiUrl }) {
   const [strategies, setStrategies] = useState([]);
@@ -8,11 +7,7 @@ function StrategyEvaluation({ apiUrl }) {
   const [loading, setLoading] = useState(false);
 
   // 加载策略列表
-  useEffect(() => {
-    loadStrategies();
-  }, []);
-
-  const loadStrategies = async () => {
+  const loadStrategies = useCallback(async () => {
     try {
       const response = await fetch(`${apiUrl}/api/strategy/list`);
       const result = await response.json();
@@ -23,7 +18,11 @@ function StrategyEvaluation({ apiUrl }) {
     } catch (err) {
       console.error('加载策略失败:', err);
     }
-  };
+  }, [apiUrl]);
+
+  useEffect(() => {
+    loadStrategies();
+  }, [loadStrategies]);
 
   const evaluateStrategy = async (strategy) => {
     setSelectedStrategy(strategy);
