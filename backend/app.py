@@ -121,6 +121,12 @@ try:
     print(f"   注册的路由: {[rule.rule for rule in app.url_map.iter_rules() if 'strategy' in rule.rule]}")
 except ImportError as e:
     print(f"⚠️ 策略存储API导入失败: {e}")
+    import traceback
+    traceback.print_exc()
+except Exception as e:
+    print(f"❌ 策略存储API注册失败: {e}")
+    import traceback
+    traceback.print_exc()
 
 # 导入期权策略处理器
 try:
