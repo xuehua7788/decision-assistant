@@ -104,18 +104,23 @@ try:
     STOCK_API_AVAILABLE = True
     app.register_blueprint(stock_bp)
     print("✅ 股票分析API已注册 (v1.2.0)")
-    
+    # 强制重新加载路由
+    print(f"   注册的路由: {[rule.rule for rule in app.url_map.iter_rules() if 'stock' in rule.rule]}")
+except ImportError as e:
+    STOCK_API_AVAILABLE = False
+    print(f"⚠️ 股票分析API导入失败: {e}")
+
+# 导入策略存储API（独立注册，不依赖stock_api）
+try:
     from strategy_storage_api import strategy_bp, init_strategy_table
     app.register_blueprint(strategy_bp)
     
     # 初始化策略表
     init_strategy_table()
     print("✅ 策略存储API已注册")
-    # 强制重新加载路由
-    print(f"   注册的路由: {[rule.rule for rule in app.url_map.iter_rules() if 'stock' in rule.rule]}")
+    print(f"   注册的路由: {[rule.rule for rule in app.url_map.iter_rules() if 'strategy' in rule.rule]}")
 except ImportError as e:
-    STOCK_API_AVAILABLE = False
-    print(f"⚠️ 股票分析API导入失败: {e}")
+    print(f"⚠️ 策略存储API导入失败: {e}")
 
 # 导入期权策略处理器
 try:
