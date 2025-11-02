@@ -29,11 +29,53 @@ stock_bp = Blueprint('stock', __name__, url_prefix='/api/stock')
 @stock_bp.route('/health', methods=['GET'])
 def health_check():
     """健康检查 - 股票分析API"""
+    import os
+    alpha_key = os.getenv('ALPHA_VANTAGE_KEY', 'NOT_SET')
     return jsonify({
         "status": "healthy",
         "stock_analysis_available": STOCK_ANALYSIS_AVAILABLE,
-        "version": "1.2.0"  # 版本号更新，表示路由已修复
+        "version": "1.2.0",  # 版本号更新，表示路由已修复
+        "alpha_vantage_key_set": alpha_key != 'NOT_SET',
+        "alpha_vantage_key_prefix": alpha_key[:10] if alpha_key != 'NOT_SET' else 'NOT_SET'
     }), 200
+
+@stock_bp.route('/styles', methods=['GET'])
+def get_investment_styles():
+    """
+    获取可用的投资风格列表
+    
+    GET /api/stock/styles
+    
+    Returns:
+        {
+            "status": "success",
+            "styles": [
+                {
+                    "id": "buffett",
+                    "name": "巴菲特",
+                    "name_en": "Warren Buffett",
+                    "description": "价值投资大师",
+                    "icon": "🏛️"
+                },
+                ...
+            ]
+        }
+    """
+    try:
+        from stock_analysis.investment_styles import get_available_styles
+        styles = get_available_styles()
+        
+        return jsonify({
+            "status": "success",
+            "styles": styles
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ 获取投资风格失败: {e}", flush=True)
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
 
 @stock_bp.route('/trending', methods=['GET'])
 def get_trending_stocks():
@@ -110,6 +152,7 @@ def analyze_stock():
         data = request.json
         symbol = data.get('symbol', '').upper()
         risk_preference = data.get('risk_preference', 'balanced')
+        investment_style = data.get('investment_style', None)  # buffett/lynch/soros
         user_opinion = data.get('user_opinion', '').strip()
         news_context = data.get('news_context', '').strip()
         language = data.get('language', 'zh')  # 默认中文
@@ -169,7 +212,8 @@ def analyze_stock():
             risk_preference=risk_preference,
             user_opinion=user_opinion if user_opinion else None,
             news_context=news_context if news_context else None,
-            language=language
+            language=language,
+            investment_style=investment_style
         )
         
         if not analysis:

@@ -111,6 +111,7 @@ class AlphaVantageClient:
             quote = data.get('Global Quote', {})
             if not quote:
                 print(f"❌ 无数据返回: {symbol}")
+                print(f"🔍 API完整响应: {json.dumps(data, indent=2, ensure_ascii=False)}")
                 return None
             
             result = {
@@ -196,6 +197,7 @@ class AlphaVantageClient:
             time_series = data.get('Time Series (Daily)', {})
             if not time_series:
                 print(f"❌ 无历史数据: {symbol}")
+                print(f"🔍 API返回内容: {json.dumps(data, indent=2)}")  # 打印完整响应
                 return None
             
             # 转换为列表格式

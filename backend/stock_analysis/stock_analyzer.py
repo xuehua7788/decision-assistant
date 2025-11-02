@@ -29,7 +29,8 @@ class StockAnalyzer:
                      risk_preference: str = "balanced",
                      user_opinion: str = None,
                      news_context: str = None,
-                     language: str = "zh") -> Optional[Dict]:
+                     language: str = "zh",
+                     investment_style: str = None) -> Optional[Dict]:
         """
         分析股票并给出投资建议
         
@@ -61,7 +62,7 @@ class StockAnalyzer:
         
         try:
             # 构建分析提示词
-            system_prompt = self._build_system_prompt(risk_preference, language)
+            system_prompt = self._build_system_prompt(risk_preference, language, investment_style, current_data.get('name', symbol))
             user_prompt = self._build_user_prompt(
                 symbol, current_data, history_data, rsi, user_opinion, news_context, language
             )
@@ -127,9 +128,18 @@ class StockAnalyzer:
             traceback.print_exc()
             return None
     
-    def _build_system_prompt(self, risk_preference: str, language: str = "zh") -> str:
+    def _build_system_prompt(self, risk_preference: str, language: str = "zh", investment_style: str = None, company_name: str = "") -> str:
         """构建系统提示词"""
         
+        # 如果指定了投资风格，使用大师风格的提示词
+        if investment_style:
+            try:
+                from stock_analysis.investment_styles import get_style_prompt
+                return get_style_prompt(investment_style, "", company_name)
+            except Exception as e:
+                print(f"⚠️ 加载投资风格失败: {e}，使用默认风格")
+        
+        # 默认风格
         if language == "en":
             risk_profiles = {
                 "conservative": "Conservative investor, focusing on capital protection and preferring low-risk investments",

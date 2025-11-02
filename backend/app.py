@@ -103,7 +103,9 @@ try:
     from stock_analysis_api import stock_bp
     STOCK_API_AVAILABLE = True
     app.register_blueprint(stock_bp)
-    print("✅ 股票分析API已注册")
+    print("✅ 股票分析API已注册 (v1.2.0)")
+    # 强制重新加载路由
+    print(f"   注册的路由: {[rule.rule for rule in app.url_map.iter_rules() if 'stock' in rule.rule]}")
 except ImportError as e:
     STOCK_API_AVAILABLE = False
     print(f"⚠️ 股票分析API导入失败: {e}")

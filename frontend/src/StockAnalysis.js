@@ -8,7 +8,7 @@ function StockAnalysis({ apiUrl }) {
   const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [riskPreference, setRiskPreference] = useState('balanced');
+  const [investmentStyle, setInvestmentStyle] = useState('buffett');
   const [newsContext, setNewsContext] = useState('');
   const [userOpinion, setUserOpinion] = useState('');
   const [newsList, setNewsList] = useState([]);
@@ -86,7 +86,7 @@ function StockAnalysis({ apiUrl }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           symbol: stockData.quote.symbol,
-          risk_preference: riskPreference,
+          investment_style: investmentStyle,
           news_context: newsContext,
           user_opinion: userOpinion,
           language: language
@@ -250,26 +250,43 @@ function StockAnalysis({ apiUrl }) {
           ))}
         </div>
 
-        {/* 风险偏好设置 */}
+        {/* 投资风格设置 */}
         <div style={{ marginTop: '15px', padding: '15px', background: '#f8f9fa', borderRadius: '8px' }}>
           <label style={{ display: 'block', marginBottom: '10px', color: '#333', fontWeight: '600' }}>
-            ⚖️ 风险偏好：
+            🎯 选择投资大师风格：
           </label>
-          <div style={{ display: 'flex', gap: '15px' }}>
+          <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
             {[
-              { value: 'conservative', label: '保守', emoji: '🛡️' },
-              { value: 'balanced', label: '平衡', emoji: '⚖️' },
-              { value: 'aggressive', label: '激进', emoji: '🚀' }
+              { value: 'buffett', label: '巴菲特', emoji: '🏛️', desc: '价值投资' },
+              { value: 'lynch', label: '彼得·林奇', emoji: '🎯', desc: '成长股猎手' },
+              { value: 'soros', label: '索罗斯', emoji: '🌊', desc: '趋势投机' }
             ].map(option => (
-              <label key={option.value} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+              <label 
+                key={option.value} 
+                style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column',
+                  alignItems: 'center', 
+                  cursor: 'pointer',
+                  padding: '12px 20px',
+                  border: `2px solid ${investmentStyle === option.value ? '#667eea' : '#ddd'}`,
+                  borderRadius: '10px',
+                  background: investmentStyle === option.value ? '#e7f3ff' : 'white',
+                  transition: 'all 0.2s',
+                  flex: '1',
+                  minWidth: '140px'
+                }}
+              >
                 <input
                   type="radio"
                   value={option.value}
-                  checked={riskPreference === option.value}
-                  onChange={(e) => setRiskPreference(e.target.value)}
-                  style={{ marginRight: '5px' }}
+                  checked={investmentStyle === option.value}
+                  onChange={(e) => setInvestmentStyle(e.target.value)}
+                  style={{ display: 'none' }}
                 />
-                <span>{option.emoji} {option.label}</span>
+                <div style={{ fontSize: '2em', marginBottom: '5px' }}>{option.emoji}</div>
+                <div style={{ fontWeight: '600', color: '#333', marginBottom: '3px' }}>{option.label}</div>
+                <div style={{ fontSize: '0.85em', color: '#666' }}>{option.desc}</div>
               </label>
             ))}
           </div>
