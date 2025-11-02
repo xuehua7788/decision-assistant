@@ -238,12 +238,16 @@ class StockAnalyzer:
         else:
             price_change_5d = 0
         
-        # 计算波动率（最近30天）
+        # 计算波动率（最近30天，年化）
         if len(history_data) >= 2:
             closes = [h['close'] for h in history_data]
             daily_returns = [(closes[i] - closes[i-1]) / closes[i-1] 
                             for i in range(1, len(closes))]
-            volatility = (sum([r**2 for r in daily_returns]) / len(daily_returns)) ** 0.5 * 100
+            mean_return = sum(daily_returns) / len(daily_returns)
+            variance = sum((r - mean_return) ** 2 for r in daily_returns) / len(daily_returns)
+            std_dev = variance ** 0.5
+            # 年化波动率（假设252个交易日）
+            volatility = std_dev * (252 ** 0.5) * 100
         else:
             volatility = 0
         
