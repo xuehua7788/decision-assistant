@@ -5,6 +5,7 @@ import Register from './Register';
 import OptionStrategy from './OptionStrategy';
 import UserProfile from './UserProfile';
 import StockAnalysis from './StockAnalysis';
+import StrategyEvaluation from './StrategyEvaluation';
 
 function App() {
   // 硬编码 Render 后端地址，确保生产环境正确
@@ -324,20 +325,20 @@ function App() {
             📈 Stock Analysis
           </button>
           <button
-            onClick={() => switchMode('algorithm')}
+            onClick={() => switchMode('strategy')}
             style={{
-              background: currentMode === 'algorithm' ? '#ffd700' : 'white',
-              color: currentMode === 'algorithm' ? '#333' : '#667eea',
+              background: currentMode === 'strategy' ? '#ffd700' : 'white',
+              color: currentMode === 'strategy' ? '#333' : '#667eea',
               padding: '10px 30px',
               border: 'none',
               borderRadius: '25px',
               cursor: 'pointer',
               fontSize: '1.1em',
               fontWeight: '600',
-              transform: currentMode === 'algorithm' ? 'scale(1.05)' : 'scale(1)'
+              transform: currentMode === 'strategy' ? 'scale(1.05)' : 'scale(1)'
             }}
           >
-            🧮 Algorithm Mode
+            📊 Strategy Evaluation
           </button>
           <button
             onClick={() => switchMode('chat')}
@@ -378,8 +379,13 @@ function App() {
           <StockAnalysis apiUrl={API_URL} />
         )}
 
-        {/* Algorithm Mode */}
-        {currentMode === 'algorithm' && (
+        {/* Strategy Evaluation Mode */}
+        {currentMode === 'strategy' && (
+          <StrategyEvaluation apiUrl={API_URL} />
+        )}
+
+        {/* Old Algorithm Mode - Hidden */}
+        {currentMode === 'algorithm_old' && (
           <div style={{
             background: 'white',
             borderRadius: '15px',

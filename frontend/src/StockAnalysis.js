@@ -144,6 +144,45 @@ function StockAnalysis({ apiUrl }) {
     }
   };
 
+  const acceptStrategy = async () => {
+    if (!stockData || !analysis) return;
+
+    try {
+      const response = await fetch(`${apiUrl}/api/strategy/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          symbol: stockData.quote.symbol,
+          company_name: stockData.quote.name,
+          investment_style: investmentStyle,
+          recommendation: analysis.recommendation,
+          target_price: analysis.target_price,
+          stop_loss: analysis.stop_loss,
+          position_size: analysis.position_size,
+          score: analysis.score,
+          strategy_text: analysis.strategy,
+          analysis_summary: analysis.analysis_summary,
+          current_price: stockData.quote.price,
+          created_at: new Date().toISOString()
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.status === 'success') {
+        alert('✅ 策略已保存！您可以在"策略评估"模块查看历史表现');
+      } else {
+        alert('❌ 保存失败: ' + result.message);
+      }
+    } catch (err) {
+      alert('❌ 网络错误: ' + err.message);
+    }
+  };
+
+  const rejectStrategy = () => {
+    alert('❌ 已拒绝此策略，不会保存到数据库');
+  };
+
   // 获取推荐颜色
   const getRecommendationColor = (recommendation) => {
     if (recommendation === '买入') return '#48bb78';
@@ -713,6 +752,62 @@ function StockAnalysis({ apiUrl }) {
                     fontSize: '0.9em'
                   }}>
                     💡 此策略综合了技术指标、基本面消息和您的观点
+                  </div>
+                  
+                  {/* 接受/拒绝策略按钮 */}
+                  <div style={{
+                    marginTop: '20px',
+                    display: 'flex',
+                    gap: '15px',
+                    justifyContent: 'center'
+                  }}>
+                    <button
+                      onClick={() => acceptStrategy()}
+                      style={{
+                        padding: '12px 30px',
+                        background: '#48bb78',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '1em',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        boxShadow: '0 4px 15px rgba(72, 187, 120, 0.4)',
+                        transition: 'all 0.3s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                        e.currentTarget.style.boxShadow = '0 6px 20px rgba(72, 187, 120, 0.6)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 4px 15px rgba(72, 187, 120, 0.4)';
+                      }}
+                    >
+                      ✅ 接受此策略
+                    </button>
+                    <button
+                      onClick={() => rejectStrategy()}
+                      style={{
+                        padding: '12px 30px',
+                        background: 'rgba(255,255,255,0.2)',
+                        color: 'white',
+                        border: '2px solid white',
+                        borderRadius: '8px',
+                        fontSize: '1em',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
+                      }}
+                    >
+                      ❌ 不接受
+                    </button>
                   </div>
                 </div>
               )}
