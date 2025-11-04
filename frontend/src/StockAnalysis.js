@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { getCurrentLanguage, setLanguage } from './i18n';
 
 function StockAnalysis({ apiUrl }) {
@@ -528,52 +528,192 @@ function StockAnalysis({ apiUrl }) {
               </div>
             </div>
 
-            {/* 期权策略推荐 */}
+            {/* 期权策略推荐 - 增强版 */}
             {optionStrategy && (
               <div style={{
-                background: '#fff',
+                background: 'linear-gradient(135deg, #667eea15 0%, #764ba215 100%)',
                 border: '2px solid #667eea',
                 padding: '20px',
-                borderRadius: '10px',
+                borderRadius: '12px',
                 marginBottom: '20px'
               }}>
-                <h3 style={{ color: '#667eea', marginBottom: '15px', display: 'flex', alignItems: 'center' }}>
-                  📊 推荐期权策略: {optionStrategy.name}
-                </h3>
-                <div style={{ fontSize: '0.9em', color: '#666', marginBottom: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                  <h3 style={{ color: '#667eea', margin: 0 }}>
+                    📊 推荐期权策略: {optionStrategy.name}
+                  </h3>
+                  <div style={{ 
+                    padding: '5px 12px', 
+                    background: '#ff9800', 
+                    color: 'white', 
+                    borderRadius: '6px', 
+                    fontSize: '0.85em',
+                    fontWeight: '600'
+                  }}>
+                    ⚠️ 预估定价
+                  </div>
+                </div>
+
+                {/* 预估定价说明 */}
+                <div style={{ 
+                  padding: '12px', 
+                  background: '#fff3cd', 
+                  border: '1px solid #ffc107',
+                  borderRadius: '8px', 
+                  marginBottom: '15px',
+                  fontSize: '0.85em'
+                }}>
+                  <strong>💡 定价说明：</strong> 当前权利金基于股价百分比估算，非真实市场价格。真实交易请参考期权交易平台报价。
+                </div>
+
+                <div style={{ fontSize: '0.9em', color: '#666', marginBottom: '15px' }}>
                   {optionStrategy.description}
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '15px' }}>
-                  <div style={{ padding: '10px', background: '#f8f9fa', borderRadius: '5px' }}>
-                    <div style={{ fontSize: '0.8em', color: '#666' }}>风险等级</div>
-                    <div style={{ fontWeight: '600', color: '#333' }}>{optionStrategy.risk_level}</div>
+
+                {/* 损益图 */}
+                {optionStrategy.payoff_data && optionStrategy.payoff_data.length > 0 && (
+                  <div style={{ marginBottom: '20px' }}>
+                    <h4 style={{ color: '#333', marginBottom: '10px' }}>📈 损益图 (Payoff Diagram)</h4>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <AreaChart data={optionStrategy.payoff_data}>
+                        <defs>
+                          <linearGradient id="profitGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#48bb78" stopOpacity={0.8}/>
+                            <stop offset="95%" stopColor="#48bb78" stopOpacity={0}/>
+                          </linearGradient>
+                          <linearGradient id="lossGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#f56565" stopOpacity={0}/>
+                            <stop offset="95%" stopColor="#f56565" stopOpacity={0.8}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                        <XAxis 
+                          dataKey="price" 
+                          label={{ value: '股价 ($)', position: 'insideBottom', offset: -5 }}
+                          tick={{ fontSize: 12 }}
+                        />
+                        <YAxis 
+                          label={{ value: '盈亏 ($)', angle: -90, position: 'insideLeft' }}
+                          tick={{ fontSize: 12 }}
+                        />
+                        <Tooltip 
+                          formatter={(value) => `$${value.toFixed(2)}`}
+                          labelFormatter={(label) => `股价: $${label}`}
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="payoff" 
+                          stroke="#667eea" 
+                          strokeWidth={3}
+                          fill="url(#profitGradient)"
+                        />
+                        <Line 
+                          y={0} 
+                          stroke="#999" 
+                          strokeDasharray="5 5"
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                    <div style={{ textAlign: 'center', fontSize: '0.8em', color: '#666', marginTop: '5px' }}>
+                      当前股价: ${optionStrategy.parameters.current_price.toFixed(2)}
+                    </div>
                   </div>
-                  <div style={{ padding: '10px', background: '#f8f9fa', borderRadius: '5px' }}>
-                    <div style={{ fontSize: '0.8em', color: '#666' }}>当前股价</div>
-                    <div style={{ fontWeight: '600', color: '#333' }}>${optionStrategy.parameters.current_price.toFixed(2)}</div>
+                )}
+
+                {/* 策略参数卡片 */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '15px' }}>
+                  <div style={{ padding: '12px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                    <div style={{ fontSize: '0.8em', color: '#666', marginBottom: '3px' }}>风险等级</div>
+                    <div style={{ fontWeight: '600', color: '#333', fontSize: '1.1em' }}>{optionStrategy.risk_level}</div>
+                  </div>
+                  <div style={{ padding: '12px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                    <div style={{ fontSize: '0.8em', color: '#666', marginBottom: '3px' }}>当前股价</div>
+                    <div style={{ fontWeight: '600', color: '#333', fontSize: '1.1em' }}>${optionStrategy.parameters.current_price.toFixed(2)}</div>
+                  </div>
+                  <div style={{ padding: '12px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                    <div style={{ fontSize: '0.8em', color: '#666', marginBottom: '3px' }}>最大收益</div>
+                    <div style={{ fontWeight: '600', color: '#48bb78', fontSize: '1.1em' }}>
+                      {optionStrategy.metrics.max_gain >= 999999 ? '无限 ♾️' : `$${optionStrategy.metrics.max_gain.toFixed(2)}`}
+                    </div>
+                  </div>
+                  <div style={{ padding: '12px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                    <div style={{ fontSize: '0.8em', color: '#666', marginBottom: '3px' }}>最大损失</div>
+                    <div style={{ fontWeight: '600', color: '#f56565', fontSize: '1.1em' }}>${Math.abs(optionStrategy.metrics.max_loss).toFixed(2)}</div>
+                  </div>
+                  <div style={{ padding: '12px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                    <div style={{ fontSize: '0.8em', color: '#666', marginBottom: '3px' }}>盈亏平衡点</div>
+                    <div style={{ fontWeight: '600', color: '#333', fontSize: '1.1em' }}>${optionStrategy.metrics.breakeven.toFixed(2)}</div>
+                  </div>
+                  <div style={{ padding: '12px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                    <div style={{ fontSize: '0.8em', color: '#666', marginBottom: '3px' }}>成功概率</div>
+                    <div style={{ fontWeight: '600', color: '#333', fontSize: '1.1em' }}>{optionStrategy.metrics.probability}</div>
                   </div>
                 </div>
-                <div style={{ padding: '15px', background: '#e7f3ff', borderRadius: '8px' }}>
-                  <div style={{ fontWeight: '600', marginBottom: '10px', color: '#333' }}>策略参数：</div>
+
+                {/* 详细参数 */}
+                <div style={{ padding: '15px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                  <div style={{ fontWeight: '600', marginBottom: '10px', color: '#667eea' }}>📋 策略参数详情</div>
                   {optionStrategy.parameters.buy_strike && (
-                    <div style={{ marginBottom: '5px' }}>
+                    <div style={{ marginBottom: '5px', fontSize: '0.9em' }}>
                       • 买入执行价: ${optionStrategy.parameters.buy_strike.toFixed(2)}
                     </div>
                   )}
                   {optionStrategy.parameters.sell_strike && (
-                    <div style={{ marginBottom: '5px' }}>
+                    <div style={{ marginBottom: '5px', fontSize: '0.9em' }}>
                       • 卖出执行价: ${optionStrategy.parameters.sell_strike.toFixed(2)}
                     </div>
                   )}
-                  <div style={{ marginBottom: '5px' }}>
+                  {optionStrategy.parameters.premium_paid && (
+                    <div style={{ marginBottom: '5px', fontSize: '0.9em' }}>
+                      • 权利金支出: ${optionStrategy.parameters.premium_paid.toFixed(2)} <span style={{ color: '#ff9800', fontSize: '0.85em' }}>(预估)</span>
+                    </div>
+                  )}
+                  {optionStrategy.parameters.premium_received && (
+                    <div style={{ marginBottom: '5px', fontSize: '0.9em' }}>
+                      • 权利金收入: ${optionStrategy.parameters.premium_received.toFixed(2)} <span style={{ color: '#ff9800', fontSize: '0.85em' }}>(预估)</span>
+                    </div>
+                  )}
+                  <div style={{ marginBottom: '5px', fontSize: '0.9em' }}>
                     • 到期时间: {optionStrategy.parameters.expiry}
                   </div>
-                  <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #ddd' }}>
-                    <div style={{ fontWeight: '600', marginBottom: '5px' }}>风险指标：</div>
-                    <div>最大收益: {optionStrategy.metrics.max_gain >= 999999 ? '无限' : `$${optionStrategy.metrics.max_gain.toFixed(2)}`}</div>
-                    <div>最大损失: ${optionStrategy.metrics.max_loss.toFixed(2)}</div>
-                    <div>盈亏平衡: ${optionStrategy.metrics.breakeven.toFixed(2)}</div>
+                  <div style={{ marginBottom: '5px', fontSize: '0.9em' }}>
+                    • 合约数量: {optionStrategy.parameters.contracts}
                   </div>
+                </div>
+
+                {/* 操作按钮 */}
+                <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
+                  <button
+                    onClick={() => acceptStrategy()}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      background: 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      fontSize: '0.95em'
+                    }}
+                  >
+                    ✅ 接受策略
+                  </button>
+                  <button
+                    onClick={() => rejectStrategy()}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      background: '#e0e0e0',
+                      color: '#666',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      fontSize: '0.95em'
+                    }}
+                  >
+                    ❌ 拒绝
+                  </button>
                 </div>
               </div>
             )}
