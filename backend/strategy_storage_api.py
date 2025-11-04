@@ -43,6 +43,8 @@ def init_strategy_table():
             CREATE TABLE IF NOT EXISTS accepted_strategies (
                 id SERIAL PRIMARY KEY,
                 strategy_id VARCHAR(100) UNIQUE NOT NULL,
+                user_id VARCHAR(50),
+                username VARCHAR(50),
                 symbol VARCHAR(10) NOT NULL,
                 company_name VARCHAR(100),
                 investment_style VARCHAR(20) NOT NULL,
@@ -68,6 +70,10 @@ def init_strategy_table():
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_strategy_created 
             ON accepted_strategies(created_at)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_strategy_username 
+            ON accepted_strategies(username)
         """)
         
         conn.commit()
@@ -112,6 +118,10 @@ def save_strategy():
     try:
         data = request.json
         
+        # 🆕 获取用户信息（可选，兼容无用户系统）
+        username = data.get('username')  # 前端需要传递username
+        user_id = data.get('user_id')    # 或者user_id
+        
         # 验证必需字段
         required_fields = ['symbol', 'investment_style', 'recommendation', 
                           'target_price', 'current_price']
@@ -126,7 +136,8 @@ def save_strategy():
         symbol = data['symbol']
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         style = data['investment_style']
-        strategy_id = f"{symbol}_{timestamp}_{style}"
+        # 如果有username，加入strategy_id
+        strategy_id = f"{symbol}_{timestamp}_{style}_{username}" if username else f"{symbol}_{timestamp}_{style}"
         
         # 尝试保存到数据库
         conn = get_db_connection()
@@ -138,12 +149,14 @@ def save_strategy():
                 
                 cursor.execute("""
                     INSERT INTO accepted_strategies 
-                    (strategy_id, symbol, company_name, investment_style, recommendation,
+                    (strategy_id, user_id, username, symbol, company_name, investment_style, recommendation,
                      target_price, stop_loss, position_size, score, strategy_text,
                      analysis_summary, current_price, option_strategy, status)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     strategy_id,
+                    user_id,
+                    username,
                     symbol,
                     data.get('company_name', symbol),
                     style,
@@ -218,6 +231,94 @@ def save_strategy():
         
     except Exception as e:
         print(f"❌ 保存策略失败: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+@strategy_bp.route('/user/<username>', methods=['GET'])
+def list_user_strategies(username):
+    """
+    获取特定用户的策略列表
+    
+    GET /api/strategy/user/{username}
+    
+    Returns:
+        {
+            "status": "success",
+            "username": "bbb",
+            "strategies": [...]
+        }
+    """
+    try:
+        # 尝试从数据库读取
+        conn = get_db_connection()
+        if conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT strategy_id, symbol, company_name, investment_style, 
+                           recommendation, target_price, stop_loss, position_size,
+                           score, strategy_text, analysis_summary, current_price,
+                           created_at, status, option_strategy
+                    FROM accepted_strategies
+                    WHERE username = %s
+                    ORDER BY created_at DESC
+                """, (username,))
+                
+                rows = cursor.fetchall()
+                cursor.close()
+                conn.close()
+                
+                strategies = []
+                for row in rows:
+                    strategy = {
+                        'strategy_id': row[0],
+                        'symbol': row[1],
+                        'company_name': row[2],
+                        'investment_style': row[3],
+                        'recommendation': row[4],
+                        'target_price': float(row[5]) if row[5] else None,
+                        'stop_loss': float(row[6]) if row[6] else None,
+                        'position_size': row[7],
+                        'score': row[8],
+                        'strategy_text': row[9],
+                        'analysis_summary': row[10],
+                        'current_price': float(row[11]) if row[11] else None,
+                        'created_at': row[12].isoformat() if row[12] else None,
+                        'status': row[13],
+                        'option_strategy': json.loads(row[14]) if row[14] else None
+                    }
+                    strategies.append(strategy)
+                
+                print(f"✅ 从数据库获取 {username} 的 {len(strategies)} 个策略")
+                
+                return jsonify({
+                    "status": "success",
+                    "username": username,
+                    "count": len(strategies),
+                    "strategies": strategies
+                }), 200
+                
+            except Exception as e:
+                print(f"❌ 数据库查询失败: {e}")
+                if conn:
+                    conn.close()
+        
+        # 如果数据库不可用，返回空列表
+        return jsonify({
+            "status": "success",
+            "username": username,
+            "count": 0,
+            "strategies": [],
+            "message": "数据库不可用"
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ 查询用户策略失败: {e}")
         import traceback
         traceback.print_exc()
         

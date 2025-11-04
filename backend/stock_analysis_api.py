@@ -26,7 +26,7 @@ stock_bp = Blueprint('stock', __name__, url_prefix='/api/stock')
 # 路由顺序很重要！具体的路由必须在通用的 /<symbol> 之前
 # ============================================================
 
-@stock_bp.route('/search', methods=['GET'])
+@stock_bp.route('/search', methods=['GET', 'OPTIONS'])
 def search_stocks():
     """
     搜索股票（通过公司名或代码）
@@ -46,7 +46,12 @@ def search_stocks():
             ]
         }
     """
+    # 处理OPTIONS预检请求
+    if request.method == 'OPTIONS':
+        return jsonify({"status": "ok"}), 200
+    
     if not STOCK_ANALYSIS_AVAILABLE:
+        print("❌ 股票分析功能不可用", flush=True)
         return jsonify({
             "status": "error",
             "message": "股票分析功能暂不可用"
@@ -54,6 +59,8 @@ def search_stocks():
     
     try:
         keywords = request.args.get('keywords', '').strip()
+        
+        print(f"📥 收到搜索请求: keywords={keywords}", flush=True)
         
         if not keywords:
             return jsonify({
@@ -70,53 +77,92 @@ def search_stocks():
         print(f"🔍 搜索股票: {keywords}", flush=True)
         
         # 调用Alpha Vantage搜索API
-        client = get_alpha_vantage_client()
-        api_key = client.api_key
-        
-        import requests as req
-        response = req.get(
-            'https://www.alphavantage.co/query',
-            params={
+        try:
+            client = get_alpha_vantage_client()
+            api_key = client.api_key
+            
+            if not api_key or api_key == 'demo':
+                print("⚠️  使用demo API key", flush=True)
+            
+            import requests as req
+            url = 'https://www.alphavantage.co/query'
+            params = {
                 'function': 'SYMBOL_SEARCH',
                 'keywords': keywords,
                 'apikey': api_key
-            },
-            timeout=10
-        )
-        
-        if response.status_code != 200:
-            return jsonify({
-                "status": "error",
-                "message": "搜索API调用失败"
-            }), 500
-        
-        data = response.json()
-        
-        if 'bestMatches' not in data:
+            }
+            
+            print(f"📡 调用Alpha Vantage API: {url}", flush=True)
+            print(f"   参数: function=SYMBOL_SEARCH, keywords={keywords}", flush=True)
+            
+            response = req.get(url, params=params, timeout=10)
+            
+            print(f"📨 API响应状态: {response.status_code}", flush=True)
+            
+            if response.status_code != 200:
+                print(f"❌ API返回错误: {response.status_code}", flush=True)
+                print(f"   响应内容: {response.text[:200]}", flush=True)
+                return jsonify({
+                    "status": "error",
+                    "message": f"搜索API调用失败: HTTP {response.status_code}"
+                }), 500
+            
+            data = response.json()
+            
+            # 检查是否有错误信息
+            if 'Error Message' in data:
+                print(f"❌ Alpha Vantage错误: {data['Error Message']}", flush=True)
+                return jsonify({
+                    "status": "error",
+                    "message": data['Error Message']
+                }), 500
+            
+            if 'Note' in data:
+                print(f"⚠️  Alpha Vantage提示: {data['Note']}", flush=True)
+                return jsonify({
+                    "status": "error",
+                    "message": "API调用频率受限，请稍后重试"
+                }), 429
+            
+            if 'bestMatches' not in data:
+                print(f"⚠️  无匹配结果", flush=True)
+                return jsonify({
+                    "status": "success",
+                    "results": []
+                }), 200
+            
+            # 格式化结果
+            results = []
+            for match in data['bestMatches'][:10]:  # 最多返回10个结果
+                results.append({
+                    'symbol': match.get('1. symbol', ''),
+                    'name': match.get('2. name', ''),
+                    'type': match.get('3. type', ''),
+                    'region': match.get('4. region', ''),
+                    'currency': match.get('8. currency', 'USD'),
+                    'match_score': match.get('9. matchScore', '0')
+                })
+            
+            print(f"✅ 找到 {len(results)} 个匹配结果", flush=True)
+            sys.stdout.flush()
+            
             return jsonify({
                 "status": "success",
-                "results": []
+                "results": results
             }), 200
-        
-        # 格式化结果
-        results = []
-        for match in data['bestMatches'][:10]:  # 最多返回10个结果
-            results.append({
-                'symbol': match.get('1. symbol', ''),
-                'name': match.get('2. name', ''),
-                'type': match.get('3. type', ''),
-                'region': match.get('4. region', ''),
-                'currency': match.get('8. currency', 'USD'),
-                'match_score': match.get('9. matchScore', '0')
-            })
-        
-        print(f"✅ 找到 {len(results)} 个匹配结果", flush=True)
-        sys.stdout.flush()
-        
-        return jsonify({
-            "status": "success",
-            "results": results
-        }), 200
+            
+        except req.Timeout:
+            print("❌ Alpha Vantage API超时", flush=True)
+            return jsonify({
+                "status": "error",
+                "message": "搜索请求超时，请重试"
+            }), 504
+        except req.RequestException as e:
+            print(f"❌ 网络请求错误: {e}", flush=True)
+            return jsonify({
+                "status": "error",
+                "message": f"网络错误: {str(e)}"
+            }), 500
         
     except Exception as e:
         print(f"❌ 搜索失败: {e}", flush=True)
@@ -126,7 +172,7 @@ def search_stocks():
         
         return jsonify({
             "status": "error",
-            "message": str(e)
+            "message": f"服务器内部错误: {str(e)}"
         }), 500
 
 @stock_bp.route('/health', methods=['GET'])

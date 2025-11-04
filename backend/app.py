@@ -143,8 +143,11 @@ except ImportError as e:
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
 # 简单的用户存储（生产环境应该使用数据库）
-USERS_FILE = 'users_data.json'
-CHAT_DATA_DIR = 'chat_data'
+# 修复：使用正确的路径
+import os
+current_dir = os.path.dirname(os.path.abspath(__file__))
+USERS_FILE = os.path.join(current_dir, 'users_data.json')
+CHAT_DATA_DIR = os.path.join(current_dir, 'chat_data')
 
 # 创建聊天数据目录
 if not os.path.exists(CHAT_DATA_DIR):
@@ -535,24 +538,34 @@ def register():
         password_hash = password  # 简化处理，实际应该hash
         created_at_hash = str(os.urandom(16).hex())
         
-        users[username] = {
-            "password": password_hash,
-            "created_at": created_at_hash
-        }
-        save_users(users)
+        # 🔧 修复：优先保存到数据库，JSON只是备份
+        user_saved_to_db = False
         
-        # 同步到数据库
+        # 1. 优先保存到数据库（持久化）
         if DB_SYNC_AVAILABLE and get_db_sync:
-            print(f"🔄 同步用户到数据库: {username}", flush=True)
+            print(f"🔄 保存用户到数据库: {username}", flush=True)
             sys.stdout.flush()
             db_sync = get_db_sync()
             if db_sync.is_available():
                 result = db_sync.sync_user(username, password_hash, None)
                 if result:
-                    print(f"✅ 用户同步成功: {username}", flush=True)
+                    print(f"✅ 用户已保存到数据库: {username}", flush=True)
+                    user_saved_to_db = True
                 else:
-                    print(f"⚠️ 用户同步失败: {username}", flush=True)
+                    print(f"⚠️ 数据库保存失败: {username}", flush=True)
                 sys.stdout.flush()
+        
+        # 2. 同时保存到JSON（备份，Render环境会丢失）
+        users[username] = {
+            "password": password_hash,
+            "created_at": created_at_hash
+        }
+        save_users(users)
+        print(f"📝 用户已备份到JSON: {username}", flush=True)
+        
+        # 3. 如果数据库保存失败，警告用户
+        if not user_saved_to_db:
+            print(f"⚠️ 警告：用户 {username} 未保存到数据库，Render重启后会丢失！", flush=True)
         
         # 生成简单的 token（生产环境应该使用 JWT）
         token = os.urandom(32).hex()
