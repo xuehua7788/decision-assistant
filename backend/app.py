@@ -1421,8 +1421,14 @@ def evaluate_strategy():
         
         strategies = result['accepted_strategies'] if result['accepted_strategies'] else []
         
-        print(f"🔍 查找策略: {strategy_id}", flush=True)
-        print(f"   用户有 {len(strategies)} 个策略", flush=True)
+        print(f"="*80, flush=True)
+        print(f"🔍 评估策略请求", flush=True)
+        print(f"   strategy_id: {strategy_id}", flush=True)
+        print(f"   symbol: {symbol}", flush=True)
+        print(f"   username: {username}", flush=True)
+        print(f"   数据库返回 {len(strategies)} 个策略", flush=True)
+        print(f"   accepted_strategies类型: {type(result['accepted_strategies'])}", flush=True)
+        print(f"   strategies变量类型: {type(strategies)}", flush=True)
         
         # 找到对应的策略
         target_strategy = None
