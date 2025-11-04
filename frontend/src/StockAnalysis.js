@@ -205,25 +205,36 @@ function StockAnalysis({ apiUrl }) {
       return;
     }
 
+    // 获取当前登录用户
+    const currentUser = localStorage.getItem('username');
+    if (!currentUser) {
+      alert('❌ 请先登录！');
+      return;
+    }
+
     try {
-      const response = await fetch(`${apiUrl}/api/strategy/save`, {
+      // 新的API地址：保存到 users 表
+      const response = await fetch(`${apiUrl}/api/user/save-strategy`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          symbol: stockData.quote.symbol,
-          company_name: stockData.quote.name,
-          investment_style: investmentStyle,
-          recommendation: analysis.recommendation,
-          target_price: analysis.target_price,
-          stop_loss: analysis.stop_loss,
-          position_size: analysis.position_size,
-          score: analysis.score,
-          strategy_text: analysis.strategy,
-          analysis_summary: analysis.analysis_summary,
-          current_price: stockData.quote.price,
-          // 期权策略信息（核心）
-          option_strategy: optionStrategy,
-          created_at: new Date().toISOString()
+          username: currentUser,
+          strategy: {
+            strategy_id: `${stockData.quote.symbol}_${Date.now()}_${investmentStyle}`,
+            symbol: stockData.quote.symbol,
+            company_name: stockData.quote.name,
+            investment_style: investmentStyle,
+            recommendation: analysis.recommendation,
+            target_price: analysis.target_price,
+            stop_loss: analysis.stop_loss,
+            position_size: analysis.position_size,
+            score: analysis.score,
+            strategy_text: analysis.strategy,
+            analysis_summary: analysis.analysis_summary,
+            current_price: stockData.quote.price,
+            // 期权策略信息（核心）
+            option_strategy: optionStrategy
+          }
         })
       });
 

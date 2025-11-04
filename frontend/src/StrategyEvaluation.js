@@ -9,7 +9,15 @@ function StrategyEvaluation({ apiUrl }) {
   // 加载策略列表
   const loadStrategies = useCallback(async () => {
     try {
-      const response = await fetch(`${apiUrl}/api/strategy/list`);
+      // 获取当前登录用户
+      const currentUser = localStorage.getItem('username');
+      if (!currentUser) {
+        console.warn('未登录，无法加载策略');
+        return;
+      }
+
+      // 新的API地址：从 users 表读取
+      const response = await fetch(`${apiUrl}/api/user/${currentUser}/strategies`);
       const result = await response.json();
       
       if (result.status === 'success') {
@@ -29,7 +37,15 @@ function StrategyEvaluation({ apiUrl }) {
     }
 
     try {
-      const response = await fetch(`${apiUrl}/api/strategy/${strategyId}`, {
+      // 获取当前登录用户
+      const currentUser = localStorage.getItem('username');
+      if (!currentUser) {
+        alert('❌ 请先登录！');
+        return;
+      }
+
+      // 新的API地址：从 users 表删除
+      const response = await fetch(`${apiUrl}/api/user/${currentUser}/strategies/${strategyId}`, {
         method: 'DELETE'
       });
 

@@ -15,6 +15,17 @@ import sys
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, current_dir)
 
+# ============================================
+# 🔄 自动数据库迁移
+# ============================================
+try:
+    from auto_migrate import migrate
+    print("🔄 Running auto migration...")
+    migrate()
+except Exception as e:
+    print(f"⚠️  Auto migration warning: {e}")
+# ============================================
+
 # 导入简化的数据库模块
 try:
     from simple_database import simple_db
@@ -1170,6 +1181,190 @@ def analyze_decision():
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+# ============================================
+# 新的策略API - 存储在 users 表中
+# ============================================
+
+@app.route('/api/user/save-strategy', methods=['POST', 'OPTIONS'])
+def save_user_strategy():
+    """保存用户接受的策略到users表"""
+    if request.method == 'OPTIONS':
+        return jsonify({"status": "ok"}), 200
+    
+    try:
+        data = request.json
+        username = data.get('username')
+        strategy = data.get('strategy')
+        
+        if not username or not strategy:
+            return jsonify({"status": "error", "message": "缺少username或strategy"}), 400
+        
+        # 连接数据库
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        
+        DATABASE_URL = os.getenv('DATABASE_URL')
+        if not DATABASE_URL:
+            return jsonify({"status": "error", "message": "数据库未配置"}), 500
+        
+        conn = psycopg2.connect(DATABASE_URL)
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # 获取用户当前的策略列表
+        cur.execute("SELECT accepted_strategies FROM users WHERE username = %s", (username,))
+        result = cur.fetchone()
+        
+        if not result:
+            cur.close()
+            conn.close()
+            return jsonify({"status": "error", "message": "用户不存在"}), 404
+        
+        # 获取现有策略，如果为空则初始化为空列表
+        current_strategies = result['accepted_strategies'] if result['accepted_strategies'] else []
+        
+        # 添加新策略
+        import json
+        from datetime import datetime
+        
+        strategy['created_at'] = datetime.now().isoformat()
+        strategy['status'] = strategy.get('status', 'active')
+        
+        current_strategies.append(strategy)
+        
+        # 更新数据库
+        cur.execute("""
+            UPDATE users 
+            SET accepted_strategies = %s::jsonb
+            WHERE username = %s
+        """, (json.dumps(current_strategies, ensure_ascii=False), username))
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        print(f"✅ 策略已保存: {username} - {strategy.get('symbol')}", flush=True)
+        
+        return jsonify({
+            "status": "success",
+            "message": "策略保存成功",
+            "strategy_count": len(current_strategies)
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ 保存策略失败: {e}", flush=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/user/<username>/strategies', methods=['GET', 'OPTIONS'])
+def get_user_strategies(username):
+    """获取用户的所有策略"""
+    if request.method == 'OPTIONS':
+        return jsonify({"status": "ok"}), 200
+    
+    try:
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        
+        DATABASE_URL = os.getenv('DATABASE_URL')
+        if not DATABASE_URL:
+            return jsonify({"status": "error", "message": "数据库未配置"}), 500
+        
+        conn = psycopg2.connect(DATABASE_URL)
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cur.execute("""
+            SELECT 
+                username,
+                email,
+                accepted_strategies,
+                created_at
+            FROM users 
+            WHERE username = %s
+        """, (username,))
+        
+        result = cur.fetchone()
+        cur.close()
+        conn.close()
+        
+        if not result:
+            return jsonify({"status": "error", "message": "用户不存在"}), 404
+        
+        strategies = result['accepted_strategies'] if result['accepted_strategies'] else []
+        
+        return jsonify({
+            "status": "success",
+            "username": username,
+            "strategies": strategies,
+            "total": len(strategies)
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ 获取策略失败: {e}", flush=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/user/<username>/strategies/<strategy_id>', methods=['DELETE', 'OPTIONS'])
+def delete_user_strategy(username, strategy_id):
+    """删除用户的某个策略"""
+    if request.method == 'OPTIONS':
+        return jsonify({"status": "ok"}), 200
+    
+    try:
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        import json
+        
+        DATABASE_URL = os.getenv('DATABASE_URL')
+        if not DATABASE_URL:
+            return jsonify({"status": "error", "message": "数据库未配置"}), 500
+        
+        conn = psycopg2.connect(DATABASE_URL)
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # 获取用户当前策略
+        cur.execute("SELECT accepted_strategies FROM users WHERE username = %s", (username,))
+        result = cur.fetchone()
+        
+        if not result:
+            cur.close()
+            conn.close()
+            return jsonify({"status": "error", "message": "用户不存在"}), 404
+        
+        strategies = result['accepted_strategies'] if result['accepted_strategies'] else []
+        
+        # 过滤掉要删除的策略
+        new_strategies = [s for s in strategies if s.get('strategy_id') != strategy_id]
+        
+        if len(new_strategies) == len(strategies):
+            cur.close()
+            conn.close()
+            return jsonify({"status": "error", "message": "策略不存在"}), 404
+        
+        # 更新数据库
+        cur.execute("""
+            UPDATE users 
+            SET accepted_strategies = %s::jsonb
+            WHERE username = %s
+        """, (json.dumps(new_strategies, ensure_ascii=False), username))
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        print(f"✅ 策略已删除: {username} - {strategy_id}", flush=True)
+        
+        return jsonify({
+            "status": "success",
+            "message": "策略删除成功",
+            "remaining": len(new_strategies)
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ 删除策略失败: {e}", flush=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+# ============================================
 
 if __name__ == '__main__':
     # 自动创建用户画像数据库表
