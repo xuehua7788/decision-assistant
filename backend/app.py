@@ -1421,14 +1421,25 @@ def evaluate_strategy():
         
         strategies = result['accepted_strategies'] if result['accepted_strategies'] else []
         
+        print(f"🔍 查找策略: {strategy_id}", flush=True)
+        print(f"   用户有 {len(strategies)} 个策略", flush=True)
+        
         # 找到对应的策略
         target_strategy = None
-        for s in strategies:
-            if s.get('strategy_id') == strategy_id:
+        for i, s in enumerate(strategies):
+            s_id = s.get('strategy_id')
+            print(f"   [{i}] 对比: {s_id} == {strategy_id} ? {s_id == strategy_id}", flush=True)
+            if s_id == strategy_id:
                 target_strategy = s
+                print(f"   ✅ 找到匹配的策略！", flush=True)
                 break
         
         if not target_strategy:
+            print(f"❌ 未找到策略 {strategy_id}", flush=True)
+            print(f"   可用的strategy_id列表:", flush=True)
+            for s in strategies[:5]:  # 只显示前5个
+                print(f"      - {s.get('strategy_id')}", flush=True)
+            
             cur.close()
             conn.close()
             return jsonify({"status": "error", "message": "策略不存在"}), 404
