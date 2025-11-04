@@ -42,6 +42,7 @@ def init_strategy_table():
                 strategy_text TEXT,
                 analysis_summary TEXT,
                 current_price DECIMAL(10, 2) NOT NULL,
+                option_strategy JSONB,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 status VARCHAR(20) DEFAULT 'active'
             )
@@ -120,12 +121,15 @@ def save_strategy():
         if conn:
             try:
                 cursor = conn.cursor()
+                # 将期权策略转换为JSON字符串
+                option_strategy_json = json.dumps(data.get('option_strategy')) if data.get('option_strategy') else None
+                
                 cursor.execute("""
                     INSERT INTO accepted_strategies 
                     (strategy_id, symbol, company_name, investment_style, recommendation,
                      target_price, stop_loss, position_size, score, strategy_text,
-                     analysis_summary, current_price, status)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                     analysis_summary, current_price, option_strategy, status)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     strategy_id,
                     symbol,
@@ -139,6 +143,7 @@ def save_strategy():
                     data.get('strategy_text', ''),
                     data.get('analysis_summary', ''),
                     float(data['current_price']),
+                    option_strategy_json,
                     'active'
                 ))
                 conn.commit()
@@ -157,6 +162,7 @@ def save_strategy():
                     "recommendation": data['recommendation'],
                     "target_price": float(data['target_price']),
                     "stop_loss": float(data.get('stop_loss', 0)),
+                    "option_strategy": data.get('option_strategy'),
                     "position_size": data.get('position_size', '10%'),
                     "score": int(data.get('score', 50)),
                     "strategy_text": data.get('strategy_text', ''),
@@ -236,7 +242,7 @@ def list_strategies():
                         SELECT strategy_id, symbol, company_name, investment_style, 
                                recommendation, target_price, stop_loss, position_size,
                                score, strategy_text, analysis_summary, current_price,
-                               created_at, status
+                               option_strategy, created_at, status
                         FROM accepted_strategies
                         WHERE symbol = %s
                         ORDER BY created_at DESC
@@ -246,7 +252,7 @@ def list_strategies():
                         SELECT strategy_id, symbol, company_name, investment_style, 
                                recommendation, target_price, stop_loss, position_size,
                                score, strategy_text, analysis_summary, current_price,
-                               created_at, status
+                               option_strategy, created_at, status
                         FROM accepted_strategies
                         ORDER BY created_at DESC
                     """)
@@ -260,14 +266,15 @@ def list_strategies():
                         "investment_style": row[3],
                         "recommendation": row[4],
                         "target_price": float(row[5]),
-                        "stop_loss": float(row[6]),
+                        "stop_loss": float(row[6]) if row[6] else 0,
                         "position_size": row[7],
                         "score": row[8],
                         "strategy_text": row[9],
                         "analysis_summary": row[10],
                         "current_price": float(row[11]),
-                        "created_at": row[12].isoformat() if row[12] else None,
-                        "status": row[13]
+                        "option_strategy": row[12],  # JSONB自动解析为dict
+                        "created_at": row[13].isoformat() if row[13] else None,
+                        "status": row[14]
                     })
                 
                 cursor.close()

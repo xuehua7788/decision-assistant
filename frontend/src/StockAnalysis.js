@@ -147,6 +147,12 @@ function StockAnalysis({ apiUrl }) {
   const acceptStrategy = async () => {
     if (!stockData || !analysis) return;
 
+    // 检查是否有期权策略
+    if (!optionStrategy) {
+      alert('⚠️ 当前没有期权策略推荐，无法保存');
+      return;
+    }
+
     try {
       const response = await fetch(`${apiUrl}/api/strategy/save`, {
         method: 'POST',
@@ -163,6 +169,8 @@ function StockAnalysis({ apiUrl }) {
           strategy_text: analysis.strategy,
           analysis_summary: analysis.analysis_summary,
           current_price: stockData.quote.price,
+          // 期权策略信息（核心）
+          option_strategy: optionStrategy,
           created_at: new Date().toISOString()
         })
       });
@@ -170,7 +178,7 @@ function StockAnalysis({ apiUrl }) {
       const result = await response.json();
 
       if (result.status === 'success') {
-        alert('✅ 策略已保存！您可以在"策略评估"模块查看历史表现');
+        alert(`✅ 期权策略已保存！\n策略类型: ${optionStrategy.strategy.name}\n您可以在"策略评估"模块查看历史表现`);
       } else {
         alert('❌ 保存失败: ' + result.message);
       }
