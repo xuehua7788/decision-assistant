@@ -16,14 +16,30 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, current_dir)
 
 # ============================================
-# 🔄 自动数据库迁移
+# 🔄 自动数据库迁移（异步，不阻塞启动）
 # ============================================
-try:
-    from auto_migrate import migrate
-    print("🔄 Running auto migration...")
-    migrate()
-except Exception as e:
-    print(f"⚠️  Auto migration warning: {e}")
+def run_migration_async():
+    """异步执行数据库迁移，不阻塞应用启动"""
+    try:
+        import threading
+        from auto_migrate import migrate
+        
+        def migrate_thread():
+            try:
+                print("🔄 Starting auto migration in background...", flush=True)
+                migrate()
+                print("✅ Auto migration completed!", flush=True)
+            except Exception as e:
+                print(f"⚠️  Auto migration failed: {e}", flush=True)
+        
+        thread = threading.Thread(target=migrate_thread, daemon=True)
+        thread.start()
+        print("✅ Migration thread started", flush=True)
+    except Exception as e:
+        print(f"⚠️  Could not start migration: {e}", flush=True)
+
+# 启动时执行迁移（后台）
+run_migration_async()
 # ============================================
 
 # 导入简化的数据库模块
