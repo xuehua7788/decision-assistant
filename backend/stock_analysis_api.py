@@ -26,6 +26,109 @@ stock_bp = Blueprint('stock', __name__, url_prefix='/api/stock')
 # 路由顺序很重要！具体的路由必须在通用的 /<symbol> 之前
 # ============================================================
 
+@stock_bp.route('/search', methods=['GET'])
+def search_stocks():
+    """
+    搜索股票（通过公司名或代码）
+    
+    GET /api/stock/search?keywords=apple
+    
+    Returns:
+        {
+            "status": "success",
+            "results": [
+                {
+                    "symbol": "AAPL",
+                    "name": "Apple Inc.",
+                    "type": "Equity",
+                    "region": "United States"
+                }
+            ]
+        }
+    """
+    if not STOCK_ANALYSIS_AVAILABLE:
+        return jsonify({
+            "status": "error",
+            "message": "股票分析功能暂不可用"
+        }), 503
+    
+    try:
+        keywords = request.args.get('keywords', '').strip()
+        
+        if not keywords:
+            return jsonify({
+                "status": "error",
+                "message": "请提供搜索关键词"
+            }), 400
+        
+        if len(keywords) < 1:
+            return jsonify({
+                "status": "error",
+                "message": "关键词太短"
+            }), 400
+        
+        print(f"🔍 搜索股票: {keywords}", flush=True)
+        
+        # 调用Alpha Vantage搜索API
+        client = get_alpha_vantage_client()
+        api_key = client.api_key
+        
+        import requests as req
+        response = req.get(
+            'https://www.alphavantage.co/query',
+            params={
+                'function': 'SYMBOL_SEARCH',
+                'keywords': keywords,
+                'apikey': api_key
+            },
+            timeout=10
+        )
+        
+        if response.status_code != 200:
+            return jsonify({
+                "status": "error",
+                "message": "搜索API调用失败"
+            }), 500
+        
+        data = response.json()
+        
+        if 'bestMatches' not in data:
+            return jsonify({
+                "status": "success",
+                "results": []
+            }), 200
+        
+        # 格式化结果
+        results = []
+        for match in data['bestMatches'][:10]:  # 最多返回10个结果
+            results.append({
+                'symbol': match.get('1. symbol', ''),
+                'name': match.get('2. name', ''),
+                'type': match.get('3. type', ''),
+                'region': match.get('4. region', ''),
+                'currency': match.get('8. currency', 'USD'),
+                'match_score': match.get('9. matchScore', '0')
+            })
+        
+        print(f"✅ 找到 {len(results)} 个匹配结果", flush=True)
+        sys.stdout.flush()
+        
+        return jsonify({
+            "status": "success",
+            "results": results
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ 搜索失败: {e}", flush=True)
+        sys.stdout.flush()
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
 @stock_bp.route('/health', methods=['GET'])
 def health_check():
     """健康检查 - 股票分析API"""

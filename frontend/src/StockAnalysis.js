@@ -17,6 +17,9 @@ function StockAnalysis({ apiUrl }) {
   const [language, setLang] = useState(getCurrentLanguage());
   const [activeDataTab, setActiveDataTab] = useState('fundamental'); // fundamental, technical, macro
   const [showDataDashboard, setShowDataDashboard] = useState(true);
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
   
   // 切换语言
   const toggleLanguage = () => {
@@ -25,14 +28,61 @@ function StockAnalysis({ apiUrl }) {
     setLanguage(newLang);
   };
   
-  // 热门股票列表（硬编码，不再从API获取）
+  // 热门股票列表（扩展版）
   const trendingStocks = [
-    { code: 'AAPL', name_zh: '苹果', name_en: 'Apple' },
-    { code: 'GOOGL', name_zh: '谷歌', name_en: 'Google' },
-    { code: 'MSFT', name_zh: '微软', name_en: 'Microsoft' },
-    { code: 'TSLA', name_zh: '特斯拉', name_en: 'Tesla' },
-    { code: 'NVDA', name_zh: '英伟达', name_en: 'NVIDIA' }
+    // 科技股
+    { code: 'AAPL', name_zh: '苹果', name_en: 'Apple', category: '科技' },
+    { code: 'MSFT', name_zh: '微软', name_en: 'Microsoft', category: '科技' },
+    { code: 'GOOGL', name_zh: '谷歌', name_en: 'Google', category: '科技' },
+    { code: 'META', name_zh: 'Meta', name_en: 'Meta', category: '科技' },
+    { code: 'AMZN', name_zh: '亚马逊', name_en: 'Amazon', category: '科技' },
+    { code: 'NVDA', name_zh: '英伟达', name_en: 'NVIDIA', category: '科技' },
+    { code: 'TSLA', name_zh: '特斯拉', name_en: 'Tesla', category: '科技' },
+    // 金融股
+    { code: 'JPM', name_zh: '摩根大通', name_en: 'JPMorgan', category: '金融' },
+    { code: 'V', name_zh: 'Visa', name_en: 'Visa', category: '金融' },
+    { code: 'MA', name_zh: 'Mastercard', name_en: 'Mastercard', category: '金融' },
+    // 中概股
+    { code: 'BABA', name_zh: '阿里巴巴', name_en: 'Alibaba', category: '中概' },
+    { code: 'JD', name_zh: '京东', name_en: 'JD.com', category: '中概' },
+    { code: 'PDD', name_zh: '拼多多', name_en: 'Pinduoduo', category: '中概' }
   ];
+  
+  // 股票搜索
+  const searchStocks = async (keywords) => {
+    if (!keywords || keywords.length < 1) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+
+    setSearching(true);
+    
+    try {
+      const response = await fetch(`${apiUrl}/api/stock/search?keywords=${encodeURIComponent(keywords)}`);
+      const result = await response.json();
+      
+      if (result.status === 'success') {
+        setSearchResults(result.results || []);
+        setShowSearchResults(true);
+      } else {
+        setSearchResults([]);
+      }
+    } catch (err) {
+      console.error('搜索失败:', err);
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  };
+  
+  // 选择搜索结果
+  const selectSearchResult = (result) => {
+    setSymbol(result.symbol);
+    setShowSearchResults(false);
+    setSearchResults([]);
+    searchStock(result.symbol);
+  };
 
   const searchStock = async (searchSymbol) => {
     const targetSymbol = searchSymbol || symbol;
@@ -238,21 +288,94 @@ function StockAnalysis({ apiUrl }) {
         </div>
         
         {/* 搜索框 */}
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-          <input
-            type="text"
-            value={symbol}
-            onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-            onKeyPress={handleKeyPress}
-            placeholder="输入美股代码（如 AAPL=苹果, TSLA=特斯拉）"
-            style={{
-              flex: 1,
-              padding: '12px',
-              border: '2px solid #e0e0e0',
-              borderRadius: '8px',
-              fontSize: '1em'
-            }}
-          />
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', position: 'relative' }}>
+          <div style={{ flex: 1, position: 'relative' }}>
+            <input
+              type="text"
+              value={symbol}
+              onChange={(e) => {
+                const val = e.target.value.toUpperCase();
+                setSymbol(val);
+                // 实时搜索（当输入2个字符以上时）
+                if (val.length >= 2) {
+                  searchStocks(val);
+                } else {
+                  setShowSearchResults(false);
+                }
+              }}
+              onKeyPress={handleKeyPress}
+              onFocus={() => {
+                if (searchResults.length > 0) {
+                  setShowSearchResults(true);
+                }
+              }}
+              placeholder={language === 'zh' ? '输入股票代码或公司名（如：AAPL 或 Apple）' : 'Enter symbol or company name (e.g., AAPL or Apple)'}
+              style={{
+                width: '100%',
+                padding: '12px',
+                border: '2px solid #e0e0e0',
+                borderRadius: '8px',
+                fontSize: '1em',
+                boxSizing: 'border-box'
+              }}
+            />
+            {searching && (
+              <div style={{
+                position: 'absolute',
+                right: '10px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: '#667eea',
+                fontSize: '1.2em'
+              }}>
+                🔍
+              </div>
+            )}
+            
+            {/* 搜索结果下拉列表 */}
+            {showSearchResults && searchResults.length > 0 && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                marginTop: '5px',
+                background: 'white',
+                border: '2px solid #667eea',
+                borderRadius: '8px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                maxHeight: '400px',
+                overflowY: 'auto',
+                zIndex: 1000
+              }}>
+                {searchResults.map((result, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => selectSearchResult(result)}
+                    style={{
+                      padding: '12px 15px',
+                      cursor: 'pointer',
+                      borderBottom: idx < searchResults.length - 1 ? '1px solid #eee' : 'none',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#f0f4ff'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                  >
+                    <div style={{ fontWeight: '600', color: '#667eea', marginBottom: '3px' }}>
+                      {result.symbol}
+                    </div>
+                    <div style={{ fontSize: '0.9em', color: '#666' }}>
+                      {result.name}
+                    </div>
+                    <div style={{ fontSize: '0.8em', color: '#999', marginTop: '2px' }}>
+                      {result.type} • {result.region}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          
           <button
             onClick={() => searchStock()}
             disabled={loading}
@@ -264,38 +387,67 @@ function StockAnalysis({ apiUrl }) {
               borderRadius: '8px',
               cursor: loading ? 'not-allowed' : 'pointer',
               fontWeight: '600',
-              fontSize: '1em'
+              fontSize: '1em',
+              whiteSpace: 'nowrap'
             }}
           >
             {loading ? '🔍 搜索中...' : '🔍 搜索'}
           </button>
         </div>
 
-        {/* 热门股票快捷按钮 */}
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <span style={{ color: '#666', fontWeight: '600' }}>热门股票:</span>
-          {trendingStocks.map(stock => (
-            <button
-              key={stock.code}
-              onClick={() => {
-                setSymbol(stock.code);
-                searchStock(stock.code);
-              }}
-              style={{
-                padding: '8px 16px',
-                background: 'white',
-                color: '#667eea',
-                border: '2px solid #667eea',
-                borderRadius: '20px',
-                cursor: 'pointer',
-                fontWeight: '600',
-                fontSize: '0.9em'
-              }}
-              title={`${stock.name} (${stock.code})`}
-            >
-              {stock.code} {stock.name}
-            </button>
-          ))}
+        {/* 热门股票快捷按钮（按分类显示） */}
+        <div style={{ marginTop: '15px' }}>
+          {['科技', '金融', '中概'].map(category => {
+            const categoryStocks = trendingStocks.filter(s => s.category === category);
+            return (
+              <div key={category} style={{ marginBottom: '12px' }}>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <span style={{ 
+                    color: '#666', 
+                    fontWeight: '600',
+                    minWidth: '60px',
+                    fontSize: '0.9em'
+                  }}>
+                    {category === '科技' && '💻'} 
+                    {category === '金融' && '💰'} 
+                    {category === '中概' && '🇨🇳'} 
+                    {category}:
+                  </span>
+                  {categoryStocks.map(stock => (
+                    <button
+                      key={stock.code}
+                      onClick={() => {
+                        setSymbol(stock.code);
+                        searchStock(stock.code);
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        background: 'white',
+                        color: '#667eea',
+                        border: '2px solid #667eea',
+                        borderRadius: '20px',
+                        cursor: 'pointer',
+                        fontWeight: '600',
+                        fontSize: '0.85em',
+                        transition: 'all 0.3s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#667eea';
+                        e.currentTarget.style.color = 'white';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'white';
+                        e.currentTarget.style.color = '#667eea';
+                      }}
+                      title={`${language === 'zh' ? stock.name_zh : stock.name_en} (${stock.code})`}
+                    >
+                      {stock.code}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         {/* 投资风格设置 */}
