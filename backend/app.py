@@ -1380,6 +1380,146 @@ def delete_user_strategy(username, strategy_id):
         print(f"❌ 删除策略失败: {e}", flush=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
+
+@app.route('/api/strategy/evaluate', methods=['POST', 'OPTIONS'])
+def evaluate_strategy():
+    """评估策略的实时表现"""
+    if request.method == 'OPTIONS':
+        return jsonify({"status": "ok"}), 200
+    
+    try:
+        data = request.json
+        strategy_id = data.get('strategy_id')
+        symbol = data.get('symbol')
+        username = data.get('username')
+        
+        if not username:
+            # 尝试从localStorage获取
+            username = request.headers.get('X-Username')
+        
+        if not username or not symbol:
+            return jsonify({"status": "error", "message": "缺少必要参数"}), 400
+        
+        # 获取用户的策略
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        
+        DATABASE_URL = os.getenv('DATABASE_URL')
+        if not DATABASE_URL:
+            return jsonify({"status": "error", "message": "数据库未配置"}), 500
+        
+        conn = psycopg2.connect(DATABASE_URL)
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cur.execute("SELECT accepted_strategies FROM users WHERE username = %s", (username,))
+        result = cur.fetchone()
+        
+        if not result:
+            cur.close()
+            conn.close()
+            return jsonify({"status": "error", "message": "用户不存在"}), 404
+        
+        strategies = result['accepted_strategies'] if result['accepted_strategies'] else []
+        
+        # 找到对应的策略
+        target_strategy = None
+        for s in strategies:
+            if s.get('strategy_id') == strategy_id:
+                target_strategy = s
+                break
+        
+        if not target_strategy:
+            cur.close()
+            conn.close()
+            return jsonify({"status": "error", "message": "策略不存在"}), 404
+        
+        # 获取当前股价
+        ALPHA_VANTAGE_API_KEY = os.getenv('ALPHA_VANTAGE_API_KEY')
+        
+        try:
+            import requests as req
+            url = "https://www.alphavantage.co/query"
+            params = {
+                "function": "GLOBAL_QUOTE",
+                "symbol": symbol,
+                "apikey": ALPHA_VANTAGE_API_KEY
+            }
+            
+            response = req.get(url, params=params, timeout=10)
+            response.raise_for_status()
+            
+            stock_data = response.json()
+            
+            if "Global Quote" in stock_data and stock_data["Global Quote"]:
+                quote = stock_data["Global Quote"]
+                current_price = float(quote.get("05. price", 0))
+            else:
+                # Alpha Vantage限流或无数据，使用保存时的价格
+                current_price = target_strategy.get('current_price', 0)
+                
+        except Exception as e:
+            print(f"⚠️  获取股价失败: {e}", flush=True)
+            current_price = target_strategy.get('current_price', 0)
+        
+        # 计算评估指标
+        saved_price = target_strategy.get('current_price', 0)
+        target_price = target_strategy.get('target_price', 0)
+        stop_loss = target_strategy.get('stop_loss')
+        
+        # 计算收益率
+        if saved_price > 0:
+            price_change = current_price - saved_price
+            price_change_pct = (price_change / saved_price) * 100
+        else:
+            price_change = 0
+            price_change_pct = 0
+        
+        # 判断是否达到目标或止损
+        status = 'active'
+        if stop_loss and current_price <= stop_loss:
+            status = 'stop_loss_hit'
+        elif target_price and current_price >= target_price:
+            status = 'target_reached'
+        
+        # 构建评估结果
+        evaluation = {
+            'strategy_id': strategy_id,
+            'symbol': symbol,
+            'company_name': target_strategy.get('company_name'),
+            'investment_style': target_strategy.get('investment_style'),
+            'recommendation': target_strategy.get('recommendation'),
+            'saved_at': target_strategy.get('created_at'),
+            'saved_price': saved_price,
+            'current_price': current_price,
+            'target_price': target_price,
+            'stop_loss': stop_loss,
+            'price_change': price_change,
+            'price_change_pct': round(price_change_pct, 2),
+            'status': status,
+            'score': target_strategy.get('score'),
+            'strategy_text': target_strategy.get('strategy_text'),
+            'analysis_summary': target_strategy.get('analysis_summary'),
+            'option_strategy': target_strategy.get('option_strategy'),
+            'performance': {
+                'meets_expectation': price_change_pct > 0,
+                'risk_status': 'safe' if not stop_loss or current_price > stop_loss else 'at_risk'
+            }
+        }
+        
+        cur.close()
+        conn.close()
+        
+        return jsonify({
+            "status": "success",
+            "evaluation": evaluation
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ 策略评估失败: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 # ============================================
 
 if __name__ == '__main__':

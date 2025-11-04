@@ -78,12 +78,16 @@ function StrategyEvaluation({ apiUrl }) {
     setEvaluation(null);
 
     try {
+      // 获取当前用户
+      const currentUser = localStorage.getItem('username');
+      
       const response = await fetch(`${apiUrl}/api/strategy/evaluate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           strategy_id: strategy.strategy_id,
-          symbol: strategy.symbol
+          symbol: strategy.symbol,
+          username: currentUser
         })
       });
 
@@ -95,6 +99,7 @@ function StrategyEvaluation({ apiUrl }) {
         alert('评估失败: ' + result.message);
       }
     } catch (err) {
+      console.error('评估错误:', err);
       alert('网络错误: ' + err.message);
     } finally {
       setLoading(false);
