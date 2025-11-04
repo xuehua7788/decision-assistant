@@ -437,6 +437,52 @@ def get_stock_data(symbol):
         rsi = client.calculate_rsi(closes)
         volatility = client.calculate_volatility(closes)
         
+        # 🆕 获取Premium数据
+        print(f"📊 获取Premium数据...", flush=True)
+        premium_data = {}
+        
+        # 公司基本面
+        company_overview = client.get_company_overview(symbol)
+        if company_overview:
+            premium_data['company_overview'] = company_overview
+            print(f"   ✅ 公司基本面", flush=True)
+        
+        # 技术指标
+        macd_data = client.get_technical_indicator(symbol, 'MACD', interval='daily')
+        atr_data = client.get_technical_indicator(symbol, 'ATR', interval='daily', time_period=14)
+        
+        premium_data['technical'] = {}
+        if macd_data and 'Technical Analysis: MACD' in macd_data:
+            latest_macd = list(macd_data['Technical Analysis: MACD'].values())[0]
+            macd_value = float(latest_macd.get('MACD', 0))
+            macd_signal_value = float(latest_macd.get('MACD_Signal', 0))
+            premium_data['technical']['macd_value'] = round(macd_value, 2)
+            premium_data['technical']['macd_signal'] = 'bullish' if macd_value > macd_signal_value else 'bearish'
+            print(f"   ✅ MACD", flush=True)
+        
+        if atr_data and 'Technical Analysis: ATR' in atr_data:
+            latest_atr = list(atr_data['Technical Analysis: ATR'].values())[0]
+            premium_data['technical']['atr'] = float(latest_atr.get('ATR', 0))
+            print(f"   ✅ ATR", flush=True)
+        
+        # 宏观经济数据
+        cpi_data = client.get_economic_indicator('CPI')
+        unemployment_data = client.get_economic_indicator('UNEMPLOYMENT')
+        fed_rate_data = client.get_economic_indicator('FEDERAL_FUNDS_RATE')
+        
+        premium_data['economic'] = {}
+        if cpi_data and 'data' in cpi_data and len(cpi_data['data']) > 0:
+            premium_data['economic']['cpi'] = cpi_data['data'][0].get('value', 'N/A')
+            print(f"   ✅ CPI", flush=True)
+        
+        if unemployment_data and 'data' in unemployment_data and len(unemployment_data['data']) > 0:
+            premium_data['economic']['unemployment'] = unemployment_data['data'][0].get('value', 'N/A')
+            print(f"   ✅ 失业率", flush=True)
+        
+        if fed_rate_data and 'data' in fed_rate_data and len(fed_rate_data['data']) > 0:
+            premium_data['economic']['fed_rate'] = fed_rate_data['data'][0].get('value', 'N/A')
+            print(f"   ✅ 联邦利率", flush=True)
+        
         print(f"✅ 数据获取成功: {symbol} - ${quote['price']}", flush=True)
         sys.stdout.flush()
         
@@ -448,7 +494,8 @@ def get_stock_data(symbol):
                 "indicators": {
                     "rsi": rsi,
                     "volatility": volatility
-                }
+                },
+                "premium_data": premium_data if premium_data else None
             }
         }), 200
         

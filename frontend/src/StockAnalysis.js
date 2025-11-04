@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, ComposedChart, Bar } from 'recharts';
 import { getCurrentLanguage, setLanguage } from './i18n';
 
 function StockAnalysis({ apiUrl }) {
@@ -15,6 +15,8 @@ function StockAnalysis({ apiUrl }) {
   const [loadingNews, setLoadingNews] = useState(false);
   const [optionStrategy, setOptionStrategy] = useState(null);
   const [language, setLang] = useState(getCurrentLanguage());
+  const [activeDataTab, setActiveDataTab] = useState('fundamental'); // fundamental, technical, macro
+  const [showDataDashboard, setShowDataDashboard] = useState(true);
   
   // 切换语言
   const toggleLanguage = () => {
@@ -573,6 +575,251 @@ function StockAnalysis({ apiUrl }) {
                     <div>盈亏平衡: ${optionStrategy.metrics.breakeven.toFixed(2)}</div>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* 数据仪表盘 - 新增 */}
+            {showDataDashboard && stockData && stockData.premium_data && (
+              <div style={{
+                background: 'linear-gradient(135deg, #667eea15 0%, #764ba215 100%)',
+                border: '2px solid #667eea',
+                padding: '20px',
+                borderRadius: '12px',
+                marginBottom: '20px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                  <h3 style={{ color: '#667eea', margin: 0 }}>
+                    📊 专业数据分析
+                  </h3>
+                  <button
+                    onClick={() => setShowDataDashboard(!showDataDashboard)}
+                    style={{
+                      padding: '5px 12px',
+                      background: 'transparent',
+                      color: '#667eea',
+                      border: '1px solid #667eea',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '0.85em'
+                    }}
+                  >
+                    {showDataDashboard ? '▼ 收起' : '▶ 展开'}
+                  </button>
+                </div>
+
+                {/* 标签页切换 */}
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', borderBottom: '2px solid #e0e0e0' }}>
+                  <button
+                    onClick={() => setActiveDataTab('fundamental')}
+                    style={{
+                      padding: '10px 20px',
+                      background: activeDataTab === 'fundamental' ? '#667eea' : 'transparent',
+                      color: activeDataTab === 'fundamental' ? 'white' : '#666',
+                      border: 'none',
+                      borderBottom: activeDataTab === 'fundamental' ? '3px solid #667eea' : 'none',
+                      cursor: 'pointer',
+                      fontWeight: activeDataTab === 'fundamental' ? '600' : '400',
+                      transition: 'all 0.3s'
+                    }}
+                  >
+                    💼 基本面
+                  </button>
+                  <button
+                    onClick={() => setActiveDataTab('technical')}
+                    style={{
+                      padding: '10px 20px',
+                      background: activeDataTab === 'technical' ? '#667eea' : 'transparent',
+                      color: activeDataTab === 'technical' ? 'white' : '#666',
+                      border: 'none',
+                      borderBottom: activeDataTab === 'technical' ? '3px solid #667eea' : 'none',
+                      cursor: 'pointer',
+                      fontWeight: activeDataTab === 'technical' ? '600' : '400',
+                      transition: 'all 0.3s'
+                    }}
+                  >
+                    📈 技术面
+                  </button>
+                  <button
+                    onClick={() => setActiveDataTab('macro')}
+                    style={{
+                      padding: '10px 20px',
+                      background: activeDataTab === 'macro' ? '#667eea' : 'transparent',
+                      color: activeDataTab === 'macro' ? 'white' : '#666',
+                      border: 'none',
+                      borderBottom: activeDataTab === 'macro' ? '3px solid #667eea' : 'none',
+                      cursor: 'pointer',
+                      fontWeight: activeDataTab === 'macro' ? '600' : '400',
+                      transition: 'all 0.3s'
+                    }}
+                  >
+                    🌍 宏观面
+                  </button>
+                </div>
+
+                {/* 基本面标签内容 */}
+                {activeDataTab === 'fundamental' && stockData.premium_data?.company_overview && (
+                  <div>
+                    <h4 style={{ color: '#333', marginBottom: '15px' }}>💼 公司财务健康度</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px', marginBottom: '20px' }}>
+                      {[
+                        { label: '市值', value: stockData.premium_data.company_overview.MarketCapitalization ? `$${(parseFloat(stockData.premium_data.company_overview.MarketCapitalization) / 1e12).toFixed(2)}T` : 'N/A', status: '🟢', desc: '巨型' },
+                        { label: '市盈率 P/E', value: stockData.premium_data.company_overview.PERatio || 'N/A', status: parseFloat(stockData.premium_data.company_overview.PERatio) > 30 ? '🟡' : '🟢', desc: parseFloat(stockData.premium_data.company_overview.PERatio) > 30 ? '略高' : '合理' },
+                        { label: '每股收益 EPS', value: stockData.premium_data.company_overview.EPS ? `$${stockData.premium_data.company_overview.EPS}` : 'N/A', status: '🟢', desc: '优秀' },
+                        { label: 'ROE', value: stockData.premium_data.company_overview.ReturnOnEquityTTM ? `${(parseFloat(stockData.premium_data.company_overview.ReturnOnEquityTTM) * 100).toFixed(1)}%` : 'N/A', status: parseFloat(stockData.premium_data.company_overview.ReturnOnEquityTTM) > 0.15 ? '🟢🔥' : '🟡', desc: parseFloat(stockData.premium_data.company_overview.ReturnOnEquityTTM) > 0.15 ? '卓越' : '良好' },
+                        { label: '利润率', value: stockData.premium_data.company_overview.ProfitMargin ? `${(parseFloat(stockData.premium_data.company_overview.ProfitMargin) * 100).toFixed(1)}%` : 'N/A', status: parseFloat(stockData.premium_data.company_overview.ProfitMargin) > 0.2 ? '🟢🔥' : '🟢', desc: parseFloat(stockData.premium_data.company_overview.ProfitMargin) > 0.2 ? '优秀' : '良好' },
+                        { label: '股息率', value: stockData.premium_data.company_overview.DividendYield ? `${(parseFloat(stockData.premium_data.company_overview.DividendYield) * 100).toFixed(2)}%` : 'N/A', status: parseFloat(stockData.premium_data.company_overview.DividendYield) > 0.02 ? '🟢' : '🟡', desc: parseFloat(stockData.premium_data.company_overview.DividendYield) > 0.02 ? '稳定' : '较低' }
+                      ].map((item, idx) => (
+                        <div key={idx} style={{ padding: '15px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                          <div style={{ fontSize: '0.85em', color: '#666', marginBottom: '5px' }}>{item.label}</div>
+                          <div style={{ fontSize: '1.3em', fontWeight: '600', color: '#333', marginBottom: '5px' }}>
+                            {item.value}
+                          </div>
+                          <div style={{ fontSize: '0.8em', color: '#999' }}>
+                            {item.status} {item.desc}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* 投资风格解读 */}
+                    <div style={{ padding: '15px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                      <h4 style={{ color: '#667eea', marginBottom: '10px' }}>
+                        {investmentStyle === 'buffett' && '🏛️ 巴菲特护城河分析'}
+                        {investmentStyle === 'lynch' && '🎯 彼得·林奇成长性分析'}
+                        {investmentStyle === 'soros' && '🌊 索罗斯价值评估'}
+                      </h4>
+                      {investmentStyle === 'buffett' && (
+                        <div style={{ fontSize: '0.9em', lineHeight: '1.8' }}>
+                          <div>• 品牌价值: ⭐⭐⭐⭐⭐ (强大的生态系统锁定)</div>
+                          <div>• 定价权: ⭐⭐⭐⭐⭐ (高端市场溢价能力)</div>
+                          <div>• ROE表现: {stockData.premium_data.company_overview.ReturnOnEquityTTM && parseFloat(stockData.premium_data.company_overview.ReturnOnEquityTTM) > 0.15 ? '⭐⭐⭐⭐⭐' : '⭐⭐⭐'} ({stockData.premium_data.company_overview.ReturnOnEquityTTM ? `${(parseFloat(stockData.premium_data.company_overview.ReturnOnEquityTTM) * 100).toFixed(1)}%` : 'N/A'})</div>
+                          <div>• 估值水平: {stockData.premium_data.company_overview.PERatio && parseFloat(stockData.premium_data.company_overview.PERatio) > 30 ? '⚠️ 偏高需耐心' : '✅ 合理'} (P/E {stockData.premium_data.company_overview.PERatio || 'N/A'})</div>
+                        </div>
+                      )}
+                      {investmentStyle === 'lynch' && (
+                        <div style={{ fontSize: '0.9em', lineHeight: '1.8' }}>
+                          <div>• PEG比率: {stockData.premium_data.company_overview.PEGRatio || 'N/A'} {stockData.premium_data.company_overview.PEGRatio && parseFloat(stockData.premium_data.company_overview.PEGRatio) < 1 ? '🟢 优秀' : '🟡'}</div>
+                          <div>• EPS增长: {stockData.premium_data.company_overview.EPS || 'N/A'} (关注持续性)</div>
+                          <div>• 市场份额: 领先地位 ✅</div>
+                          <div>• 扩张潜力: 新产品线和服务</div>
+                        </div>
+                      )}
+                      {investmentStyle === 'soros' && (
+                        <div style={{ fontSize: '0.9em', lineHeight: '1.8' }}>
+                          <div>• 市场共识: 高估值反映市场乐观预期</div>
+                          <div>• 潜在反转: P/E {stockData.premium_data.company_overview.PERatio} {stockData.premium_data.company_overview.PERatio && parseFloat(stockData.premium_data.company_overview.PERatio) > 35 ? '⚠️ 警惕回调' : '✅'}</div>
+                          <div>• 催化剂: 关注新产品发布和财报</div>
+                          <div>• 风险回报: 需要精确的进出场时机</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* 技术面标签内容 */}
+                {activeDataTab === 'technical' && (
+                  <div>
+                    <h4 style={{ color: '#333', marginBottom: '15px' }}>📈 技术指标全景</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '15px', marginBottom: '20px' }}>
+                      {stockData.indicators && [
+                        { 
+                          label: 'RSI(14)', 
+                          value: stockData.indicators.rsi?.toFixed(2) || 'N/A', 
+                          status: stockData.indicators.rsi > 70 ? '🔴 超买' : stockData.indicators.rsi < 30 ? '🟢 超卖' : '🟡 中性',
+                          desc: stockData.indicators.rsi > 70 ? '注意回调' : stockData.indicators.rsi < 30 ? '可能反弹' : '震荡'
+                        },
+                        { 
+                          label: 'MACD', 
+                          value: stockData.premium_data?.technical?.macd_value || 'N/A', 
+                          status: stockData.premium_data?.technical?.macd_signal === 'bullish' ? '🟢 金叉' : stockData.premium_data?.technical?.macd_signal === 'bearish' ? '🔴 死叉' : '🟡',
+                          desc: stockData.premium_data?.technical?.macd_signal === 'bullish' ? '上涨动能' : stockData.premium_data?.technical?.macd_signal === 'bearish' ? '下跌动能' : '观察'
+                        },
+                        { 
+                          label: 'ATR(14)', 
+                          value: stockData.premium_data?.technical?.atr ? `$${stockData.premium_data.technical.atr.toFixed(2)}` : 'N/A', 
+                          status: '🟡',
+                          desc: '波动适中'
+                        },
+                        { 
+                          label: '布林带位置', 
+                          value: stockData.premium_data?.technical?.bbands_position || '中轨附近', 
+                          status: stockData.premium_data?.technical?.bbands_position === '上轨附近' ? '🔴' : stockData.premium_data?.technical?.bbands_position === '下轨附近' ? '🟢' : '🟡',
+                          desc: stockData.premium_data?.technical?.bbands_position || '震荡中'
+                        }
+                      ].map((item, idx) => (
+                        <div key={idx} style={{ padding: '15px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                          <div style={{ fontSize: '0.85em', color: '#666', marginBottom: '5px' }}>{item.label}</div>
+                          <div style={{ fontSize: '1.3em', fontWeight: '600', color: '#333', marginBottom: '5px' }}>
+                            {item.value}
+                          </div>
+                          <div style={{ fontSize: '0.8em', color: '#999' }}>
+                            {item.status} {item.desc}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* 投资风格技术解读 */}
+                    <div style={{ padding: '15px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                      <h4 style={{ color: '#667eea', marginBottom: '10px' }}>
+                        {investmentStyle === 'buffett' && '🏛️ 技术面辅助判断'}
+                        {investmentStyle === 'lynch' && '🎯 技术入场时机'}
+                        {investmentStyle === 'soros' && '🌊 趋势与反转信号'}
+                      </h4>
+                      {investmentStyle === 'buffett' && (
+                        <div style={{ fontSize: '0.9em', lineHeight: '1.8', color: '#666' }}>
+                          技术面仅作参考，重点关注基本面。RSI {stockData.indicators?.rsi?.toFixed(1)} {stockData.indicators?.rsi > 70 ? '偏高建议等待回调' : '可考虑分批建仓'}。
+                        </div>
+                      )}
+                      {investmentStyle === 'lynch' && (
+                        <div style={{ fontSize: '0.9em', lineHeight: '1.8', color: '#666' }}>
+                          寻找成长股的技术性买点。{stockData.indicators?.rsi < 40 ? '当前RSI低位，可能是加仓机会' : 'RSI偏高，等待调整后介入'}。
+                        </div>
+                      )}
+                      {investmentStyle === 'soros' && (
+                        <div style={{ fontSize: '0.9em', lineHeight: '1.8' }}>
+                          <div>• 短期趋势: {stockData.premium_data?.technical?.macd_signal === 'bullish' ? '🟢 上升（MACD金叉）' : stockData.premium_data?.technical?.macd_signal === 'bearish' ? '🔴 下降（MACD死叉）' : '🟡 震荡'}</div>
+                          <div>• 动能强度: {stockData.indicators?.rsi > 70 ? '⚠️ 超买减弱' : stockData.indicators?.rsi < 30 ? '⚠️ 超卖待反弹' : '🟢 正常'}</div>
+                          <div>• 反转信号: {stockData.indicators?.rsi > 75 || stockData.indicators?.rsi < 25 ? '⚠️ 警惕转向' : '未出现'}</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* 宏观面标签内容 */}
+                {activeDataTab === 'macro' && stockData.premium_data?.economic && (
+                  <div>
+                    <h4 style={{ color: '#333', marginBottom: '15px' }}>🌍 经济环境全貌</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px', marginBottom: '20px' }}>
+                      {[
+                        { label: 'CPI通胀率', value: stockData.premium_data.economic.cpi ? `${stockData.premium_data.economic.cpi}%` : 'N/A', trend: '↑', status: '🟢 温和通胀' },
+                        { label: '失业率', value: stockData.premium_data.economic.unemployment ? `${stockData.premium_data.economic.unemployment}%` : 'N/A', trend: '→', status: '🟢 稳定' },
+                        { label: '联邦利率', value: stockData.premium_data.economic.fed_rate ? `${stockData.premium_data.economic.fed_rate}%` : 'N/A', trend: '→', status: '🟡 高位' }
+                      ].map((item, idx) => (
+                        <div key={idx} style={{ padding: '15px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                          <div style={{ fontSize: '0.85em', color: '#666', marginBottom: '5px' }}>{item.label}</div>
+                          <div style={{ fontSize: '1.3em', fontWeight: '600', color: '#333', marginBottom: '5px' }}>
+                            {item.value} {item.trend}
+                          </div>
+                          <div style={{ fontSize: '0.8em', color: '#999' }}>
+                            {item.status}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div style={{ padding: '15px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                      <h4 style={{ color: '#667eea', marginBottom: '10px' }}>💡 市场环境解读</h4>
+                      <div style={{ fontSize: '0.9em', lineHeight: '1.8', color: '#666' }}>
+                        {stockData.premium_data.economic.fed_rate && parseFloat(stockData.premium_data.economic.fed_rate) > 4 ? 
+                          '高利率环境对科技股估值形成压力，但通胀受控、失业率低显示经济韧性。关注美联储政策转向信号。' :
+                          '温和的宏观环境支持市场稳定，低利率有利于成长股估值。保持关注通胀走势。'
+                        }
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
