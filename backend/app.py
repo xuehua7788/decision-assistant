@@ -137,23 +137,18 @@ except ImportError as e:
     STOCK_API_AVAILABLE = False
     print(f"⚠️ 股票分析API导入失败: {e}")
 
-# 导入策略存储API（独立注册，不依赖stock_api）
-try:
-    from strategy_storage_api import strategy_bp, init_strategy_table
-    app.register_blueprint(strategy_bp)
-    
-    # 初始化策略表
-    init_strategy_table()
-    print("✅ 策略存储API已注册")
-    print(f"   注册的路由: {[rule.rule for rule in app.url_map.iter_rules() if 'strategy' in rule.rule]}")
-except ImportError as e:
-    print(f"⚠️ 策略存储API导入失败: {e}")
-    import traceback
-    traceback.print_exc()
-except Exception as e:
-    print(f"❌ 策略存储API注册失败: {e}")
-    import traceback
-    traceback.print_exc()
+# 导入策略存储API（已禁用 - 策略现在存储在users表中）
+# try:
+#     from strategy_storage_api import strategy_bp, init_strategy_table
+#     app.register_blueprint(strategy_bp)
+#     
+#     # 初始化策略表
+#     init_strategy_table()
+#     print("✅ 策略存储API已注册")
+#     print(f"   注册的路由: {[rule.rule for rule in app.url_map.iter_rules() if 'strategy' in rule.rule]}")
+# except ImportError as e:
+#     print(f"⚠️ 策略存储API导入失败: {e}")
+print("ℹ️  旧的strategy_storage_api已禁用，策略API现在在app.py中")
 
 # 导入期权策略处理器
 try:
