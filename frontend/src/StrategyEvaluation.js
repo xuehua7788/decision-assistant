@@ -20,6 +20,38 @@ function StrategyEvaluation({ apiUrl }) {
     }
   }, [apiUrl]);
 
+  // 删除策略
+  const deleteStrategy = async (strategyId, e) => {
+    e.stopPropagation(); // 防止触发卡片点击
+    
+    if (!window.confirm('确定要删除这个策略吗？')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${apiUrl}/api/strategy/${strategyId}`, {
+        method: 'DELETE'
+      });
+
+      const result = await response.json();
+
+      if (result.status === 'success') {
+        alert('✅ 策略已删除');
+        // 如果删除的是当前选中的策略，清空选择
+        if (selectedStrategy?.strategy_id === strategyId) {
+          setSelectedStrategy(null);
+          setEvaluation(null);
+        }
+        // 重新加载策略列表
+        loadStrategies();
+      } else {
+        alert('删除失败: ' + result.message);
+      }
+    } catch (err) {
+      alert('网络错误: ' + err.message);
+    }
+  };
+
   useEffect(() => {
     loadStrategies();
   }, [loadStrategies]);
@@ -116,11 +148,37 @@ function StrategyEvaluation({ apiUrl }) {
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '10px' }}>
-                  <div style={{ fontSize: '1.2em', fontWeight: '600' }}>
-                    {strategy.symbol} - {strategy.company_name}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '1.2em', fontWeight: '600' }}>
+                      {strategy.symbol} - {strategy.company_name}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '1.5em' }}>
-                    {getStyleIcon(strategy.investment_style)}
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <div style={{ fontSize: '1.5em' }}>
+                      {getStyleIcon(strategy.investment_style)}
+                    </div>
+                    <button
+                      onClick={(e) => deleteStrategy(strategy.strategy_id, e)}
+                      style={{
+                        padding: '6px 12px',
+                        background: '#f56565',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontSize: '0.85em',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#e53e3e';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = '#f56565';
+                      }}
+                    >
+                      🗑️ 删除
+                    </button>
                   </div>
                 </div>
                 <div style={{ fontSize: '0.9em', color: '#666', marginBottom: '5px' }}>

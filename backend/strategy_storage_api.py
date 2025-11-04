@@ -535,3 +535,77 @@ def evaluate_strategy():
             "message": str(e)
         }), 500
 
+@strategy_bp.route('/<strategy_id>', methods=['DELETE'])
+def delete_strategy(strategy_id):
+    """
+    删除策略
+    
+    DELETE /api/strategy/{strategy_id}
+    
+    Returns:
+        {
+            "status": "success",
+            "message": "策略已删除"
+        }
+    """
+    try:
+        # 尝试从数据库删除
+        conn = get_db_connection()
+        if conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "DELETE FROM accepted_strategies WHERE strategy_id = %s",
+                    (strategy_id,)
+                )
+                conn.commit()
+                
+                if cursor.rowcount > 0:
+                    print(f"✅ 从数据库删除策略: {strategy_id}")
+                    cursor.close()
+                    conn.close()
+                    
+                    return jsonify({
+                        "status": "success",
+                        "message": "策略已删除"
+                    }), 200
+                else:
+                    cursor.close()
+                    conn.close()
+                    
+                    return jsonify({
+                        "status": "error",
+                        "message": "策略不存在"
+                    }), 404
+                    
+            except Exception as e:
+                print(f"❌ 数据库删除失败: {e}")
+                if conn:
+                    conn.close()
+        
+        # 备用：从文件删除
+        strategy_file = os.path.join(STRATEGY_DIR, f"{strategy_id}.json")
+        if os.path.exists(strategy_file):
+            os.remove(strategy_file)
+            print(f"✅ 从文件删除策略: {strategy_id}")
+            
+            return jsonify({
+                "status": "success",
+                "message": "策略已删除"
+            }), 200
+        else:
+            return jsonify({
+                "status": "error",
+                "message": "策略不存在"
+            }), 404
+            
+    except Exception as e:
+        print(f"❌ 删除策略失败: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+

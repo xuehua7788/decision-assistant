@@ -191,9 +191,6 @@ function StockAnalysis({ apiUrl }) {
     }
   };
 
-  const rejectStrategy = () => {
-    alert('❌ 已拒绝此策略，不会保存到数据库');
-  };
 
   // 获取推荐颜色
   const getRecommendationColor = (recommendation) => {
@@ -680,41 +677,34 @@ function StockAnalysis({ apiUrl }) {
                   </div>
                 </div>
 
-                {/* 操作按钮 */}
-                <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
-                  <button
-                    onClick={() => acceptStrategy()}
-                    style={{
-                      flex: 1,
-                      padding: '12px',
-                      background: 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      fontSize: '0.95em'
-                    }}
-                  >
-                    ✅ 接受策略
-                  </button>
-                  <button
-                    onClick={() => rejectStrategy()}
-                    style={{
-                      flex: 1,
-                      padding: '12px',
-                      background: '#e0e0e0',
-                      color: '#666',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      fontSize: '0.95em'
-                    }}
-                  >
-                    ❌ 拒绝
-                  </button>
-                </div>
+                {/* 接受策略按钮 */}
+                <button
+                  onClick={() => acceptStrategy()}
+                  style={{
+                    width: '100%',
+                    padding: '14px',
+                    marginTop: '15px',
+                    background: 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    fontSize: '1em',
+                    boxShadow: '0 4px 12px rgba(72, 187, 120, 0.3)',
+                    transition: 'all 0.3s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(72, 187, 120, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(72, 187, 120, 0.3)';
+                  }}
+                >
+                  ✅ 接受并保存策略
+                </button>
               </div>
             )}
 
@@ -1152,60 +1142,6 @@ function StockAnalysis({ apiUrl }) {
                   </div>
                   
                   {/* 接受/拒绝策略按钮 */}
-                  <div style={{
-                    marginTop: '20px',
-                    display: 'flex',
-                    gap: '15px',
-                    justifyContent: 'center'
-                  }}>
-                    <button
-                      onClick={() => acceptStrategy()}
-                      style={{
-                        padding: '12px 30px',
-                        background: '#48bb78',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '8px',
-                        fontSize: '1em',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                        boxShadow: '0 4px 15px rgba(72, 187, 120, 0.4)',
-                        transition: 'all 0.3s'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'translateY(-2px)';
-                        e.currentTarget.style.boxShadow = '0 6px 20px rgba(72, 187, 120, 0.6)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = '0 4px 15px rgba(72, 187, 120, 0.4)';
-                      }}
-                    >
-                      ✅ 接受此策略
-                    </button>
-                    <button
-                      onClick={() => rejectStrategy()}
-                      style={{
-                        padding: '12px 30px',
-                        background: 'rgba(255,255,255,0.2)',
-                        color: 'white',
-                        border: '2px solid white',
-                        borderRadius: '8px',
-                        fontSize: '1em',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                        transition: 'all 0.3s'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
-                      }}
-                    >
-                      ❌ 不接受
-                    </button>
-                  </div>
                 </div>
               )}
             </div>
