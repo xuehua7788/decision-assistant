@@ -1,0 +1,4 @@
+Force deploy trigger - 2025-11-04 20:15:00
+Reason: Strategy API routes not registered on Render
+Expected: /api/strategy/save, /api/strategy/list, /api/strategy/evaluate
+

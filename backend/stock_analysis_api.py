@@ -202,6 +202,32 @@ def analyze_stock():
         closes = [h['close'] for h in history]
         rsi = client.calculate_rsi(closes)
         
+        # 🆕 获取Premium功能数据
+        print(f"📊 获取Premium数据...", flush=True)
+        
+        # 1. 公司基本面
+        company_overview = client.get_company_overview(symbol)
+        
+        # 2. 技术指标 (MACD, 布林带, ATR)
+        macd_data = client.get_technical_indicator(symbol, 'MACD', interval='daily')
+        bbands_data = client.get_technical_indicator(symbol, 'BBANDS', interval='daily', time_period=20)
+        atr_data = client.get_technical_indicator(symbol, 'ATR', interval='daily', time_period=14)
+        
+        # 3. 宏观经济数据
+        cpi_data = client.get_economic_indicator('CPI')
+        unemployment_data = client.get_economic_indicator('UNEMPLOYMENT')
+        fed_rate_data = client.get_economic_indicator('FEDERAL_FUNDS_RATE')
+        
+        print(f"✅ Premium数据获取完成", flush=True)
+        print(f"   公司数据: {'✅' if company_overview else '❌'}", flush=True)
+        print(f"   MACD: {'✅' if macd_data else '❌'}", flush=True)
+        print(f"   布林带: {'✅' if bbands_data else '❌'}", flush=True)
+        print(f"   ATR: {'✅' if atr_data else '❌'}", flush=True)
+        print(f"   CPI: {'✅' if cpi_data else '❌'}", flush=True)
+        print(f"   失业率: {'✅' if unemployment_data else '❌'}", flush=True)
+        print(f"   联邦利率: {'✅' if fed_rate_data else '❌'}", flush=True)
+        sys.stdout.flush()
+        
         # AI分析
         analyzer = get_stock_analyzer()
         analysis = analyzer.analyze_stock(
@@ -213,7 +239,19 @@ def analyze_stock():
             user_opinion=user_opinion if user_opinion else None,
             news_context=news_context if news_context else None,
             language=language,
-            investment_style=investment_style
+            investment_style=investment_style,
+            # 🆕 传递Premium数据
+            company_overview=company_overview,
+            technical_indicators={
+                'macd': macd_data,
+                'bbands': bbands_data,
+                'atr': atr_data
+            },
+            economic_data={
+                'cpi': cpi_data,
+                'unemployment': unemployment_data,
+                'fed_rate': fed_rate_data
+            }
         )
         
         if not analysis:

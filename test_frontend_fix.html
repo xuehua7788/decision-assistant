@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>测试前端修复</title>
+    <meta charset="UTF-8">
+</head>
+<body>
+    <h1>测试期权策略名称提取</h1>
+    
+    <script>
+        // 测试用例1: 直接包含name（MSFT的情况）
+        const optionStrategy1 = {
+            "name": "铁鹰式",
+            "type": "iron_condor",
+            "parameters": {}
+        };
+        
+        // 测试用例2: 嵌套在strategy中
+        const optionStrategy2 = {
+            "strategy": {
+                "name": "买入看涨期权",
+                "type": "long_call"
+            }
+        };
+        
+        // 测试用例3: 都没有
+        const optionStrategy3 = {
+            "type": "unknown"
+        };
+        
+        // 旧代码（会报错）
+        console.log("=== 旧代码测试 ===");
+        try {
+            console.log("测试1:", optionStrategy1.strategy.name); // ❌ 报错
+        } catch(e) {
+            console.error("测试1错误:", e.message);
+        }
+        
+        try {
+            console.log("测试2:", optionStrategy2.strategy.name); // ✅ 成功
+        } catch(e) {
+            console.error("测试2错误:", e.message);
+        }
+        
+        // 新代码（不会报错）
+        console.log("\n=== 新代码测试 ===");
+        
+        function getStrategyName(optionStrategy) {
+            return optionStrategy.name || optionStrategy.strategy?.name || '期权策略';
+        }
+        
+        console.log("测试1:", getStrategyName(optionStrategy1)); // ✅ "铁鹰式"
+        console.log("测试2:", getStrategyName(optionStrategy2)); // ✅ "买入看涨期权"
+        console.log("测试3:", getStrategyName(optionStrategy3)); // ✅ "期权策略"
+        
+        // 显示结果
+        document.body.innerHTML += `
+            <h2>测试结果</h2>
+            <div style="font-family: monospace; background: #f0f0f0; padding: 20px;">
+                <h3>✅ 新代码测试通过：</h3>
+                <p>测试1 (MSFT格式): ${getStrategyName(optionStrategy1)}</p>
+                <p>测试2 (嵌套格式): ${getStrategyName(optionStrategy2)}</p>
+                <p>测试3 (无名称): ${getStrategyName(optionStrategy3)}</p>
+                
+                <h3>❌ 旧代码会报错：</h3>
+                <p style="color: red;">Cannot read properties of undefined (reading 'name')</p>
+                
+                <h3>🎯 结论：</h3>
+                <p style="color: green; font-weight: bold;">
+                    新代码使用可选链 (?.) 和备选方案，完美兼容两种数据结构！
+                </p>
+            </div>
+        `;
+    </script>
+</body>
+</html>
+

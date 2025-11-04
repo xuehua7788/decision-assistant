@@ -129,6 +129,19 @@ function StrategyEvaluation({ apiUrl }) {
                 <div style={{ fontSize: '0.9em', color: '#666', marginBottom: '10px' }}>
                   建议：{strategy.recommendation} | 目标价：${strategy.target_price}
                 </div>
+                {strategy.option_strategy && (
+                  <div style={{ 
+                    fontSize: '0.85em', 
+                    color: '#667eea', 
+                    marginBottom: '8px',
+                    padding: '5px 10px',
+                    background: '#f0f4ff',
+                    borderRadius: '5px',
+                    fontWeight: '500'
+                  }}>
+                    📊 期权策略: {strategy.option_strategy.name || strategy.option_strategy.strategy?.name || '已保存'}
+                  </div>
+                )}
                 <div style={{ fontSize: '0.85em', color: '#999' }}>
                   创建时间：{new Date(strategy.created_at).toLocaleString('zh-CN')}
                 </div>
@@ -214,6 +227,82 @@ function StrategyEvaluation({ apiUrl }) {
                 </div>
               </div>
             </div>
+            
+            {/* 期权策略显示 */}
+            {selectedStrategy.option_strategy && (
+              <div style={{
+                marginTop: '20px',
+                padding: '15px',
+                background: 'linear-gradient(135deg, #667eea15 0%, #764ba215 100%)',
+                borderRadius: '8px',
+                border: '2px solid #667eea'
+              }}>
+                <h4 style={{ color: '#667eea', marginBottom: '10px', display: 'flex', alignItems: 'center' }}>
+                  📊 推荐期权策略：{selectedStrategy.option_strategy.name || '已保存'}
+                </h4>
+                {selectedStrategy.option_strategy.type && (
+                  <div style={{ fontSize: '0.9em', color: '#666', marginBottom: '8px' }}>
+                    策略类型：{selectedStrategy.option_strategy.type}
+                  </div>
+                )}
+                {selectedStrategy.option_strategy.description && (
+                  <div style={{ fontSize: '0.9em', color: '#555', marginBottom: '12px' }}>
+                    {selectedStrategy.option_strategy.description}
+                  </div>
+                )}
+                {selectedStrategy.option_strategy.parameters && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
+                    {selectedStrategy.option_strategy.parameters.buy_strike && (
+                      <div style={{ fontSize: '0.85em' }}>
+                        <span style={{ color: '#666' }}>买入行权价：</span>
+                        <strong>${selectedStrategy.option_strategy.parameters.buy_strike.toFixed(2)}</strong>
+                      </div>
+                    )}
+                    {selectedStrategy.option_strategy.parameters.sell_strike && (
+                      <div style={{ fontSize: '0.85em' }}>
+                        <span style={{ color: '#666' }}>卖出行权价：</span>
+                        <strong>${selectedStrategy.option_strategy.parameters.sell_strike.toFixed(2)}</strong>
+                      </div>
+                    )}
+                    {selectedStrategy.option_strategy.parameters.expiry && (
+                      <div style={{ fontSize: '0.85em' }}>
+                        <span style={{ color: '#666' }}>到期时间：</span>
+                        <strong>{selectedStrategy.option_strategy.parameters.expiry}</strong>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {selectedStrategy.option_strategy.metrics && (
+                  <div style={{ 
+                    marginTop: '10px', 
+                    paddingTop: '10px', 
+                    borderTop: '1px solid #e0e0e0',
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+                    gap: '10px'
+                  }}>
+                    {selectedStrategy.option_strategy.metrics.max_loss && (
+                      <div style={{ fontSize: '0.85em' }}>
+                        <span style={{ color: '#666' }}>最大损失：</span>
+                        <strong style={{ color: '#f56565' }}>${selectedStrategy.option_strategy.metrics.max_loss.toFixed(2)}</strong>
+                      </div>
+                    )}
+                    {selectedStrategy.option_strategy.metrics.max_gain && (
+                      <div style={{ fontSize: '0.85em' }}>
+                        <span style={{ color: '#666' }}>最大收益：</span>
+                        <strong style={{ color: '#48bb78' }}>${selectedStrategy.option_strategy.metrics.max_gain.toFixed(2)}</strong>
+                      </div>
+                    )}
+                    {selectedStrategy.option_strategy.metrics.breakeven && (
+                      <div style={{ fontSize: '0.85em' }}>
+                        <span style={{ color: '#666' }}>盈亏平衡：</span>
+                        <strong>${selectedStrategy.option_strategy.metrics.breakeven.toFixed(2)}</strong>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* 历史回测结果 */}

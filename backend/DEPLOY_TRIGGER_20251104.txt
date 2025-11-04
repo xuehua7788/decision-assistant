@@ -1,0 +1,11 @@
+Deployment trigger - 2025-11-04 20:45:00
+Purpose: Force Render to redeploy with strategy API routes
+Changes:
+- Added option_strategy JSONB field to accepted_strategies table
+- Updated strategy_storage_api.py to handle option strategies
+- Fixed duplicate code in list_strategies function
+Expected routes:
+- POST /api/strategy/save
+- GET /api/strategy/list
+- POST /api/strategy/evaluate
+

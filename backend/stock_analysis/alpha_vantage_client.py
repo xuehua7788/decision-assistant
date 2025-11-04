@@ -172,7 +172,7 @@ class AlphaVantageClient:
                 'function': 'TIME_SERIES_DAILY',
                 'symbol': symbol,
                 'apikey': self.api_key,
-                'outputsize': 'compact'  # 最近100天
+                'outputsize': 'full'  # 完整历史（20+年），Premium版支持
             }
             
             print(f"🔍 请求历史数据: {symbol} ({days}天)")
@@ -414,6 +414,170 @@ class AlphaVantageClient:
             import traceback
             traceback.print_exc()
             return []
+    
+    def get_company_overview(self, symbol: str) -> Optional[Dict]:
+        """
+        获取公司基本面数据 (Premium功能)
+        
+        Returns:
+            {
+                'MarketCapitalization': 市值,
+                'PERatio': 市盈率,
+                'PEGRatio': PEG比率,
+                'BookValue': 账面价值,
+                'DividendYield': 股息率,
+                'EPS': 每股收益,
+                'RevenuePerShareTTM': 每股收入,
+                'ProfitMargin': 利润率,
+                'ReturnOnEquityTTM': ROE,
+                ...
+            }
+        """
+        cache_key = f"OVERVIEW:{symbol}"
+        
+        # 检查缓存（公司数据可以缓存更长时间）
+        if cache_key in self.cache:
+            cached_time = self.cache[cache_key].get('timestamp', 0)
+            # 缓存7天
+            if (time.time() - cached_time) < 604800:
+                print(f"📦 使用缓存公司数据: {symbol}")
+                return self.cache[cache_key]['data']
+        
+        try:
+            params = {
+                'function': 'OVERVIEW',
+                'symbol': symbol,
+                'apikey': self.api_key
+            }
+            
+            print(f"🏢 请求公司基本面: {symbol}")
+            response = requests.get(self.base_url, params=params, timeout=10)
+            
+            if response.status_code != 200:
+                return None
+            
+            data = response.json()
+            
+            if not data or 'Symbol' not in data:
+                print(f"⚠️ 无公司数据: {symbol}")
+                return None
+            
+            # 缓存结果
+            self.cache[cache_key] = {
+                'data': data,
+                'timestamp': time.time()
+            }
+            
+            print(f"✅ 获取公司数据成功: {symbol}")
+            return data
+            
+        except Exception as e:
+            print(f"❌ 获取公司数据失败: {e}")
+            return None
+    
+    def get_technical_indicator(self, symbol: str, indicator: str, 
+                                interval: str = 'daily', time_period: int = 14) -> Optional[Dict]:
+        """
+        获取技术指标 (Premium功能)
+        
+        Args:
+            symbol: 股票代码
+            indicator: 指标名称 (MACD, BBANDS, ATR, STOCH等)
+            interval: 时间间隔 (daily, weekly, monthly)
+            time_period: 周期参数
+            
+        Returns:
+            技术指标数据
+        """
+        cache_key = f"{indicator}:{symbol}:{interval}"
+        
+        # 检查缓存
+        if self._is_cache_valid(cache_key):
+            print(f"📦 使用缓存指标: {indicator}({symbol})")
+            return self._get_cache(cache_key)
+        
+        try:
+            params = {
+                'function': indicator,
+                'symbol': symbol,
+                'interval': interval,
+                'apikey': self.api_key
+            }
+            
+            # 不同指标需要不同参数
+            if indicator in ['SMA', 'EMA', 'RSI', 'ATR', 'CCI', 'MOM']:
+                params['time_period'] = time_period
+            elif indicator == 'BBANDS':
+                params['time_period'] = time_period
+                params['series_type'] = 'close'
+            elif indicator == 'MACD':
+                params['series_type'] = 'close'
+            elif indicator == 'STOCH':
+                pass  # STOCH has its own default parameters
+            
+            print(f"📊 请求技术指标: {indicator}({symbol})")
+            response = requests.get(self.base_url, params=params, timeout=10)
+            
+            if response.status_code != 200:
+                return None
+            
+            data = response.json()
+            
+            # 缓存结果
+            self._set_cache(cache_key, data)
+            
+            print(f"✅ 获取{indicator}成功")
+            return data
+            
+        except Exception as e:
+            print(f"❌ 获取技术指标失败: {e}")
+            return None
+    
+    def get_economic_indicator(self, indicator: str) -> Optional[Dict]:
+        """
+        获取宏观经济指标 (Premium功能)
+        
+        Args:
+            indicator: CPI, GDP, UNEMPLOYMENT, FEDERAL_FUNDS_RATE, TREASURY_YIELD等
+            
+        Returns:
+            宏观经济数据
+        """
+        cache_key = f"ECON:{indicator}"
+        
+        # 宏观数据缓存1天
+        if cache_key in self.cache:
+            cached_time = self.cache[cache_key].get('timestamp', 0)
+            if (time.time() - cached_time) < 86400:
+                print(f"📦 使用缓存经济数据: {indicator}")
+                return self.cache[cache_key]['data']
+        
+        try:
+            params = {
+                'function': indicator,
+                'apikey': self.api_key
+            }
+            
+            print(f"🌍 请求宏观经济数据: {indicator}")
+            response = requests.get(self.base_url, params=params, timeout=10)
+            
+            if response.status_code != 200:
+                return None
+            
+            data = response.json()
+            
+            # 缓存结果
+            self.cache[cache_key] = {
+                'data': data,
+                'timestamp': time.time()
+            }
+            
+            print(f"✅ 获取{indicator}成功")
+            return data
+            
+        except Exception as e:
+            print(f"❌ 获取宏观数据失败: {e}")
+            return None
 
 
 # 全局单例

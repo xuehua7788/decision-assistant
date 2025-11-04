@@ -30,7 +30,10 @@ class StockAnalyzer:
                      user_opinion: str = None,
                      news_context: str = None,
                      language: str = "zh",
-                     investment_style: str = None) -> Optional[Dict]:
+                     investment_style: str = None,
+                     company_overview: Dict = None,
+                     technical_indicators: Dict = None,
+                     economic_data: Dict = None) -> Optional[Dict]:
         """
         分析股票并给出投资建议
         
@@ -64,7 +67,8 @@ class StockAnalyzer:
             # 构建分析提示词
             system_prompt = self._build_system_prompt(risk_preference, language, investment_style, current_data.get('name', symbol))
             user_prompt = self._build_user_prompt(
-                symbol, current_data, history_data, rsi, user_opinion, news_context, language
+                symbol, current_data, history_data, rsi, user_opinion, news_context, language,
+                company_overview, technical_indicators, economic_data
             )
             
             # 调用DeepSeek API
@@ -163,12 +167,14 @@ class StockAnalyzer:
 综合分析股票数据、市场消息和用户观点，给出全面的投资建议。
 
 **分析维度**：
-1. **技术面分析**：价格走势、RSI指标、成交量变化、波动率
-2. **基本面分析**：相关新闻、市场消息对股价的影响
-3. **用户观点整合**：结合用户提供的研报或个人观点
-4. **短期趋势**：最近5天的价格变化
-5. **风险评估**：波动率、支撑位、阻力位
-6. **综合策略**：技术面+基本面的投资策略
+1. **技术面分析**：价格走势、RSI、MACD、布林带、ATR、成交量变化、波动率
+2. **基本面分析**：市盈率、ROE、利润率、股息率、市值等公司财务数据
+3. **宏观经济**：CPI通胀率、失业率、联邦利率等宏观环境
+4. **市场消息**：相关新闻、市场消息对股价的影响
+5. **用户观点整合**：结合用户提供的研报或个人观点
+6. **短期趋势**：最近5天的价格变化
+7. **风险评估**：波动率、ATR、支撑位、阻力位
+8. **综合策略**：技术面+基本面+宏观面的全方位投资策略
 
 **输出格式**（严格JSON）：
 {{
@@ -227,7 +233,10 @@ class StockAnalyzer:
     def _build_user_prompt(self, symbol: str, current_data: Dict, 
                           history_data: list, rsi: float,
                           user_opinion: str = None, news_context: str = None,
-                          language: str = "zh") -> str:
+                          language: str = "zh",
+                          company_overview: Dict = None,
+                          technical_indicators: Dict = None,
+                          economic_data: Dict = None) -> str:
         """构建用户提示词"""
         
         # 计算最近5天涨跌
@@ -284,6 +293,101 @@ class StockAnalyzer:
         recent_10_days = history_data[-10:] if len(history_data) >= 10 else history_data
         for day in recent_10_days:
             prompt += f"\n{day['date']}: ${day['close']:.2f} (成交量: {day['volume']:,})"
+        
+        # 🆕 添加公司基本面数据
+        if company_overview:
+            prompt += "\n\n**📊 公司基本面** (Premium数据):\n"
+            try:
+                pe_ratio = company_overview.get('PERatio', 'N/A')
+                eps = company_overview.get('EPS', 'N/A')
+                roe = company_overview.get('ReturnOnEquityTTM', 'N/A')
+                profit_margin = company_overview.get('ProfitMargin', 'N/A')
+                dividend_yield = company_overview.get('DividendYield', 'N/A')
+                market_cap = company_overview.get('MarketCapitalization', 'N/A')
+                
+                prompt += f"- 市值: {market_cap}\n"
+                prompt += f"- 市盈率(P/E): {pe_ratio}\n"
+                prompt += f"- 每股收益(EPS): {eps}\n"
+                if roe != 'N/A':
+                    prompt += f"- 净资产收益率(ROE): {float(roe)*100:.2f}%\n"
+                if profit_margin != 'N/A':
+                    prompt += f"- 利润率: {float(profit_margin)*100:.2f}%\n"
+                if dividend_yield != 'N/A':
+                    prompt += f"- 股息率: {float(dividend_yield)*100:.2f}%\n"
+            except Exception as e:
+                print(f"⚠️ 解析基本面数据失败: {e}")
+        
+        # 🆕 添加高级技术指标
+        if technical_indicators:
+            prompt += "\n\n**📈 高级技术指标** (Premium数据):\n"
+            
+            # MACD
+            if technical_indicators.get('macd'):
+                try:
+                    macd_data = technical_indicators['macd']
+                    if 'Technical Analysis: MACD' in macd_data:
+                        latest_macd = list(macd_data['Technical Analysis: MACD'].values())[0]
+                        prompt += f"- MACD: {latest_macd.get('MACD', 'N/A')}\n"
+                        prompt += f"- MACD信号线: {latest_macd.get('MACD_Signal', 'N/A')}\n"
+                        prompt += f"- MACD柱状图: {latest_macd.get('MACD_Hist', 'N/A')}\n"
+                except:
+                    pass
+            
+            # 布林带
+            if technical_indicators.get('bbands'):
+                try:
+                    bbands_data = technical_indicators['bbands']
+                    if 'Technical Analysis: BBANDS' in bbands_data:
+                        latest_bb = list(bbands_data['Technical Analysis: BBANDS'].values())[0]
+                        prompt += f"- 布林带上轨: ${float(latest_bb.get('Real Upper Band', 0)):.2f}\n"
+                        prompt += f"- 布林带中轨: ${float(latest_bb.get('Real Middle Band', 0)):.2f}\n"
+                        prompt += f"- 布林带下轨: ${float(latest_bb.get('Real Lower Band', 0)):.2f}\n"
+                except:
+                    pass
+            
+            # ATR (平均真实波幅)
+            if technical_indicators.get('atr'):
+                try:
+                    atr_data = technical_indicators['atr']
+                    if 'Technical Analysis: ATR' in atr_data:
+                        latest_atr = list(atr_data['Technical Analysis: ATR'].values())[0]
+                        prompt += f"- ATR(14): ${float(latest_atr.get('ATR', 0)):.2f}\n"
+                except:
+                    pass
+        
+        # 🆕 添加宏观经济数据
+        if economic_data:
+            prompt += "\n\n**🌍 宏观经济环境** (Premium数据):\n"
+            
+            # CPI
+            if economic_data.get('cpi'):
+                try:
+                    cpi_data = economic_data['cpi']
+                    if 'data' in cpi_data and len(cpi_data['data']) > 0:
+                        latest_cpi = cpi_data['data'][0]
+                        prompt += f"- 最新CPI(通胀率): {latest_cpi.get('value', 'N/A')}%\n"
+                except:
+                    pass
+            
+            # 失业率
+            if economic_data.get('unemployment'):
+                try:
+                    unemployment_data = economic_data['unemployment']
+                    if 'data' in unemployment_data and len(unemployment_data['data']) > 0:
+                        latest_unemployment = unemployment_data['data'][0]
+                        prompt += f"- 失业率: {latest_unemployment.get('value', 'N/A')}%\n"
+                except:
+                    pass
+            
+            # 联邦基金利率
+            if economic_data.get('fed_rate'):
+                try:
+                    fed_rate_data = economic_data['fed_rate']
+                    if 'data' in fed_rate_data and len(fed_rate_data['data']) > 0:
+                        latest_fed_rate = fed_rate_data['data'][0]
+                        prompt += f"- 联邦基金利率: {latest_fed_rate.get('value', 'N/A')}%\n"
+                except:
+                    pass
         
         # 添加新闻/消息
         if news_context:

@@ -1,194 +1,165 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-测试完整的股票分析流程：新闻 + AI分析 + 期权策略
+测试完整的用户流程：Stock Analysis → 接受策略 → Strategy Evaluation
 """
 
-import os
-import sys
 import requests
 import json
+import time
 
-# 设置环境变量
-os.environ['ALPHA_VANTAGE_KEY'] = 'QKO2M2K3LZ58ACO2'
-os.environ['DEEPSEEK_API_KEY'] = 'sk-d3196d8e68c44690998d79c715ce715d'
+RENDER_URL = "https://decision-assistant-backend.onrender.com"
 
-print("=" * 70)
-print("🧪 完整流程测试：股票分析 + 新闻 + 期权策略")
-print("=" * 70)
-print()
+print("=" * 80)
+print("测试完整用户流程")
+print("=" * 80)
 
-API_URL = "http://127.0.0.1:8000"
-
+# 步骤1: 获取股票分析（模拟Stock Analysis）
+print("\n📊 步骤1: 获取TSLA股票分析...")
 try:
-    # 步骤1：获取股票数据
-    print("【步骤1】获取AAPL股票数据")
-    print("-" * 70)
+    # 1.1 获取股票数据
+    response = requests.get(f"{RENDER_URL}/api/stock/TSLA", timeout=15)
+    if response.status_code != 200:
+        print(f"❌ 获取股票数据失败: {response.status_code}")
+        exit(1)
     
-    response = requests.get(f"{API_URL}/api/stock/AAPL", timeout=30)
-    if response.status_code == 200:
-        stock_data = response.json()
-        if stock_data['status'] == 'success':
-            quote = stock_data['data']['quote']
-            print(f"✅ 股票: {quote['name']}")
-            print(f"   价格: ${quote['price']}")
-            print(f"   涨跌: {quote['change_percent']:.2f}%")
-            print(f"   RSI: {stock_data['data']['indicators']['rsi']:.2f}")
-            if 'volatility' in stock_data['data']['indicators']:
-                print(f"   波动率: {stock_data['data']['indicators']['volatility']:.2f}%")
-        else:
-            print(f"❌ 失败: {stock_data.get('message')}")
-            sys.exit(1)
-    else:
-        print(f"❌ HTTP错误: {response.status_code}")
-        sys.exit(1)
+    stock_data = response.json()
+    print(f"✅ 股票数据获取成功")
+    print(f"   当前价格: ${stock_data['data']['price']}")
     
-    print()
-    
-    # 步骤2：获取新闻
-    print("【步骤2】获取AAPL相关新闻")
-    print("-" * 70)
-    
-    response = requests.get(f"{API_URL}/api/stock/AAPL/news?limit=3", timeout=30)
-    if response.status_code == 200:
-        news_data = response.json()
-        if news_data['status'] == 'success':
-            news_list = news_data['news']
-            print(f"✅ 获取到 {len(news_list)} 条新闻")
-            
-            if news_list:
-                # 选择第一条新闻
-                selected_news = news_list[0]
-                print(f"\n📰 选中新闻:")
-                print(f"   标题: {selected_news['title'][:60]}...")
-                print(f"   情绪: {selected_news['sentiment']} ({selected_news['sentiment_score']})")
-                print(f"   时间: {selected_news['time_published']}")
-                
-                news_text = f"{selected_news['title']}\n\n{selected_news['summary']}"
-            else:
-                print("⚠️ 未获取到新闻，使用模拟新闻")
-                news_text = "苹果公司发布新款iPhone，市场反应积极，预计销量将创新高。"
-        else:
-            print(f"❌ 失败: {news_data.get('message')}")
-            news_text = ""
-    else:
-        print(f"❌ HTTP错误: {response.status_code}")
-        news_text = ""
-    
-    print()
-    
-    # 步骤3：AI综合分析（包含新闻和用户观点）
-    print("【步骤3】AI综合分析（技术指标 + 新闻 + 用户观点）")
-    print("-" * 70)
-    
-    analysis_payload = {
-        "symbol": "AAPL",
+    # 1.2 AI分析
+    print("\n🤖 步骤2: 请求AI分析...")
+    analysis_request = {
+        "symbol": "TSLA",
         "risk_preference": "balanced",
-        "news_context": news_text,
-        "user_opinion": "我认为苹果公司基本面良好，技术创新能力强，长期看好"
+        "language": "zh",
+        "investment_style": "lynch"
     }
     
-    print(f"📤 发送分析请求...")
-    print(f"   包含新闻: {'是' if news_text else '否'}")
-    print(f"   包含观点: 是")
-    print()
-    
     response = requests.post(
-        f"{API_URL}/api/stock/analyze",
-        json=analysis_payload,
-        timeout=60
+        f"{RENDER_URL}/api/stock/analyze",
+        json=analysis_request,
+        headers={"Content-Type": "application/json"},
+        timeout=30
     )
     
-    if response.status_code == 200:
-        analysis_data = response.json()
-        if analysis_data['status'] == 'success':
-            analysis = analysis_data['analysis']
-            
-            print("✅ AI分析完成")
-            print()
-            print("📊 分析结果:")
-            print(f"   综合评分: {analysis['score']}/100")
-            print(f"   操作建议: {analysis['recommendation']}")
-            print(f"   建议仓位: {analysis['position_size']}")
-            print(f"   目标价: ${analysis['target_price']}")
-            print(f"   止损价: ${analysis['stop_loss']}")
-            
-            if 'market_direction' in analysis:
-                direction_map = {'bullish': '看涨', 'bearish': '看跌', 'neutral': '震荡'}
-                print(f"   市场方向: {direction_map.get(analysis['market_direction'], analysis['market_direction'])}")
-                print(f"   强度: {analysis.get('direction_strength', 'N/A')}")
-            
-            print()
-            print("📌 分析要点:")
-            for i, point in enumerate(analysis['key_points'], 1):
-                print(f"   {i}. {point}")
-            
-            if 'analysis_summary' in analysis:
-                print()
-                print("📝 综合分析:")
-                print(f"   {analysis['analysis_summary']}")
-            
-            if 'strategy' in analysis:
-                print()
-                print("🎯 投资策略:")
-                print(f"   {analysis['strategy']}")
-            
-            # 步骤4：检查期权策略
-            if 'option_strategy' in analysis_data:
-                print()
-                print("【步骤4】期权策略推荐")
-                print("-" * 70)
-                
-                option = analysis_data['option_strategy']
-                print(f"✅ 推荐策略: {option['name']}")
-                print(f"   类型: {option['type']}")
-                print(f"   风险等级: {option['risk_level']}")
-                print(f"   描述: {option['description']}")
-                print()
-                print("   策略参数:")
-                params = option['parameters']
-                print(f"   - 当前股价: ${params['current_price']:.2f}")
-                if 'buy_strike' in params:
-                    print(f"   - 买入执行价: ${params['buy_strike']:.2f}")
-                if 'sell_strike' in params:
-                    print(f"   - 卖出执行价: ${params['sell_strike']:.2f}")
-                print(f"   - 到期时间: {params['expiry']}")
-                print()
-                print("   风险指标:")
-                metrics = option['metrics']
-                max_gain = "无限" if metrics['max_gain'] >= 999999 else f"${metrics['max_gain']:.2f}"
-                print(f"   - 最大收益: {max_gain}")
-                print(f"   - 最大损失: ${metrics['max_loss']:.2f}")
-                print(f"   - 盈亏平衡: ${metrics['breakeven']:.2f}")
-                print(f"   - 成功概率: {metrics['probability']}")
-            else:
-                print()
-                print("⚠️ 未生成期权策略（可能AI分析结果中缺少market_direction字段）")
-        else:
-            print(f"❌ 分析失败: {analysis_data.get('message')}")
+    if response.status_code != 200:
+        print(f"❌ AI分析失败: {response.status_code}")
+        print(f"响应: {response.text[:500]}")
+        exit(1)
+    
+    analysis_result = response.json()
+    
+    if analysis_result.get('status') != 'success':
+        print(f"❌ 分析返回错误: {analysis_result.get('message')}")
+        exit(1)
+    
+    analysis = analysis_result['analysis']
+    option_strategy = analysis_result.get('option_strategy')
+    
+    print(f"✅ AI分析完成")
+    print(f"   推荐: {analysis['recommendation']}")
+    print(f"   评分: {analysis['score']}")
+    print(f"   目标价: ${analysis['target_price']}")
+    
+    if option_strategy:
+        print(f"\n📊 期权策略生成成功:")
+        print(f"   策略名称: {option_strategy['name']}")
+        print(f"   策略类型: {option_strategy['type']}")
+        print(f"   风险等级: {option_strategy.get('risk_level', 'N/A')}")
     else:
-        print(f"❌ HTTP错误: {response.status_code}")
-        print(f"   响应: {response.text[:200]}")
+        print(f"\n⚠️  没有生成期权策略")
+        print("   这可能是因为AI分析结果不包含market_direction")
+        exit(1)
     
-    print()
-    print("=" * 70)
-    print("✅ 测试完成！")
-    print("=" * 70)
+    # 步骤3: 模拟用户点击"接受此策略"
+    print("\n✅ 步骤3: 用户点击'接受此策略'...")
     
-except requests.exceptions.ConnectionError:
-    print()
-    print("❌ 无法连接到后端服务器")
-    print()
-    print("请确保后端正在运行:")
-    print("   1. 打开新终端")
-    print("   2. cd backend")
-    print("   3. $env:ALPHA_VANTAGE_KEY=\"QKO2M2K3LZ58ACO2\"")
-    print("   4. $env:DEEPSEEK_API_KEY=\"sk-d3196d8e68c44690998d79c715ce715d\"")
-    print("   5. python app.py")
-    print()
+    strategy_data = {
+        "symbol": "TSLA",
+        "company_name": "Tesla Inc.",
+        "investment_style": "lynch",
+        "recommendation": analysis['recommendation'],
+        "target_price": analysis['target_price'],
+        "stop_loss": analysis.get('stop_loss', 0),
+        "position_size": analysis.get('position_size', '15%'),
+        "score": analysis['score'],
+        "strategy_text": analysis.get('strategy', ''),
+        "analysis_summary": analysis.get('analysis_summary', ''),
+        "current_price": stock_data['data']['price'],
+        "option_strategy": option_strategy  # 关键：包含期权策略
+    }
+    
+    response = requests.post(
+        f"{RENDER_URL}/api/strategy/save",
+        json=strategy_data,
+        headers={"Content-Type": "application/json"},
+        timeout=10
+    )
+    
+    if response.status_code != 200:
+        print(f"❌ 保存策略失败: {response.status_code}")
+        print(f"响应: {response.text[:500]}")
+        exit(1)
+    
+    save_result = response.json()
+    
+    if save_result.get('status') != 'success':
+        print(f"❌ 保存失败: {save_result.get('message')}")
+        exit(1)
+    
+    strategy_id = save_result['strategy_id']
+    print(f"✅ 策略已保存")
+    print(f"   策略ID: {strategy_id}")
+    
+    # 步骤4: 从Strategy Evaluation读取
+    print("\n📋 步骤4: 从Strategy Evaluation读取策略列表...")
+    time.sleep(1)  # 等待数据库写入
+    
+    response = requests.get(f"{RENDER_URL}/api/strategy/list", timeout=10)
+    
+    if response.status_code != 200:
+        print(f"❌ 读取策略列表失败: {response.status_code}")
+        exit(1)
+    
+    list_result = response.json()
+    strategies = list_result.get('strategies', [])
+    
+    # 找到刚才保存的策略
+    saved_strategy = None
+    for s in strategies:
+        if s['strategy_id'] == strategy_id:
+            saved_strategy = s
+            break
+    
+    if not saved_strategy:
+        print(f"❌ 未找到刚保存的策略: {strategy_id}")
+        exit(1)
+    
+    print(f"✅ 找到保存的策略")
+    print(f"   股票: {saved_strategy['symbol']}")
+    print(f"   推荐: {saved_strategy['recommendation']}")
+    
+    # 关键检查：期权策略是否保存
+    if saved_strategy.get('option_strategy'):
+        opt = saved_strategy['option_strategy']
+        print(f"\n🎉 期权策略已成功保存到数据库!")
+        print(f"   策略名称: {opt.get('name', 'N/A')}")
+        print(f"   策略类型: {opt.get('type', 'N/A')}")
+    else:
+        print(f"\n❌ 期权策略未保存到数据库")
+        exit(1)
+    
+    print("\n" + "=" * 80)
+    print("✅ 完整流程测试通过！")
+    print("=" * 80)
+    print("\n总结:")
+    print("1. ✅ Stock Analysis生成期权策略")
+    print("2. ✅ 用户接受策略后成功保存")
+    print("3. ✅ Strategy Evaluation可以读取期权策略")
+    print("4. ✅ 整个数据流畅通无阻")
     
 except Exception as e:
     print(f"\n❌ 测试失败: {e}")
     import traceback
     traceback.print_exc()
-
