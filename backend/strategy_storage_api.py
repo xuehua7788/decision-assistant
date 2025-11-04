@@ -9,7 +9,19 @@ import json
 import os
 from datetime import datetime
 import random
-from database.connection import get_db_connection
+import psycopg2
+
+def get_db_connection():
+    """获取数据库连接（简化版，避免导入问题）"""
+    database_url = os.getenv('DATABASE_URL')
+    if not database_url:
+        return None
+    try:
+        conn = psycopg2.connect(database_url)
+        return conn
+    except Exception as e:
+        print(f"❌ 数据库连接失败: {e}")
+        return None
 
 strategy_bp = Blueprint('strategy', __name__, url_prefix='/api/strategy')
 
