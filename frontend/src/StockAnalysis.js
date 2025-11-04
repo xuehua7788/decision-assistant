@@ -178,7 +178,9 @@ function StockAnalysis({ apiUrl }) {
       const result = await response.json();
 
       if (result.status === 'success') {
-        alert(`✅ 期权策略已保存！\n策略类型: ${optionStrategy.strategy.name}\n您可以在"策略评估"模块查看历史表现`);
+        // 兼容不同的期权策略数据结构
+        const strategyName = optionStrategy.name || optionStrategy.strategy?.name || '期权策略';
+        alert(`✅ 期权策略已保存！\n策略类型: ${strategyName}\n您可以在"策略评估"模块查看历史表现`);
       } else {
         alert('❌ 保存失败: ' + result.message);
       }
