@@ -6,6 +6,8 @@ import OptionStrategy from './OptionStrategy';
 import UserProfile from './UserProfile';
 import StockAnalysis from './StockAnalysis';
 import StrategyEvaluation from './StrategyEvaluation';
+import AccountBalance from './AccountBalance';
+import PositionComparison from './PositionComparison';
 
 function App() {
   // 硬编码 Render 后端地址，确保生产环境正确
@@ -306,18 +308,21 @@ function App() {
           </div>
         </div>
 
+        {/* 账户资金显示 */}
+        <AccountBalance />
+
         {/* Mode Selector */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginBottom: '30px' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '30px', flexWrap: 'wrap' }}>
           <button
             onClick={() => switchMode('analysis')}
             style={{
               background: currentMode === 'analysis' ? '#ffd700' : 'white',
               color: currentMode === 'analysis' ? '#333' : '#667eea',
-              padding: '10px 30px',
+              padding: '10px 25px',
               border: 'none',
               borderRadius: '25px',
               cursor: 'pointer',
-              fontSize: '1.1em',
+              fontSize: '1em',
               fontWeight: '600',
               transform: currentMode === 'analysis' ? 'scale(1.05)' : 'scale(1)'
             }}
@@ -325,52 +330,68 @@ function App() {
             📈 Stock Analysis
           </button>
           <button
+            onClick={() => switchMode('positions')}
+            style={{
+              background: currentMode === 'positions' ? '#ffd700' : 'white',
+              color: currentMode === 'positions' ? '#333' : '#667eea',
+              padding: '10px 25px',
+              border: 'none',
+              borderRadius: '25px',
+              cursor: 'pointer',
+              fontSize: '1em',
+              fontWeight: '600',
+              transform: currentMode === 'positions' ? 'scale(1.05)' : 'scale(1)'
+            }}
+          >
+            📊 Positions (A/B)
+          </button>
+          <button
             onClick={() => switchMode('strategy')}
             style={{
               background: currentMode === 'strategy' ? '#ffd700' : 'white',
               color: currentMode === 'strategy' ? '#333' : '#667eea',
-              padding: '10px 30px',
+              padding: '10px 25px',
               border: 'none',
               borderRadius: '25px',
               cursor: 'pointer',
-              fontSize: '1.1em',
+              fontSize: '1em',
               fontWeight: '600',
               transform: currentMode === 'strategy' ? 'scale(1.05)' : 'scale(1)'
             }}
           >
-            📊 Strategy Evaluation
+            📋 Old Strategies
           </button>
           <button
             onClick={() => switchMode('chat')}
             style={{
               background: currentMode === 'chat' ? '#ffd700' : 'white',
               color: currentMode === 'chat' ? '#333' : '#667eea',
-              padding: '10px 30px',
+              padding: '10px 25px',
               border: 'none',
               borderRadius: '25px',
               cursor: 'pointer',
-              fontSize: '1.1em',
+              fontSize: '1em',
               fontWeight: '600',
               transform: currentMode === 'chat' ? 'scale(1.05)' : 'scale(1)'
             }}
           >
-            💬 Chat Mode
+            💬 Chat
           </button>
           <button
             onClick={() => switchMode('profile')}
             style={{
               background: currentMode === 'profile' ? '#ffd700' : 'white',
               color: currentMode === 'profile' ? '#333' : '#667eea',
-              padding: '10px 30px',
+              padding: '10px 25px',
               border: 'none',
               borderRadius: '25px',
               cursor: 'pointer',
-              fontSize: '1.1em',
+              fontSize: '1em',
               fontWeight: '600',
               transform: currentMode === 'profile' ? 'scale(1.05)' : 'scale(1)'
             }}
           >
-            👤 User Profile
+            👤 Profile
           </button>
         </div>
 
@@ -379,7 +400,12 @@ function App() {
           <StockAnalysis apiUrl={API_URL} />
         )}
 
-        {/* Strategy Evaluation Mode */}
+        {/* Positions A/B Comparison Mode */}
+        {currentMode === 'positions' && (
+          <PositionComparison />
+        )}
+
+        {/* Old Strategy Evaluation Mode */}
         {currentMode === 'strategy' && (
           <StrategyEvaluation apiUrl={API_URL} />
         )}

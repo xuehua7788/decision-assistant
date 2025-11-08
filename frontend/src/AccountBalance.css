@@ -1,0 +1,76 @@
+.account-balance {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.account-balance h3 {
+  margin: 0 0 15px 0;
+  font-size: 1.3em;
+  font-weight: 600;
+}
+
+.balance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 15px;
+  margin-bottom: 10px;
+}
+
+.balance-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.balance-item .label {
+  font-size: 0.85em;
+  opacity: 0.9;
+}
+
+.balance-item .value {
+  font-size: 1.3em;
+  font-weight: 700;
+}
+
+.balance-item .value.highlight {
+  font-size: 1.5em;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.balance-item .value.positive {
+  color: #4ade80;
+}
+
+.balance-item .value.negative {
+  color: #f87171;
+}
+
+.balance-formula {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  text-align: center;
+  opacity: 0.8;
+}
+
+.account-balance.loading,
+.account-balance.error {
+  background: #6b7280;
+  text-align: center;
+  padding: 15px;
+}
+
+.account-balance.error {
+  background: #ef4444;
+}
+
+@media (max-width: 768px) {
+  .balance-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+

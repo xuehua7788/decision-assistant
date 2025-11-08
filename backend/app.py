@@ -148,6 +148,30 @@ except ImportError as e:
 #     print(f"   注册的路由: {[rule.rule for rule in app.url_map.iter_rules() if 'strategy' in rule.rule]}")
 # except ImportError as e:
 #     print(f"⚠️ 策略存储API导入失败: {e}")
+
+# 导入资金管理API
+try:
+    from fund_management_api import fund_bp
+    app.register_blueprint(fund_bp)
+    print("✅ 资金管理API已注册")
+except ImportError as e:
+    print(f"⚠️ 资金管理API导入失败: {e}")
+
+# 导入双策略API
+try:
+    from dual_strategy_api import dual_strategy_bp
+    app.register_blueprint(dual_strategy_bp)
+    print("✅ 双策略API已注册")
+except ImportError as e:
+    print(f"⚠️ 双策略API导入失败: {e}")
+
+# 导入平仓API
+try:
+    from close_position_api import close_bp
+    app.register_blueprint(close_bp)
+    print("✅ 平仓API已注册")
+except ImportError as e:
+    print(f"⚠️ 平仓API导入失败: {e}")
 print("ℹ️  旧的strategy_storage_api已禁用，策略API现在在app.py中")
 
 # 导入期权策略处理器
