@@ -7,7 +7,7 @@ function PositionComparison() {
   const [error, setError] = useState(null);
   const [closingPosition, setClosingPosition] = useState(null);
 
-  const apiUrl = process.env.REACT_APP_API_URL || 'https://decision-assistant-githubv3.onrender.com';
+  const apiUrl = process.env.REACT_APP_API_URL || 'https://decision-assistant-backend.onrender.com';
 
   const loadPositions = React.useCallback(async () => {
     const username = localStorage.getItem('username');
