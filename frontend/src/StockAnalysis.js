@@ -164,7 +164,7 @@ function StockAnalysis({ apiUrl }) {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                symbol: targetSymbol,
+                symbol: symbol,
                 username: currentUser,
                 notional_value: 10000,
                 investment_style: investmentStyle

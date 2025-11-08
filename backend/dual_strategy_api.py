@@ -12,23 +12,21 @@ import requests
 dual_strategy_bp = Blueprint('dual_strategy', __name__)
 
 def get_db_connection():
+    import urllib.parse
     DATABASE_URL = os.getenv('DATABASE_URL')
     if not DATABASE_URL:
-        # 本地测试时使用Render数据库
+        # 本地测试时使用Render数据库（使用解析后的连接参数避免编码问题）
         DATABASE_URL = 'postgresql://decision_user:8P8ZDdFaLp306B0siOZTXGScXmrdS9EB@dpg-d3ot1n3ipnbc739gkn7g-a.singapore-postgres.render.com/decision_assistant_098l'
-    try:
-        return psycopg2.connect(DATABASE_URL)
-    except UnicodeDecodeError:
-        # 如果有编码问题，尝试使用连接参数
-        import urllib.parse
-        result = urllib.parse.urlparse(DATABASE_URL)
-        return psycopg2.connect(
-            database=result.path[1:],
-            user=result.username,
-            password=result.password,
-            host=result.hostname,
-            port=result.port
-        )
+    
+    # 统一使用解析后的连接参数，避免Windows上的UnicodeDecodeError
+    result = urllib.parse.urlparse(DATABASE_URL)
+    return psycopg2.connect(
+        database=result.path[1:],
+        user=result.username,
+        password=result.password,
+        host=result.hostname,
+        port=result.port
+    )
 
 def get_user_id(username):
     """根据用户名获取user_id"""
