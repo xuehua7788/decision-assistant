@@ -14,6 +14,8 @@ function StockAnalysis({ apiUrl }) {
   const [newsList, setNewsList] = useState([]);
   const [loadingNews, setLoadingNews] = useState(false);
   const [optionStrategy, setOptionStrategy] = useState(null);
+  const [stockStrategy, setStockStrategy] = useState(null); // 新增：股票策略
+  const [dualStrategyData, setDualStrategyData] = useState(null); // 新增：完整双策略数据
   const [language, setLang] = useState(getCurrentLanguage());
   const [activeDataTab, setActiveDataTab] = useState('fundamental'); // fundamental, technical, macro
   const [showDataDashboard, setShowDataDashboard] = useState(true);
@@ -153,6 +155,33 @@ function StockAnalysis({ apiUrl }) {
         if (analysisResult.option_strategy) {
           setOptionStrategy(analysisResult.option_strategy);
         }
+        
+        // 自动生成双策略（期权+股票）
+        try {
+          const currentUser = localStorage.getItem('username');
+          if (currentUser) {
+            const dualStrategyResponse = await fetch(`${apiUrl}/api/dual-strategy/generate`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                symbol: targetSymbol,
+                username: currentUser,
+                notional_value: 10000,
+                investment_style: investmentStyle
+              })
+            });
+            
+            if (dualStrategyResponse.ok) {
+              const dualData = await dualStrategyResponse.json();
+              setDualStrategyData(dualData);
+              setStockStrategy(dualData.stock_strategy);
+              console.log('✅ 双策略生成成功:', dualData);
+            }
+          }
+        } catch (err) {
+          console.warn('双策略生成失败:', err);
+          // 不影响主流程，静默失败
+        }
       } else {
         setError('AI分析失败: ' + analysisResult.message);
       }
@@ -196,12 +225,18 @@ function StockAnalysis({ apiUrl }) {
     }
   };
 
-  const acceptStrategy = async () => {
+  const acceptStrategy = async (choice) => {
     if (!stockData || !analysis) return;
 
-    // 检查是否有期权策略
-    if (!optionStrategy) {
-      alert('⚠️ 当前没有期权策略推荐，无法保存');
+    // choice: 1=期权, 2=股票
+    if (!choice) {
+      alert('⚠️ 请选择策略类型');
+      return;
+    }
+
+    // 检查是否已生成双策略
+    if (!dualStrategyData) {
+      alert('⚠️ 策略数据未准备好，请稍后再试');
       return;
     }
 
@@ -213,43 +248,161 @@ function StockAnalysis({ apiUrl }) {
     }
 
     try {
-      // 新的API地址：保存到 users 表
-      const response = await fetch(`${apiUrl}/api/user/save-strategy`, {
+      // 使用已生成的策略ID
+      const strategyId = dualStrategyData.strategy_id;
+
+      // 接受策略（创建A/B对照组）
+      const acceptResponse = await fetch(`${apiUrl}/api/dual-strategy/accept`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           username: currentUser,
-          strategy: {
-            strategy_id: `${stockData.quote.symbol}_${Date.now()}_${investmentStyle}`,
-            symbol: stockData.quote.symbol,
-            company_name: stockData.quote.name,
-            investment_style: investmentStyle,
-            recommendation: analysis.recommendation,
-            target_price: analysis.target_price,
-            stop_loss: analysis.stop_loss,
-            position_size: analysis.position_size,
-            score: analysis.score,
-            strategy_text: analysis.strategy,
-            analysis_summary: analysis.analysis_summary,
-            current_price: stockData.quote.price,
-            // 期权策略信息（核心）
-            option_strategy: optionStrategy
-          }
+          strategy_id: strategyId,
+          choice: choice
         })
       });
 
-      const result = await response.json();
+      const result = await acceptResponse.json();
 
-      if (result.status === 'success') {
-        // 兼容不同的期权策略数据结构
-        const strategyName = optionStrategy.name || optionStrategy.strategy?.name || '期权策略';
-        alert(`✅ 期权策略已保存！\n策略类型: ${strategyName}\n您可以在"策略评估"模块查看历史表现`);
+      if (result.success) {
+        const choiceText = choice === 1 ? '期权' : '股票';
+        alert(`✅ ${choiceText}策略已接受！\n` +
+              `实盘类型: ${result.actual_type}\n` +
+              `成本: $${result.actual_cost.toFixed(2)}\n` +
+              `账户余额: $${result.balance_after.toFixed(2)}\n\n` +
+              `请前往 "Positions (A/B)" 查看持仓对照`);
+        
+        // 清空当前分析，鼓励用户查看持仓
+        setStockData(null);
+        setAnalysis(null);
+        setOptionStrategy(null);
+        setStockStrategy(null);
+        setDualStrategyData(null);
       } else {
-        alert('❌ 保存失败: ' + result.message);
+        alert('❌ 接受策略失败: ' + (result.error || '未知错误'));
       }
     } catch (err) {
       alert('❌ 网络错误: ' + err.message);
     }
+  };
+
+  // 渲染双策略对比卡片
+  const renderDualStrategyComparison = () => {
+    if (!dualStrategyData || !stockStrategy) return null;
+
+    const optionData = dualStrategyData.option_strategy;
+    const stockData = dualStrategyData.stock_strategy;
+
+    return (
+      <div style={{
+        marginTop: '30px',
+        padding: '25px',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        borderRadius: '15px',
+        color: 'white'
+      }}>
+        <h3 style={{ marginBottom: '20px', fontSize: '1.3em' }}>
+          🎯 双策略推荐（请选择一个）
+        </h3>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+          {/* 期权策略 */}
+          <div style={{
+            background: 'rgba(255,255,255,0.15)',
+            padding: '20px',
+            borderRadius: '12px',
+            border: '2px solid rgba(255,255,255,0.3)'
+          }}>
+            <h4 style={{ marginBottom: '15px', fontSize: '1.1em' }}>
+              📊 期权策略
+            </h4>
+            <div style={{ fontSize: '0.95em', lineHeight: '1.8' }}>
+              <div><strong>类型:</strong> {optionData.type}</div>
+              <div><strong>合约数:</strong> {optionData.contracts}手</div>
+              <div><strong>执行价:</strong> ${optionData.strike_price}</div>
+              <div><strong>到期日:</strong> {optionData.expiry_date} ({optionData.days_to_expiry}天)</div>
+              <div><strong>期权费:</strong> ${optionData.premium.toFixed(2)}</div>
+              <div><strong>单个Delta:</strong> {optionData.delta.toFixed(4)}</div>
+              <div><strong>组合Delta:</strong> {optionData.portfolio_delta.toFixed(2)}</div>
+              {optionData.data_source && (
+                <div style={{ marginTop: '10px', fontSize: '0.85em', opacity: 0.9 }}>
+                  📡 {optionData.data_source}
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => acceptStrategy(1)}
+              style={{
+                marginTop: '15px',
+                width: '100%',
+                padding: '12px',
+                background: '#48bb78',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '1em',
+                fontWeight: 'bold',
+                cursor: 'pointer'
+              }}
+            >
+              ✅ 选择期权策略
+            </button>
+          </div>
+
+          {/* 股票策略 */}
+          <div style={{
+            background: 'rgba(255,255,255,0.15)',
+            padding: '20px',
+            borderRadius: '12px',
+            border: '2px solid rgba(255,255,255,0.3)'
+          }}>
+            <h4 style={{ marginBottom: '15px', fontSize: '1.1em' }}>
+              📈 Delta One股票策略
+            </h4>
+            <div style={{ fontSize: '0.95em', lineHeight: '1.8' }}>
+              <div><strong>类型:</strong> {stockData.type}</div>
+              <div><strong>股数:</strong> {stockData.shares}股</div>
+              <div><strong>入场价:</strong> ${stockData.entry_price.toFixed(2)}</div>
+              <div><strong>总金额:</strong> ${stockData.amount.toFixed(2)}</div>
+              <div><strong>保证金:</strong> ${stockData.margin.toFixed(2)}</div>
+              <div><strong>止损价:</strong> ${stockData.stop_loss.toFixed(2)}</div>
+              <div><strong>止盈价:</strong> ${stockData.take_profit.toFixed(2)}</div>
+              <div><strong>基于组合Delta:</strong> {stockData.portfolio_delta.toFixed(2)}</div>
+            </div>
+            <button
+              onClick={() => acceptStrategy(2)}
+              style={{
+                marginTop: '15px',
+                width: '100%',
+                padding: '12px',
+                background: '#4299e1',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '1em',
+                fontWeight: 'bold',
+                cursor: 'pointer'
+              }}
+            >
+              ✅ 选择股票策略
+            </button>
+          </div>
+        </div>
+
+        <div style={{
+          marginTop: '20px',
+          padding: '15px',
+          background: 'rgba(255,255,255,0.1)',
+          borderRadius: '8px',
+          fontSize: '0.9em'
+        }}>
+          <strong>💡 提示:</strong> 选择一个策略后，系统将创建A/B对照组：
+          <br/>• A组：您选择的策略（实盘交易）
+          <br/>• B组：未选择的策略（虚拟跟踪）
+          <br/>这样您可以对比两种策略的实际表现！
+        </div>
+      </div>
+    );
   };
 
 
@@ -688,188 +841,7 @@ function StockAnalysis({ apiUrl }) {
               </div>
             </div>
 
-            {/* 期权策略推荐 - 增强版 */}
-            {optionStrategy && (
-              <div style={{
-                background: 'linear-gradient(135deg, #667eea15 0%, #764ba215 100%)',
-                border: '2px solid #667eea',
-                padding: '20px',
-                borderRadius: '12px',
-                marginBottom: '20px'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                  <h3 style={{ color: '#667eea', margin: 0 }}>
-                    📊 推荐期权策略: {optionStrategy.name}
-                  </h3>
-                  <div style={{ 
-                    padding: '5px 12px', 
-                    background: '#ff9800', 
-                    color: 'white', 
-                    borderRadius: '6px', 
-                    fontSize: '0.85em',
-                    fontWeight: '600'
-                  }}>
-                    ⚠️ 预估定价
-                  </div>
-                </div>
-
-                {/* 预估定价说明 */}
-                <div style={{ 
-                  padding: '12px', 
-                  background: '#fff3cd', 
-                  border: '1px solid #ffc107',
-                  borderRadius: '8px', 
-                  marginBottom: '15px',
-                  fontSize: '0.85em'
-                }}>
-                  <strong>💡 定价说明：</strong> 当前权利金基于股价百分比估算，非真实市场价格。真实交易请参考期权交易平台报价。
-                </div>
-
-                <div style={{ fontSize: '0.9em', color: '#666', marginBottom: '15px' }}>
-                  {optionStrategy.description}
-                </div>
-
-                {/* 损益图 */}
-                {optionStrategy.payoff_data && optionStrategy.payoff_data.length > 0 && (
-                  <div style={{ marginBottom: '20px' }}>
-                    <h4 style={{ color: '#333', marginBottom: '10px' }}>📈 损益图 (Payoff Diagram)</h4>
-                    <ResponsiveContainer width="100%" height={250}>
-                      <AreaChart data={optionStrategy.payoff_data}>
-                        <defs>
-                          <linearGradient id="profitGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#48bb78" stopOpacity={0.8}/>
-                            <stop offset="95%" stopColor="#48bb78" stopOpacity={0}/>
-                          </linearGradient>
-                          <linearGradient id="lossGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#f56565" stopOpacity={0}/>
-                            <stop offset="95%" stopColor="#f56565" stopOpacity={0.8}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                        <XAxis 
-                          dataKey="price" 
-                          label={{ value: '股价 ($)', position: 'insideBottom', offset: -5 }}
-                          tick={{ fontSize: 12 }}
-                        />
-                        <YAxis 
-                          label={{ value: '盈亏 ($)', angle: -90, position: 'insideLeft' }}
-                          tick={{ fontSize: 12 }}
-                        />
-                        <Tooltip 
-                          formatter={(value) => `$${value.toFixed(2)}`}
-                          labelFormatter={(label) => `股价: $${label}`}
-                        />
-                        <Area 
-                          type="monotone" 
-                          dataKey="payoff" 
-                          stroke="#667eea" 
-                          strokeWidth={3}
-                          fill="url(#profitGradient)"
-                        />
-                        <Line 
-                          y={0} 
-                          stroke="#999" 
-                          strokeDasharray="5 5"
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                    <div style={{ textAlign: 'center', fontSize: '0.8em', color: '#666', marginTop: '5px' }}>
-                      当前股价: ${optionStrategy.parameters.current_price.toFixed(2)}
-                    </div>
-                  </div>
-                )}
-
-                {/* 策略参数卡片 */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '15px' }}>
-                  <div style={{ padding: '12px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                    <div style={{ fontSize: '0.8em', color: '#666', marginBottom: '3px' }}>风险等级</div>
-                    <div style={{ fontWeight: '600', color: '#333', fontSize: '1.1em' }}>{optionStrategy.risk_level}</div>
-                  </div>
-                  <div style={{ padding: '12px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                    <div style={{ fontSize: '0.8em', color: '#666', marginBottom: '3px' }}>当前股价</div>
-                    <div style={{ fontWeight: '600', color: '#333', fontSize: '1.1em' }}>${optionStrategy.parameters.current_price.toFixed(2)}</div>
-                  </div>
-                  <div style={{ padding: '12px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                    <div style={{ fontSize: '0.8em', color: '#666', marginBottom: '3px' }}>最大收益</div>
-                    <div style={{ fontWeight: '600', color: '#48bb78', fontSize: '1.1em' }}>
-                      {optionStrategy.metrics.max_gain >= 999999 ? '无限 ♾️' : `$${optionStrategy.metrics.max_gain.toFixed(2)}`}
-                    </div>
-                  </div>
-                  <div style={{ padding: '12px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                    <div style={{ fontSize: '0.8em', color: '#666', marginBottom: '3px' }}>最大损失</div>
-                    <div style={{ fontWeight: '600', color: '#f56565', fontSize: '1.1em' }}>${Math.abs(optionStrategy.metrics.max_loss).toFixed(2)}</div>
-                  </div>
-                  <div style={{ padding: '12px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                    <div style={{ fontSize: '0.8em', color: '#666', marginBottom: '3px' }}>盈亏平衡点</div>
-                    <div style={{ fontWeight: '600', color: '#333', fontSize: '1.1em' }}>${optionStrategy.metrics.breakeven.toFixed(2)}</div>
-                  </div>
-                  <div style={{ padding: '12px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                    <div style={{ fontSize: '0.8em', color: '#666', marginBottom: '3px' }}>成功概率</div>
-                    <div style={{ fontWeight: '600', color: '#333', fontSize: '1.1em' }}>{optionStrategy.metrics.probability}</div>
-                  </div>
-                </div>
-
-                {/* 详细参数 */}
-                <div style={{ padding: '15px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                  <div style={{ fontWeight: '600', marginBottom: '10px', color: '#667eea' }}>📋 策略参数详情</div>
-                  {optionStrategy.parameters.buy_strike && (
-                    <div style={{ marginBottom: '5px', fontSize: '0.9em' }}>
-                      • 买入执行价: ${optionStrategy.parameters.buy_strike.toFixed(2)}
-                    </div>
-                  )}
-                  {optionStrategy.parameters.sell_strike && (
-                    <div style={{ marginBottom: '5px', fontSize: '0.9em' }}>
-                      • 卖出执行价: ${optionStrategy.parameters.sell_strike.toFixed(2)}
-                    </div>
-                  )}
-                  {optionStrategy.parameters.premium_paid && (
-                    <div style={{ marginBottom: '5px', fontSize: '0.9em' }}>
-                      • 权利金支出: ${optionStrategy.parameters.premium_paid.toFixed(2)} <span style={{ color: '#ff9800', fontSize: '0.85em' }}>(预估)</span>
-                    </div>
-                  )}
-                  {optionStrategy.parameters.premium_received && (
-                    <div style={{ marginBottom: '5px', fontSize: '0.9em' }}>
-                      • 权利金收入: ${optionStrategy.parameters.premium_received.toFixed(2)} <span style={{ color: '#ff9800', fontSize: '0.85em' }}>(预估)</span>
-                    </div>
-                  )}
-                  <div style={{ marginBottom: '5px', fontSize: '0.9em' }}>
-                    • 到期时间: {optionStrategy.parameters.expiry}
-                  </div>
-                  <div style={{ marginBottom: '5px', fontSize: '0.9em' }}>
-                    • 合约数量: {optionStrategy.parameters.contracts}
-                  </div>
-                </div>
-
-                {/* 接受策略按钮 */}
-                <button
-                  onClick={() => acceptStrategy()}
-                  style={{
-                    width: '100%',
-                    padding: '14px',
-                    marginTop: '15px',
-                    background: 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    fontSize: '1em',
-                    boxShadow: '0 4px 12px rgba(72, 187, 120, 0.3)',
-                    transition: 'all 0.3s'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(72, 187, 120, 0.4)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(72, 187, 120, 0.3)';
-                  }}
-                >
-                  ✅ 接受并保存策略
-                </button>
-              </div>
-            )}
+            {/* 旧的期权策略显示已删除，使用新的双策略对比 */}
 
             {/* 数据仪表盘 - 新增 */}
             {showDataDashboard && stockData && stockData.premium_data && (
@@ -1311,6 +1283,9 @@ function StockAnalysis({ apiUrl }) {
           )}
         </div>
       )}
+
+      {/* 双策略对比显示 */}
+      {renderDualStrategyComparison()}
 
       {/* 提示信息 */}
       {!stockData && !loading && !error && (

@@ -12,8 +12,23 @@ import requests
 dual_strategy_bp = Blueprint('dual_strategy', __name__)
 
 def get_db_connection():
-    DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://decision_user:8P8ZDdFaLp306B0siOZTXGScXmrdS9EB@dpg-d3ot1n3ipnbc739gkn7g-a.singapore-postgres.render.com/decision_assistant_098l')
-    return psycopg2.connect(DATABASE_URL)
+    DATABASE_URL = os.getenv('DATABASE_URL')
+    if not DATABASE_URL:
+        # 本地测试时使用Render数据库
+        DATABASE_URL = 'postgresql://decision_user:8P8ZDdFaLp306B0siOZTXGScXmrdS9EB@dpg-d3ot1n3ipnbc739gkn7g-a.singapore-postgres.render.com/decision_assistant_098l'
+    try:
+        return psycopg2.connect(DATABASE_URL)
+    except UnicodeDecodeError:
+        # 如果有编码问题，尝试使用连接参数
+        import urllib.parse
+        result = urllib.parse.urlparse(DATABASE_URL)
+        return psycopg2.connect(
+            database=result.path[1:],
+            user=result.username,
+            password=result.password,
+            host=result.hostname,
+            port=result.port
+        )
 
 def get_user_id(username):
     """根据用户名获取user_id"""
@@ -47,6 +62,79 @@ def get_stock_data(symbol):
         print(f"❌ 获取股票数据失败: {e}")
     
     return None
+
+def get_option_data(symbol, current_price, option_type='call', days_to_expiry=90):
+    """
+    从Alpha Vantage获取真实期权数据（包括Delta）
+    
+    参数:
+    - symbol: 股票代码
+    - current_price: 当前股价
+    - option_type: 'call' 或 'put'
+    - days_to_expiry: 目标到期天数（默认90天）
+    
+    返回:
+    - 最接近平值的期权合约数据，包含真实Delta
+    """
+    API_KEY = os.getenv('ALPHA_VANTAGE_KEY', 'OIYWUJEPSR9RQAGU')
+    url = f'https://www.alphavantage.co/query?function=HISTORICAL_OPTIONS&symbol={symbol}&apikey={API_KEY}'
+    
+    try:
+        response = requests.get(url, timeout=15)
+        data = response.json()
+        
+        if 'data' not in data or not data['data']:
+            print(f"⚠️ 未获取到期权数据，使用简化Delta计算")
+            return None
+        
+        # 计算目标到期日期
+        target_expiry = (datetime.now() + timedelta(days=days_to_expiry)).date()
+        
+        # 筛选符合条件的期权
+        candidates = []
+        for option in data['data']:
+            if option['type'] != option_type:
+                continue
+            
+            expiry_date = datetime.strptime(option['expiration'], '%Y-%m-%d').date()
+            strike = float(option['strike'])
+            delta = float(option.get('delta', 0))
+            
+            # 筛选条件：
+            # 1. 到期日在60-120天之间
+            # 2. 执行价接近当前价格（±20%）
+            days_diff = abs((expiry_date - target_expiry).days)
+            strike_diff = abs(strike - current_price) / current_price
+            
+            if days_diff <= 30 and strike_diff <= 0.2:
+                candidates.append({
+                    'contractID': option['contractID'],
+                    'strike': strike,
+                    'expiry': expiry_date,
+                    'delta': delta,
+                    'gamma': float(option.get('gamma', 0)),
+                    'theta': float(option.get('theta', 0)),
+                    'vega': float(option.get('vega', 0)),
+                    'implied_volatility': float(option.get('implied_volatility', 0)),
+                    'premium': float(option.get('mark', 0)),  # 使用mark价格
+                    'days_to_expiry': (expiry_date - datetime.now().date()).days,
+                    'strike_diff': strike_diff
+                })
+        
+        if not candidates:
+            print(f"⚠️ 未找到合适的期权合约，使用简化Delta计算")
+            return None
+        
+        # 选择最接近平值的期权（strike_diff最小）
+        best_option = min(candidates, key=lambda x: x['strike_diff'])
+        print(f"✅ 找到真实期权: {best_option['contractID']}, Delta={best_option['delta']:.4f}")
+        return best_option
+        
+    except Exception as e:
+        print(f"❌ 获取期权数据失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
 
 def calculate_option_delta(option_type, strike_price, current_price, days_to_expiry):
     """
@@ -87,67 +175,125 @@ def generate_dual_strategy(symbol, current_price, notional_value, investment_sty
     - investment_style: 投资风格（影响期权选择）
     
     返回：
-    - option_strategy: 期权策略详情
-    - stock_strategy: 股票策略详情
+    - option_strategy: 期权策略详情（使用Alpha Vantage真实数据）
+    - stock_strategy: 股票策略详情（基于期权组合Delta计算）
     """
     
-    # 1. 生成期权策略（3个月平值期权）
-    days_to_expiry = 90
-    expiry_date = (datetime.now() + timedelta(days=days_to_expiry)).date()
-    
-    # 根据投资风格选择期权类型和执行价
+    # 1. 根据投资风格选择期权类型
     if investment_style in ['aggressive', 'momentum']:
-        option_type = 'CALL'
-        strike_price = current_price * 1.05  # 5%虚值看涨
+        option_type = 'call'
     elif investment_style in ['conservative', 'value']:
-        option_type = 'PUT'
-        strike_price = current_price * 0.95  # 5%虚值看跌
+        option_type = 'put'
     else:  # balanced
-        option_type = 'CALL'
-        strike_price = current_price  # 平值
+        option_type = 'call'
     
-    # 计算期权费（简化：约为名义本金的3-5%）
-    option_premium = notional_value * 0.04  # 4%
+    # 2. 从Alpha Vantage获取真实期权数据
+    real_option = get_option_data(symbol, current_price, option_type=option_type, days_to_expiry=90)
     
-    # 计算Delta
-    option_delta = calculate_option_delta(option_type, strike_price, current_price, days_to_expiry)
+    if real_option:
+        # 使用真实期权数据
+        strike_price = real_option['strike']
+        expiry_date = real_option['expiry']
+        days_to_expiry = real_option['days_to_expiry']
+        option_delta = real_option['delta']  # 单个期权的Delta
+        implied_volatility = real_option['implied_volatility']
+        
+        # 计算合约数量（名义本金 / 每手价值）
+        contracts = int(notional_value / (current_price * 100))
+        
+        # 使用真实期权价格（mark价格）
+        premium_per_contract = real_option['premium'] * 100  # mark价格×100股
+        total_premium = premium_per_contract * contracts
+        
+        # ✅ 正确的组合Delta计算：
+        # 组合Delta = 单个期权Delta（这里就是组合的净Delta）
+        # 因为名义本金已经确定，Delta直接表示相对于名义本金的敏感度
+        portfolio_delta = option_delta  # 对于单个期权，就是其Delta值
+        
+        option_strategy = {
+            'type': option_type.upper(),
+            'contractID': real_option['contractID'],
+            'strike_price': round(strike_price, 2),
+            'expiry_date': expiry_date.isoformat(),
+            'days_to_expiry': days_to_expiry,
+            'premium': round(total_premium, 2),
+            'premium_per_contract': round(premium_per_contract, 2),
+            'delta': option_delta,  # 期权Delta（也是组合Delta）
+            'portfolio_delta': round(portfolio_delta, 4),  # 组合Delta（相对于名义本金）
+            'gamma': real_option['gamma'],
+            'theta': real_option['theta'],
+            'vega': real_option['vega'],
+            'implied_volatility': round(implied_volatility, 4),
+            'notional_value': notional_value,
+            'contracts': contracts,
+            'data_source': 'Alpha Vantage Real Data',
+            'description': f"{option_type.upper()} 期权 x{contracts}手，执行价 ${strike_price:.2f}，{days_to_expiry}天到期，组合Delta={portfolio_delta:.4f}"
+        }
+        
+        print(f"✅ 使用真实期权: Delta={option_delta:.4f}, 名义本金=${notional_value}")
+        
+    else:
+        # 降级：使用简化计算
+        print("⚠️ Alpha Vantage期权数据不可用，使用简化计算")
+        days_to_expiry = 90
+        expiry_date = (datetime.now() + timedelta(days=days_to_expiry)).date()
+        
+        if option_type == 'call':
+            strike_price = current_price  # 平值
+        else:
+            strike_price = current_price * 0.95
+        
+        option_delta = calculate_option_delta(option_type.upper(), strike_price, current_price, days_to_expiry)
+        contracts = int(notional_value / (current_price * 100))
+        portfolio_delta = option_delta  # 简化：单个期权的Delta
+        option_premium = notional_value * 0.04  # 简化：4%
+        
+        option_strategy = {
+            'type': option_type.upper(),
+            'contractID': 'SIMULATED',
+            'strike_price': round(strike_price, 2),
+            'expiry_date': expiry_date.isoformat(),
+            'days_to_expiry': days_to_expiry,
+            'premium': round(option_premium, 2),
+            'delta': option_delta,
+            'portfolio_delta': round(portfolio_delta, 4),
+            'notional_value': notional_value,
+            'contracts': contracts,
+            'data_source': 'Simplified Calculation',
+            'description': f"{option_type.upper()} 期权 x{contracts}手（简化），执行价 ${strike_price:.2f}"
+        }
     
-    option_strategy = {
-        'type': option_type,
-        'strike_price': round(strike_price, 2),
-        'expiry_date': expiry_date.isoformat(),
-        'days_to_expiry': days_to_expiry,
-        'premium': round(option_premium, 2),
-        'delta': option_delta,
-        'notional_value': notional_value,
-        'contracts': int(notional_value / (current_price * 100)),  # 假设1手=100股
-        'description': f"{option_type} 期权，执行价 ${strike_price:.2f}，{days_to_expiry}天到期"
-    }
-    
-    # 2. 生成Delta One股票策略
-    stock_amount = abs(option_delta) * notional_value  # Delta × 名义本金
+    # 3. 生成Delta One股票策略（基于组合Delta和名义本金）
+    # ✅ 正确公式：
+    # 股票金额 = 名义本金 × 组合Delta
+    # 股票保证金 = 股票金额 × 10%
+    portfolio_delta_value = option_strategy['portfolio_delta']
+    stock_amount = notional_value * abs(portfolio_delta_value)  # 名义本金 × Delta
     stock_margin = stock_amount * 0.1  # 10%保证金
-    stock_shares = int(stock_amount / current_price)
+    stock_shares = int(stock_amount / current_price)  # 股票数量 = 金额 / 股价
     
     # 设置止盈止损
-    if option_type == 'CALL':
+    if option_type == 'call':
         stop_loss = current_price * 0.9  # -10%止损
         take_profit = current_price * 1.2  # +20%止盈
+        position_type = 'LONG'
     else:
         stop_loss = current_price * 1.1  # +10%止损（做空）
         take_profit = current_price * 0.8  # -20%止盈（做空）
+        position_type = 'SHORT'
     
     stock_strategy = {
-        'type': 'LONG' if option_delta > 0 else 'SHORT',
+        'type': position_type,
         'amount': round(stock_amount, 2),
         'margin': round(stock_margin, 2),
         'shares': stock_shares,
         'entry_price': current_price,
         'stop_loss': round(stop_loss, 2),
         'take_profit': round(take_profit, 2),
-        'delta': option_delta,
+        'delta': option_strategy['delta'],
+        'portfolio_delta': portfolio_delta_value,
         'notional_value': notional_value,
-        'description': f"{'做多' if option_delta > 0 else '做空'} {stock_shares}股，保证金 ${stock_margin:.2f}"
+        'description': f"{position_type} {stock_shares}股（名义本金${notional_value} × Delta{portfolio_delta_value:.4f} = ${stock_amount:.2f}），保证金 ${stock_margin:.2f}"
     }
     
     return option_strategy, stock_strategy
@@ -204,7 +350,8 @@ def generate_strategy():
         """, (
             strategy_id, symbol, notional_value,
             option_strategy['type'], option_strategy['strike_price'], 
-            option_strategy['expiry_date'], option_strategy['premium'], option_strategy['delta'],
+            option_strategy['expiry_date'], option_strategy['premium'], 
+            option_strategy['delta'],  # 保存单个Delta（数据库字段限制）
             stock_strategy['amount'], stock_strategy['margin'],
             current_price, json.dumps(option_strategy), json.dumps(stock_strategy)
         ))
