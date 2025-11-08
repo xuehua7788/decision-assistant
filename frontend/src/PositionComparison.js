@@ -9,14 +9,7 @@ function PositionComparison() {
 
   const apiUrl = process.env.REACT_APP_API_URL || 'https://decision-assistant-githubv3.onrender.com';
 
-  useEffect(() => {
-    loadPositions();
-    // 每10秒刷新一次持仓
-    const interval = setInterval(loadPositions, 10000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const loadPositions = async () => {
+  const loadPositions = React.useCallback(async () => {
     const username = localStorage.getItem('username');
     if (!username) {
       setError('请先登录');
@@ -39,7 +32,14 @@ function PositionComparison() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiUrl]);
+
+  useEffect(() => {
+    loadPositions();
+    // 每10秒刷新一次持仓
+    const interval = setInterval(loadPositions, 10000);
+    return () => clearInterval(interval);
+  }, [loadPositions]);
 
   const closePosition = async (positionId) => {
     if (!window.confirm('确定要平仓吗？平仓后将结算盈亏。')) {

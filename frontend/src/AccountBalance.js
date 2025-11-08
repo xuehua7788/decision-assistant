@@ -8,14 +8,7 @@ function AccountBalance() {
 
   const apiUrl = process.env.REACT_APP_API_URL || 'https://decision-assistant-githubv3.onrender.com';
 
-  useEffect(() => {
-    loadAccount();
-    // 每30秒刷新一次
-    const interval = setInterval(loadAccount, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const loadAccount = async () => {
+  const loadAccount = React.useCallback(async () => {
     const username = localStorage.getItem('username');
     if (!username) {
       setError('请先登录');
@@ -38,7 +31,14 @@ function AccountBalance() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiUrl]);
+
+  useEffect(() => {
+    loadAccount();
+    // 每30秒刷新一次
+    const interval = setInterval(loadAccount, 30000);
+    return () => clearInterval(interval);
+  }, [loadAccount]);
 
   if (loading) {
     return <div className="account-balance loading">加载中...</div>;
