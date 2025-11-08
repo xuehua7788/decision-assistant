@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { getCurrentLanguage, setLanguage } from './i18n';
 
 function StockAnalysis({ apiUrl }) {
@@ -13,7 +13,6 @@ function StockAnalysis({ apiUrl }) {
   const [userOpinion, setUserOpinion] = useState('');
   const [newsList, setNewsList] = useState([]);
   const [loadingNews, setLoadingNews] = useState(false);
-  const [optionStrategy, setOptionStrategy] = useState(null);
   const [stockStrategy, setStockStrategy] = useState(null); // 新增：股票策略
   const [dualStrategyData, setDualStrategyData] = useState(null); // 新增：完整双策略数据
   const [language, setLang] = useState(getCurrentLanguage());
@@ -97,7 +96,6 @@ function StockAnalysis({ apiUrl }) {
     setError('');
     setStockData(null);
     setAnalysis(null);
-    setOptionStrategy(null);
 
     try {
       // 1. 获取股票数据
@@ -131,7 +129,6 @@ function StockAnalysis({ apiUrl }) {
     setLoading(true);
     setError('');
     setAnalysis(null);
-    setOptionStrategy(null);
 
     try {
       // 获取AI分析
@@ -151,10 +148,6 @@ function StockAnalysis({ apiUrl }) {
 
       if (analysisResult.status === 'success') {
         setAnalysis(analysisResult.analysis);
-        // 如果有期权策略，也保存
-        if (analysisResult.option_strategy) {
-          setOptionStrategy(analysisResult.option_strategy);
-        }
         
         // 自动生成双策略（期权+股票）
         try {
@@ -275,7 +268,6 @@ function StockAnalysis({ apiUrl }) {
         // 清空当前分析，鼓励用户查看持仓
         setStockData(null);
         setAnalysis(null);
-        setOptionStrategy(null);
         setStockStrategy(null);
         setDualStrategyData(null);
       } else {
