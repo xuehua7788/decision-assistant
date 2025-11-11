@@ -616,7 +616,7 @@ function StockAnalysis({ apiUrl }) {
 
   // 渲染双策略对比卡片
   const renderDualStrategyComparison = () => {
-    if (!dualStrategyData || !stockStrategy) return null;
+    if (!dualStrategyData) return null;
 
     const optionData = dualStrategyData.option_strategy;
     const stockData = dualStrategyData.stock_strategy;
@@ -664,8 +664,8 @@ function StockAnalysis({ apiUrl }) {
               <div><strong>等价股数:</strong> {optionData.equivalent_shares}股</div>
               <div><strong>执行价:</strong> ${optionData.strike_price}</div>
               <div><strong>到期日:</strong> {optionData.expiry_date} ({optionData.days_to_expiry}天)</div>
-              <div><strong>期权费:</strong> ${optionData.premium.toFixed(2)}</div>
-              <div><strong>Delta:</strong> {optionData.delta.toFixed(4)}</div>
+              <div><strong>期权费:</strong> ${(optionData.total_premium || 0).toFixed(2)}</div>
+              <div><strong>Delta:</strong> {(optionData.delta || 0).toFixed(4)}</div>
               {optionData.data_source && (
                 <div style={{ marginTop: '10px', fontSize: '0.85em', opacity: 0.9 }}>
                   📡 {optionData.data_source}
