@@ -182,8 +182,19 @@ def smart_strategy_matching(ai_analysis, investment_style, current_price):
     score = ai_analysis.get('score', 50) if ai_analysis else 50
     market_direction = ai_analysis.get('market_direction', 'neutral') if ai_analysis else 'neutral'
     direction_strength = ai_analysis.get('direction_strength', 'moderate') if ai_analysis else 'moderate'
+    recommendation = ai_analysis.get('recommendation', '观望') if ai_analysis else '观望'
+    strategy_text = ai_analysis.get('strategy', '') if ai_analysis else ''
     
-    print(f"🧠 智能匹配: score={score}, direction={market_direction}, strength={direction_strength}, style={investment_style}")
+    # ✅ 新增：检查AI文字内容，修正market_direction
+    # 如果AI文字说"不是买入时候"、"观望"、"谨慎"等，修正为neutral
+    caution_keywords = ['不是', '观望', '谨慎', '小仓位', '等待', '不建议', '避免']
+    if strategy_text and any(keyword in strategy_text for keyword in caution_keywords):
+        if market_direction == 'bullish' and score < 70:
+            print(f"⚠️ AI文字谨慎但direction=bullish，修正为neutral")
+            market_direction = 'neutral'
+            direction_strength = 'weak'
+    
+    print(f"🧠 智能匹配: score={score}, direction={market_direction}, strength={direction_strength}, style={investment_style}, recommendation={recommendation}")
     
     # ========== 强烈看涨 ==========
     if market_direction == 'bullish' and direction_strength == 'strong' and score > 80:

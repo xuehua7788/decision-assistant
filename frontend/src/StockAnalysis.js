@@ -22,6 +22,242 @@ function StockAnalysis({ apiUrl }) {
   const [searching, setSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
   
+  // 自定义指标选择（从localStorage加载或使用默认值）
+  const [customIndicators, setCustomIndicators] = useState(() => {
+    const saved = localStorage.getItem('customIndicators');
+    return saved ? JSON.parse(saved) : {
+      fundamental: ['market_cap', 'pe_ratio', 'eps', 'roe', 'profit_margin', 'dividend_yield'],
+      technical: ['rsi', 'macd', 'atr', 'bbands'],
+      macro: ['cpi', 'unemployment', 'fed_rate']
+    };
+  });
+  const [showIndicatorSelector, setShowIndicatorSelector] = useState(false);
+  const [selectorCategory, setSelectorCategory] = useState('fundamental'); // 当前编辑的类别
+  
+  // 可用指标定义
+  const availableIndicators = {
+    fundamental: [
+      { id: 'market_cap', label: '市值', icon: '💰' },
+      { id: 'pe_ratio', label: '市盈率 P/E', icon: '📊' },
+      { id: 'eps', label: '每股收益 EPS', icon: '💵' },
+      { id: 'roe', label: 'ROE', icon: '📈' },
+      { id: 'profit_margin', label: '利润率', icon: '💹' },
+      { id: 'dividend_yield', label: '股息率', icon: '💎' },
+      { id: 'peg_ratio', label: 'PEG比率', icon: '🎯' },
+      { id: 'debt_to_equity', label: '负债率', icon: '⚖️' },
+      { id: 'current_ratio', label: '流动比率', icon: '💧' },
+      { id: 'book_value', label: '账面价值', icon: '📚' }
+    ],
+    technical: [
+      { id: 'rsi', label: 'RSI(14)', icon: '📉' },
+      { id: 'macd', label: 'MACD', icon: '📊' },
+      { id: 'atr', label: 'ATR(14)', icon: '📏' },
+      { id: 'bbands', label: '布林带位置', icon: '📐' },
+      { id: 'sma_50', label: 'SMA(50)', icon: '📈' },
+      { id: 'sma_200', label: 'SMA(200)', icon: '📊' },
+      { id: 'volume', label: '成交量', icon: '📦' },
+      { id: 'volatility', label: '波动率', icon: '🌊' }
+    ],
+    macro: [
+      { id: 'cpi', label: 'CPI通胀率', icon: '💰' },
+      { id: 'unemployment', label: '失业率', icon: '👥' },
+      { id: 'fed_rate', label: '联邦利率', icon: '🏦' },
+      { id: 'gdp_growth', label: 'GDP增长', icon: '📈' },
+      { id: 'treasury_yield', label: '国债收益率', icon: '📜' }
+    ]
+  };
+  
+  // 打开指标选择器
+  const openIndicatorSelector = (category) => {
+    setSelectorCategory(category);
+    setShowIndicatorSelector(true);
+  };
+  
+  // 切换指标选择（临时，不保存）
+  const toggleIndicator = (category, indicatorId) => {
+    setCustomIndicators(prev => {
+      const current = prev[category];
+      const newSelection = current.includes(indicatorId)
+        ? current.filter(id => id !== indicatorId)
+        : [...current, indicatorId];
+      return { ...prev, [category]: newSelection };
+    });
+  };
+  
+  // 保存自定义配置
+  const saveCustomIndicators = () => {
+    localStorage.setItem('customIndicators', JSON.stringify(customIndicators));
+    setShowIndicatorSelector(false);
+    alert('✅ 自定义配置已保存！以后的分析都会使用这个配置。');
+  };
+  
+  // 重置为默认配置
+  const resetToDefault = (category) => {
+    const defaults = {
+      fundamental: ['market_cap', 'pe_ratio', 'eps', 'roe', 'profit_margin', 'dividend_yield'],
+      technical: ['rsi', 'macd', 'atr', 'bbands'],
+      macro: ['cpi', 'unemployment', 'fed_rate']
+    };
+    setCustomIndicators(prev => ({ ...prev, [category]: defaults[category] }));
+  };
+  
+  // 获取指标数据的辅助函数
+  const getIndicatorData = (indicatorId) => {
+    if (!stockData) return null;
+    
+    const overview = stockData.premium_data?.company_overview;
+    const technical = stockData.premium_data?.technical;
+    const economic = stockData.premium_data?.economic;
+    
+    const indicatorMap = {
+      // 基本面
+      market_cap: {
+        label: '市值',
+        value: overview?.MarketCapitalization ? `$${(parseFloat(overview.MarketCapitalization) / 1e12).toFixed(2)}T` : 'N/A',
+        status: '🟢',
+        desc: '巨型'
+      },
+      pe_ratio: {
+        label: '市盈率 P/E',
+        value: overview?.PERatio || 'N/A',
+        status: overview?.PERatio && parseFloat(overview.PERatio) > 30 ? '🟡' : '🟢',
+        desc: overview?.PERatio && parseFloat(overview.PERatio) > 30 ? '略高' : '合理'
+      },
+      eps: {
+        label: '每股收益 EPS',
+        value: overview?.EPS ? `$${overview.EPS}` : 'N/A',
+        status: '🟢',
+        desc: '优秀'
+      },
+      roe: {
+        label: 'ROE',
+        value: overview?.ReturnOnEquityTTM ? `${(parseFloat(overview.ReturnOnEquityTTM) * 100).toFixed(1)}%` : 'N/A',
+        status: overview?.ReturnOnEquityTTM && parseFloat(overview.ReturnOnEquityTTM) > 0.15 ? '🟢' : '🟡',
+        desc: overview?.ReturnOnEquityTTM && parseFloat(overview.ReturnOnEquityTTM) > 0.15 ? '卓越' : '良好'
+      },
+      profit_margin: {
+        label: '利润率',
+        value: overview?.ProfitMargin ? `${(parseFloat(overview.ProfitMargin) * 100).toFixed(1)}%` : 'N/A',
+        status: overview?.ProfitMargin && parseFloat(overview.ProfitMargin) > 0.2 ? '🟢' : '🟡',
+        desc: overview?.ProfitMargin && parseFloat(overview.ProfitMargin) > 0.2 ? '优秀' : '良好'
+      },
+      dividend_yield: {
+        label: '股息率',
+        value: overview?.DividendYield ? `${(parseFloat(overview.DividendYield) * 100).toFixed(2)}%` : 'N/A',
+        status: overview?.DividendYield && parseFloat(overview.DividendYield) > 0.02 ? '🟢' : '🟡',
+        desc: overview?.DividendYield && parseFloat(overview.DividendYield) > 0.02 ? '稳定' : '较低'
+      },
+      peg_ratio: {
+        label: 'PEG比率',
+        value: overview?.PEGRatio || 'N/A',
+        status: overview?.PEGRatio && parseFloat(overview.PEGRatio) < 1 ? '🟢' : '🟡',
+        desc: overview?.PEGRatio && parseFloat(overview.PEGRatio) < 1 ? '优秀' : '一般'
+      },
+      debt_to_equity: {
+        label: '负债率',
+        value: overview?.DebtToEquity ? `${overview.DebtToEquity}%` : 'N/A',
+        status: overview?.DebtToEquity && parseFloat(overview.DebtToEquity) < 50 ? '🟢' : '🟡',
+        desc: overview?.DebtToEquity && parseFloat(overview.DebtToEquity) < 50 ? '健康' : '偏高'
+      },
+      current_ratio: {
+        label: '流动比率',
+        value: overview?.CurrentRatio || 'N/A',
+        status: overview?.CurrentRatio && parseFloat(overview.CurrentRatio) > 1.5 ? '🟢' : '🟡',
+        desc: overview?.CurrentRatio && parseFloat(overview.CurrentRatio) > 1.5 ? '良好' : '一般'
+      },
+      book_value: {
+        label: '账面价值',
+        value: overview?.BookValue ? `$${overview.BookValue}` : 'N/A',
+        status: '🟢',
+        desc: '参考'
+      },
+      
+      // 技术面
+      rsi: {
+        label: 'RSI(14)',
+        value: stockData.indicators?.rsi?.toFixed(2) || 'N/A',
+        status: stockData.indicators?.rsi > 70 ? '🔴 超买' : stockData.indicators?.rsi < 30 ? '🟢 超卖' : '🟡 中性',
+        desc: stockData.indicators?.rsi > 70 ? '注意回调' : stockData.indicators?.rsi < 30 ? '可能反弹' : '震荡'
+      },
+      macd: {
+        label: 'MACD',
+        value: technical?.macd_value || 'N/A',
+        status: technical?.macd_signal === 'bullish' ? '🟢 金叉' : technical?.macd_signal === 'bearish' ? '🔴 死叉' : '🟡',
+        desc: technical?.macd_signal === 'bullish' ? '上涨动能' : technical?.macd_signal === 'bearish' ? '下跌动能' : '观察'
+      },
+      atr: {
+        label: 'ATR(14)',
+        value: technical?.atr ? `$${technical.atr.toFixed(2)}` : 'N/A',
+        status: '🟡',
+        desc: '波动适中'
+      },
+      bbands: {
+        label: '布林带位置',
+        value: technical?.bbands_position || '中轨附近',
+        status: technical?.bbands_position === '上轨附近' ? '🔴' : technical?.bbands_position === '下轨附近' ? '🟢' : '🟡',
+        desc: technical?.bbands_position || '震荡中'
+      },
+      sma_50: {
+        label: 'SMA(50)',
+        value: technical?.sma_50 ? `$${technical.sma_50.toFixed(2)}` : 'N/A',
+        status: '🟡',
+        desc: '中期均线'
+      },
+      sma_200: {
+        label: 'SMA(200)',
+        value: technical?.sma_200 ? `$${technical.sma_200.toFixed(2)}` : 'N/A',
+        status: '🟡',
+        desc: '长期均线'
+      },
+      volume: {
+        label: '成交量',
+        value: stockData.volume ? `${(stockData.volume / 1e6).toFixed(2)}M` : 'N/A',
+        status: '🟡',
+        desc: '交易活跃'
+      },
+      volatility: {
+        label: '波动率',
+        value: technical?.volatility ? `${(technical.volatility * 100).toFixed(2)}%` : 'N/A',
+        status: '🟡',
+        desc: '风险指标'
+      },
+      
+      // 宏观面
+      cpi: {
+        label: 'CPI通胀率',
+        value: economic?.cpi ? `${economic.cpi}%` : 'N/A',
+        trend: '↑',
+        status: '🟢 温和通胀'
+      },
+      unemployment: {
+        label: '失业率',
+        value: economic?.unemployment ? `${economic.unemployment}%` : 'N/A',
+        trend: '→',
+        status: '🟢 稳定'
+      },
+      fed_rate: {
+        label: '联邦利率',
+        value: economic?.fed_rate ? `${economic.fed_rate}%` : 'N/A',
+        trend: '→',
+        status: '🟡 高位'
+      },
+      gdp_growth: {
+        label: 'GDP增长',
+        value: economic?.gdp_growth ? `${economic.gdp_growth}%` : 'N/A',
+        trend: '↑',
+        status: '🟢 增长'
+      },
+      treasury_yield: {
+        label: '国债收益率',
+        value: economic?.treasury_yield ? `${economic.treasury_yield}%` : 'N/A',
+        trend: '→',
+        status: '🟡 参考'
+      }
+    };
+    
+    return indicatorMap[indicatorId] || null;
+  };
+  
   // 切换语言
   const toggleLanguage = () => {
     const newLang = language === 'zh' ? 'en' : 'zh';
@@ -885,22 +1121,23 @@ function StockAnalysis({ apiUrl }) {
                 </div>
 
                 {/* 标签页切换 */}
-                <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', borderBottom: '2px solid #e0e0e0' }}>
-                  <button
-                    onClick={() => setActiveDataTab('fundamental')}
-                    style={{
-                      padding: '10px 20px',
-                      background: activeDataTab === 'fundamental' ? '#667eea' : 'transparent',
-                      color: activeDataTab === 'fundamental' ? 'white' : '#666',
-                      border: 'none',
-                      borderBottom: activeDataTab === 'fundamental' ? '3px solid #667eea' : 'none',
-                      cursor: 'pointer',
-                      fontWeight: activeDataTab === 'fundamental' ? '600' : '400',
-                      transition: 'all 0.3s'
-                    }}
-                  >
-                    💼 基本面
-                  </button>
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', borderBottom: '2px solid #e0e0e0', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      onClick={() => setActiveDataTab('fundamental')}
+                      style={{
+                        padding: '10px 20px',
+                        background: activeDataTab === 'fundamental' ? '#667eea' : 'transparent',
+                        color: activeDataTab === 'fundamental' ? 'white' : '#666',
+                        border: 'none',
+                        borderBottom: activeDataTab === 'fundamental' ? '3px solid #667eea' : 'none',
+                        cursor: 'pointer',
+                        fontWeight: activeDataTab === 'fundamental' ? '600' : '400',
+                        transition: 'all 0.3s'
+                      }}
+                    >
+                      💼 基本面
+                    </button>
                   <button
                     onClick={() => setActiveDataTab('technical')}
                     style={{
@@ -916,20 +1153,42 @@ function StockAnalysis({ apiUrl }) {
                   >
                     📈 技术面
                   </button>
+                    <button
+                      onClick={() => setActiveDataTab('macro')}
+                      style={{
+                        padding: '10px 20px',
+                        background: activeDataTab === 'macro' ? '#667eea' : 'transparent',
+                        color: activeDataTab === 'macro' ? 'white' : '#666',
+                        border: 'none',
+                        borderBottom: activeDataTab === 'macro' ? '3px solid #667eea' : 'none',
+                        cursor: 'pointer',
+                        fontWeight: activeDataTab === 'macro' ? '600' : '400',
+                        transition: 'all 0.3s'
+                      }}
+                    >
+                      🌍 宏观面
+                    </button>
+                  </div>
+                  
+                  {/* 自定义按钮 */}
                   <button
-                    onClick={() => setActiveDataTab('macro')}
+                    onClick={() => openIndicatorSelector(activeDataTab)}
                     style={{
-                      padding: '10px 20px',
-                      background: activeDataTab === 'macro' ? '#667eea' : 'transparent',
-                      color: activeDataTab === 'macro' ? 'white' : '#666',
+                      padding: '8px 16px',
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      color: 'white',
                       border: 'none',
-                      borderBottom: activeDataTab === 'macro' ? '3px solid #667eea' : 'none',
+                      borderRadius: '20px',
                       cursor: 'pointer',
-                      fontWeight: activeDataTab === 'macro' ? '600' : '400',
+                      fontSize: '0.9em',
+                      fontWeight: '600',
+                      boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
                       transition: 'all 0.3s'
                     }}
+                    onMouseOver={(e) => e.target.style.transform = 'scale(1.05)'}
+                    onMouseOut={(e) => e.target.style.transform = 'scale(1)'}
                   >
-                    🌍 宏观面
+                    ⚙️ 自定义指标
                   </button>
                 </div>
 
@@ -938,24 +1197,21 @@ function StockAnalysis({ apiUrl }) {
                   <div>
                     <h4 style={{ color: '#333', marginBottom: '15px' }}>💼 公司财务健康度</h4>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px', marginBottom: '20px' }}>
-                      {[
-                        { label: '市值', value: stockData.premium_data.company_overview.MarketCapitalization ? `$${(parseFloat(stockData.premium_data.company_overview.MarketCapitalization) / 1e12).toFixed(2)}T` : 'N/A', status: '🟢', desc: '巨型' },
-                        { label: '市盈率 P/E', value: stockData.premium_data.company_overview.PERatio || 'N/A', status: parseFloat(stockData.premium_data.company_overview.PERatio) > 30 ? '🟡' : '🟢', desc: parseFloat(stockData.premium_data.company_overview.PERatio) > 30 ? '略高' : '合理' },
-                        { label: '每股收益 EPS', value: stockData.premium_data.company_overview.EPS ? `$${stockData.premium_data.company_overview.EPS}` : 'N/A', status: '🟢', desc: '优秀' },
-                        { label: 'ROE', value: stockData.premium_data.company_overview.ReturnOnEquityTTM ? `${(parseFloat(stockData.premium_data.company_overview.ReturnOnEquityTTM) * 100).toFixed(1)}%` : 'N/A', status: parseFloat(stockData.premium_data.company_overview.ReturnOnEquityTTM) > 0.15 ? '🟢🔥' : '🟡', desc: parseFloat(stockData.premium_data.company_overview.ReturnOnEquityTTM) > 0.15 ? '卓越' : '良好' },
-                        { label: '利润率', value: stockData.premium_data.company_overview.ProfitMargin ? `${(parseFloat(stockData.premium_data.company_overview.ProfitMargin) * 100).toFixed(1)}%` : 'N/A', status: parseFloat(stockData.premium_data.company_overview.ProfitMargin) > 0.2 ? '🟢🔥' : '🟢', desc: parseFloat(stockData.premium_data.company_overview.ProfitMargin) > 0.2 ? '优秀' : '良好' },
-                        { label: '股息率', value: stockData.premium_data.company_overview.DividendYield ? `${(parseFloat(stockData.premium_data.company_overview.DividendYield) * 100).toFixed(2)}%` : 'N/A', status: parseFloat(stockData.premium_data.company_overview.DividendYield) > 0.02 ? '🟢' : '🟡', desc: parseFloat(stockData.premium_data.company_overview.DividendYield) > 0.02 ? '稳定' : '较低' }
-                      ].map((item, idx) => (
-                        <div key={idx} style={{ padding: '15px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-                          <div style={{ fontSize: '0.85em', color: '#666', marginBottom: '5px' }}>{item.label}</div>
-                          <div style={{ fontSize: '1.3em', fontWeight: '600', color: '#333', marginBottom: '5px' }}>
-                            {item.value}
+                      {customIndicators.fundamental.map((indicatorId) => {
+                        const item = getIndicatorData(indicatorId);
+                        if (!item) return null;
+                        return (
+                          <div key={indicatorId} style={{ padding: '15px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                            <div style={{ fontSize: '0.85em', color: '#666', marginBottom: '5px' }}>{item.label}</div>
+                            <div style={{ fontSize: '1.3em', fontWeight: '600', color: '#333', marginBottom: '5px' }}>
+                              {item.value}
+                            </div>
+                            <div style={{ fontSize: '0.8em', color: '#999' }}>
+                              {item.status} {item.desc}
+                            </div>
                           </div>
-                          <div style={{ fontSize: '0.8em', color: '#999' }}>
-                            {item.status} {item.desc}
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
 
                     {/* 投资风格解读 */}
@@ -998,42 +1254,21 @@ function StockAnalysis({ apiUrl }) {
                   <div>
                     <h4 style={{ color: '#333', marginBottom: '15px' }}>📈 技术指标全景</h4>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '15px', marginBottom: '20px' }}>
-                      {stockData.indicators && [
-                        { 
-                          label: 'RSI(14)', 
-                          value: stockData.indicators.rsi?.toFixed(2) || 'N/A', 
-                          status: stockData.indicators.rsi > 70 ? '🔴 超买' : stockData.indicators.rsi < 30 ? '🟢 超卖' : '🟡 中性',
-                          desc: stockData.indicators.rsi > 70 ? '注意回调' : stockData.indicators.rsi < 30 ? '可能反弹' : '震荡'
-                        },
-                        { 
-                          label: 'MACD', 
-                          value: stockData.premium_data?.technical?.macd_value || 'N/A', 
-                          status: stockData.premium_data?.technical?.macd_signal === 'bullish' ? '🟢 金叉' : stockData.premium_data?.technical?.macd_signal === 'bearish' ? '🔴 死叉' : '🟡',
-                          desc: stockData.premium_data?.technical?.macd_signal === 'bullish' ? '上涨动能' : stockData.premium_data?.technical?.macd_signal === 'bearish' ? '下跌动能' : '观察'
-                        },
-                        { 
-                          label: 'ATR(14)', 
-                          value: stockData.premium_data?.technical?.atr ? `$${stockData.premium_data.technical.atr.toFixed(2)}` : 'N/A', 
-                          status: '🟡',
-                          desc: '波动适中'
-                        },
-                        { 
-                          label: '布林带位置', 
-                          value: stockData.premium_data?.technical?.bbands_position || '中轨附近', 
-                          status: stockData.premium_data?.technical?.bbands_position === '上轨附近' ? '🔴' : stockData.premium_data?.technical?.bbands_position === '下轨附近' ? '🟢' : '🟡',
-                          desc: stockData.premium_data?.technical?.bbands_position || '震荡中'
-                        }
-                      ].map((item, idx) => (
-                        <div key={idx} style={{ padding: '15px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-                          <div style={{ fontSize: '0.85em', color: '#666', marginBottom: '5px' }}>{item.label}</div>
-                          <div style={{ fontSize: '1.3em', fontWeight: '600', color: '#333', marginBottom: '5px' }}>
-                            {item.value}
+                      {customIndicators.technical.map((indicatorId) => {
+                        const item = getIndicatorData(indicatorId);
+                        if (!item) return null;
+                        return (
+                          <div key={indicatorId} style={{ padding: '15px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                            <div style={{ fontSize: '0.85em', color: '#666', marginBottom: '5px' }}>{item.label}</div>
+                            <div style={{ fontSize: '1.3em', fontWeight: '600', color: '#333', marginBottom: '5px' }}>
+                              {item.value}
+                            </div>
+                            <div style={{ fontSize: '0.8em', color: '#999' }}>
+                              {item.status} {item.desc}
+                            </div>
                           </div>
-                          <div style={{ fontSize: '0.8em', color: '#999' }}>
-                            {item.status} {item.desc}
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
 
                     {/* 投资风格技术解读 */}
@@ -1069,21 +1304,21 @@ function StockAnalysis({ apiUrl }) {
                   <div>
                     <h4 style={{ color: '#333', marginBottom: '15px' }}>🌍 经济环境全貌</h4>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px', marginBottom: '20px' }}>
-                      {[
-                        { label: 'CPI通胀率', value: stockData.premium_data.economic.cpi ? `${stockData.premium_data.economic.cpi}%` : 'N/A', trend: '↑', status: '🟢 温和通胀' },
-                        { label: '失业率', value: stockData.premium_data.economic.unemployment ? `${stockData.premium_data.economic.unemployment}%` : 'N/A', trend: '→', status: '🟢 稳定' },
-                        { label: '联邦利率', value: stockData.premium_data.economic.fed_rate ? `${stockData.premium_data.economic.fed_rate}%` : 'N/A', trend: '→', status: '🟡 高位' }
-                      ].map((item, idx) => (
-                        <div key={idx} style={{ padding: '15px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-                          <div style={{ fontSize: '0.85em', color: '#666', marginBottom: '5px' }}>{item.label}</div>
-                          <div style={{ fontSize: '1.3em', fontWeight: '600', color: '#333', marginBottom: '5px' }}>
-                            {item.value} {item.trend}
+                      {customIndicators.macro.map((indicatorId) => {
+                        const item = getIndicatorData(indicatorId);
+                        if (!item) return null;
+                        return (
+                          <div key={indicatorId} style={{ padding: '15px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                            <div style={{ fontSize: '0.85em', color: '#666', marginBottom: '5px' }}>{item.label}</div>
+                            <div style={{ fontSize: '1.3em', fontWeight: '600', color: '#333', marginBottom: '5px' }}>
+                              {item.value} {item.trend || ''}
+                            </div>
+                            <div style={{ fontSize: '0.8em', color: '#999' }}>
+                              {item.status}
+                            </div>
                           </div>
-                          <div style={{ fontSize: '0.8em', color: '#999' }}>
-                            {item.status}
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
 
                     <div style={{ padding: '15px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
@@ -1310,6 +1545,145 @@ function StockAnalysis({ apiUrl }) {
           <div style={{ fontSize: '1.2em' }}>输入股票代码开始分析</div>
           <div style={{ fontSize: '0.9em', marginTop: '10px' }}>
             支持美股代码，如 AAPL、GOOGL、MSFT 等
+          </div>
+        </div>
+      )}
+      
+      {/* 指标选择器弹窗 */}
+      {showIndicatorSelector && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.6)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '16px',
+            padding: '30px',
+            maxWidth: '600px',
+            width: '90%',
+            maxHeight: '80vh',
+            overflow: 'auto',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.3)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ margin: 0, color: '#667eea' }}>
+                ⚙️ 自定义
+                {selectorCategory === 'fundamental' && '基本面'}
+                {selectorCategory === 'technical' && '技术面'}
+                {selectorCategory === 'macro' && '宏观面'}
+                指标
+              </h3>
+              <button
+                onClick={() => setShowIndicatorSelector(false)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  fontSize: '1.5em',
+                  cursor: 'pointer',
+                  color: '#999'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div style={{ marginBottom: '20px', padding: '15px', background: '#f8f9fa', borderRadius: '8px' }}>
+              <p style={{ margin: 0, fontSize: '0.9em', color: '#666' }}>
+                💡 选择您想在分析中看到的指标，点击"保存配置"后，以后的所有分析都会使用这个配置。
+              </p>
+            </div>
+            
+            {/* 指标列表 */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '25px' }}>
+              {availableIndicators[selectorCategory].map(indicator => (
+                <div
+                  key={indicator.id}
+                  onClick={() => toggleIndicator(selectorCategory, indicator.id)}
+                  style={{
+                    padding: '15px',
+                    background: customIndicators[selectorCategory].includes(indicator.id) 
+                      ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                      : '#f8f9fa',
+                    color: customIndicators[selectorCategory].includes(indicator.id) ? 'white' : '#333',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    fontWeight: '500',
+                    transition: 'all 0.3s',
+                    border: customIndicators[selectorCategory].includes(indicator.id) 
+                      ? '2px solid #667eea' 
+                      : '2px solid #e0e0e0'
+                  }}
+                >
+                  <span style={{ fontSize: '1.3em' }}>{indicator.icon}</span>
+                  <span>{indicator.label}</span>
+                  {customIndicators[selectorCategory].includes(indicator.id) && (
+                    <span style={{ marginLeft: 'auto', fontSize: '1.2em' }}>✓</span>
+                  )}
+                </div>
+              ))}
+            </div>
+            
+            {/* 底部按钮 */}
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'space-between' }}>
+              <button
+                onClick={() => resetToDefault(selectorCategory)}
+                style={{
+                  padding: '12px 20px',
+                  background: '#f8f9fa',
+                  color: '#666',
+                  border: '2px solid #e0e0e0',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  transition: 'all 0.3s'
+                }}
+              >
+                🔄 恢复默认
+              </button>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  onClick={() => setShowIndicatorSelector(false)}
+                  style={{
+                    padding: '12px 20px',
+                    background: 'white',
+                    color: '#666',
+                    border: '2px solid #e0e0e0',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: '600'
+                  }}
+                >
+                  取消
+                </button>
+                <button
+                  onClick={saveCustomIndicators}
+                  style={{
+                    padding: '12px 30px',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: '600',
+                    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
+                    transition: 'all 0.3s'
+                  }}
+                >
+                  💾 保存配置
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
