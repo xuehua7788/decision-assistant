@@ -549,6 +549,10 @@ def generate_strategy():
             from ai_strategy_agent import get_ai_strategy_agent
             
             jany = get_ai_strategy_agent()
+            
+            print(f"🤖 调用Jany生成策略...")
+            print(f"   对话历史: {len(conversation_history)}条")
+            
             strategy_result = jany.generate_trading_strategy(
                 symbol=symbol,
                 current_price=current_price,
@@ -560,19 +564,25 @@ def generate_strategy():
             )
             
             if not strategy_result:
-                return jsonify({'error': 'AI策略生成失败'}), 500
+                print(f"❌ Jany返回None，降级到传统逻辑")
+                # 降级：使用原来的逻辑
+                option_strategy, stock_strategy, explanation = generate_dual_strategy(
+                    symbol, current_price, notional_value, investment_style, ai_analysis
+                )
+            else:
+                # 提取策略
+                option_strategy = strategy_result.get('option_strategy')
+                stock_strategy = strategy_result.get('stock_strategy')
+                explanation = strategy_result.get('explanation', '')
+                
+                print(f"✅ AI策略生成成功")
+                print(f"   期权: {option_strategy.get('type')} @ ${option_strategy.get('strike_price')}")
+                print(f"   股票: {stock_strategy.get('shares')}股 @ ${stock_strategy.get('entry_price')}")
             
-            # 提取策略
-            option_strategy = strategy_result.get('option_strategy')
-            stock_strategy = strategy_result.get('stock_strategy')
-            explanation = strategy_result.get('explanation', '')
-            
-            print(f"✅ AI策略生成成功")
-            print(f"   期权: {option_strategy.get('type')} @ ${option_strategy.get('strike_price')}")
-            print(f"   股票: {stock_strategy.get('shares')}股 @ ${stock_strategy.get('entry_price')}")
-            
-        except ImportError as e:
-            print(f"⚠️ AI策略Agent不可用，降级到传统逻辑: {e}")
+        except Exception as e:
+            print(f"❌ AI策略Agent出错，降级到传统逻辑: {e}")
+            import traceback
+            traceback.print_exc()
             # 降级：使用原来的逻辑
             option_strategy, stock_strategy, explanation = generate_dual_strategy(
                 symbol, current_price, notional_value, investment_style, ai_analysis
@@ -595,7 +605,7 @@ def generate_strategy():
         """, (
             strategy_id, symbol, notional_value,
             option_strategy['type'], option_strategy['strike_price'], 
-            option_strategy['expiry_date'], option_strategy['premium'], 
+            option_strategy['expiry_date'], option_strategy.get('total_premium', option_strategy.get('premium', 0)), 
             option_strategy['delta'],  # 单个期权的Delta
             stock_strategy['notional'], stock_strategy['margin'],  # 股票名义本金和保证金
             current_price, json.dumps(option_strategy), json.dumps(stock_strategy)

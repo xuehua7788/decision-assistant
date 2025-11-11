@@ -1187,337 +1187,7 @@ function StockAnalysis({ apiUrl }) {
               </div>
             </div>
 
-            {/* 旧的期权策略显示已删除，使用新的双策略对比 */}
-
-            {/* 数据仪表盘 - 新增 */}
-            {showDataDashboard && stockData && stockData.premium_data && (
-              <div style={{
-                background: 'linear-gradient(135deg, #667eea15 0%, #764ba215 100%)',
-                border: '2px solid #667eea',
-                padding: '20px',
-                borderRadius: '12px',
-                marginBottom: '20px'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                  <h3 style={{ color: '#667eea', margin: 0 }}>
-                    📊 专业数据分析
-                  </h3>
-                  <button
-                    onClick={() => setShowDataDashboard(!showDataDashboard)}
-                    style={{
-                      padding: '5px 12px',
-                      background: 'transparent',
-                      color: '#667eea',
-                      border: '1px solid #667eea',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontSize: '0.85em'
-                    }}
-                  >
-                    {showDataDashboard ? '▼ 收起' : '▶ 展开'}
-                  </button>
-                </div>
-
-                {/* 标签页切换 */}
-                <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', borderBottom: '2px solid #e0e0e0', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <button
-                      onClick={() => setActiveDataTab('fundamental')}
-                      style={{
-                        padding: '10px 20px',
-                        background: activeDataTab === 'fundamental' ? '#667eea' : 'transparent',
-                        color: activeDataTab === 'fundamental' ? 'white' : '#666',
-                        border: 'none',
-                        borderBottom: activeDataTab === 'fundamental' ? '3px solid #667eea' : 'none',
-                        cursor: 'pointer',
-                        fontWeight: activeDataTab === 'fundamental' ? '600' : '400',
-                        transition: 'all 0.3s'
-                      }}
-                    >
-                      💼 基本面
-                    </button>
-                  <button
-                    onClick={() => setActiveDataTab('technical')}
-                    style={{
-                      padding: '10px 20px',
-                      background: activeDataTab === 'technical' ? '#667eea' : 'transparent',
-                      color: activeDataTab === 'technical' ? 'white' : '#666',
-                      border: 'none',
-                      borderBottom: activeDataTab === 'technical' ? '3px solid #667eea' : 'none',
-                      cursor: 'pointer',
-                      fontWeight: activeDataTab === 'technical' ? '600' : '400',
-                      transition: 'all 0.3s'
-                    }}
-                  >
-                    📈 技术面
-                  </button>
-                    <button
-                      onClick={() => setActiveDataTab('macro')}
-                      style={{
-                        padding: '10px 20px',
-                        background: activeDataTab === 'macro' ? '#667eea' : 'transparent',
-                        color: activeDataTab === 'macro' ? 'white' : '#666',
-                        border: 'none',
-                        borderBottom: activeDataTab === 'macro' ? '3px solid #667eea' : 'none',
-                        cursor: 'pointer',
-                        fontWeight: activeDataTab === 'macro' ? '600' : '400',
-                        transition: 'all 0.3s'
-                      }}
-                    >
-                      🌍 宏观面
-                    </button>
-                  </div>
-                  
-                  {/* 自定义按钮 */}
-                  <button
-                    onClick={() => openIndicatorSelector(activeDataTab)}
-                    style={{
-                      padding: '8px 16px',
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '20px',
-                      cursor: 'pointer',
-                      fontSize: '0.9em',
-                      fontWeight: '600',
-                      boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
-                      transition: 'all 0.3s'
-                    }}
-                    onMouseOver={(e) => e.target.style.transform = 'scale(1.05)'}
-                    onMouseOut={(e) => e.target.style.transform = 'scale(1)'}
-                  >
-                    ⚙️ 自定义指标
-                  </button>
-                </div>
-
-                {/* 基本面标签内容 */}
-                {activeDataTab === 'fundamental' && stockData.premium_data?.company_overview && (
-                  <div>
-                    <h4 style={{ color: '#333', marginBottom: '15px' }}>💼 公司财务健康度</h4>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px', marginBottom: '20px' }}>
-                      {customIndicators.fundamental.map((indicatorId) => {
-                        const item = getIndicatorData(indicatorId);
-                        if (!item) return null;
-                        return (
-                          <div key={indicatorId} style={{ padding: '15px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-                            <div style={{ fontSize: '0.85em', color: '#666', marginBottom: '5px' }}>{item.label}</div>
-                            <div style={{ fontSize: '1.3em', fontWeight: '600', color: '#333', marginBottom: '5px' }}>
-                              {item.value}
-                            </div>
-                            <div style={{ fontSize: '0.8em', color: '#999' }}>
-                              {item.status} {item.desc}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* 投资风格解读 */}
-                    <div style={{ padding: '15px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-                      <h4 style={{ color: '#667eea', marginBottom: '10px' }}>
-                        {investmentStyle === 'buffett' && '🏛️ 巴菲特护城河分析'}
-                        {investmentStyle === 'lynch' && '🎯 彼得·林奇成长性分析'}
-                        {investmentStyle === 'soros' && '🌊 索罗斯价值评估'}
-                      </h4>
-                      {investmentStyle === 'buffett' && (
-                        <div style={{ fontSize: '0.9em', lineHeight: '1.8' }}>
-                          <div>• 品牌价值: ⭐⭐⭐⭐⭐ (强大的生态系统锁定)</div>
-                          <div>• 定价权: ⭐⭐⭐⭐⭐ (高端市场溢价能力)</div>
-                          <div>• ROE表现: {stockData.premium_data.company_overview.ReturnOnEquityTTM && parseFloat(stockData.premium_data.company_overview.ReturnOnEquityTTM) > 0.15 ? '⭐⭐⭐⭐⭐' : '⭐⭐⭐'} ({stockData.premium_data.company_overview.ReturnOnEquityTTM ? `${(parseFloat(stockData.premium_data.company_overview.ReturnOnEquityTTM) * 100).toFixed(1)}%` : 'N/A'})</div>
-                          <div>• 估值水平: {stockData.premium_data.company_overview.PERatio && parseFloat(stockData.premium_data.company_overview.PERatio) > 30 ? '⚠️ 偏高需耐心' : '✅ 合理'} (P/E {stockData.premium_data.company_overview.PERatio || 'N/A'})</div>
-                        </div>
-                      )}
-                      {investmentStyle === 'lynch' && (
-                        <div style={{ fontSize: '0.9em', lineHeight: '1.8' }}>
-                          <div>• PEG比率: {stockData.premium_data.company_overview.PEGRatio || 'N/A'} {stockData.premium_data.company_overview.PEGRatio && parseFloat(stockData.premium_data.company_overview.PEGRatio) < 1 ? '🟢 优秀' : '🟡'}</div>
-                          <div>• EPS增长: {stockData.premium_data.company_overview.EPS || 'N/A'} (关注持续性)</div>
-                          <div>• 市场份额: 领先地位 ✅</div>
-                          <div>• 扩张潜力: 新产品线和服务</div>
-                        </div>
-                      )}
-                      {investmentStyle === 'soros' && (
-                        <div style={{ fontSize: '0.9em', lineHeight: '1.8' }}>
-                          <div>• 市场共识: 高估值反映市场乐观预期</div>
-                          <div>• 潜在反转: P/E {stockData.premium_data.company_overview.PERatio} {stockData.premium_data.company_overview.PERatio && parseFloat(stockData.premium_data.company_overview.PERatio) > 35 ? '⚠️ 警惕回调' : '✅'}</div>
-                          <div>• 催化剂: 关注新产品发布和财报</div>
-                          <div>• 风险回报: 需要精确的进出场时机</div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* 技术面标签内容 */}
-                {activeDataTab === 'technical' && (
-                  <div>
-                    <h4 style={{ color: '#333', marginBottom: '15px' }}>📈 技术指标全景</h4>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '15px', marginBottom: '20px' }}>
-                      {customIndicators.technical.map((indicatorId) => {
-                        const item = getIndicatorData(indicatorId);
-                        if (!item) return null;
-                        return (
-                          <div key={indicatorId} style={{ padding: '15px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-                            <div style={{ fontSize: '0.85em', color: '#666', marginBottom: '5px' }}>{item.label}</div>
-                            <div style={{ fontSize: '1.3em', fontWeight: '600', color: '#333', marginBottom: '5px' }}>
-                              {item.value}
-                            </div>
-                            <div style={{ fontSize: '0.8em', color: '#999' }}>
-                              {item.status} {item.desc}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* 投资风格技术解读 */}
-                    <div style={{ padding: '15px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-                      <h4 style={{ color: '#667eea', marginBottom: '10px' }}>
-                        {investmentStyle === 'buffett' && '🏛️ 技术面辅助判断'}
-                        {investmentStyle === 'lynch' && '🎯 技术入场时机'}
-                        {investmentStyle === 'soros' && '🌊 趋势与反转信号'}
-                      </h4>
-                      {investmentStyle === 'buffett' && (
-                        <div style={{ fontSize: '0.9em', lineHeight: '1.8', color: '#666' }}>
-                          技术面仅作参考，重点关注基本面。RSI {stockData.indicators?.rsi?.toFixed(1)} {stockData.indicators?.rsi > 70 ? '偏高建议等待回调' : '可考虑分批建仓'}。
-                        </div>
-                      )}
-                      {investmentStyle === 'lynch' && (
-                        <div style={{ fontSize: '0.9em', lineHeight: '1.8', color: '#666' }}>
-                          寻找成长股的技术性买点。{stockData.indicators?.rsi < 40 ? '当前RSI低位，可能是加仓机会' : 'RSI偏高，等待调整后介入'}。
-                        </div>
-                      )}
-                      {investmentStyle === 'soros' && (
-                        <div style={{ fontSize: '0.9em', lineHeight: '1.8' }}>
-                          <div>• 短期趋势: {stockData.premium_data?.technical?.macd_signal === 'bullish' ? '🟢 上升（MACD金叉）' : stockData.premium_data?.technical?.macd_signal === 'bearish' ? '🔴 下降（MACD死叉）' : '🟡 震荡'}</div>
-                          <div>• 动能强度: {stockData.indicators?.rsi > 70 ? '⚠️ 超买减弱' : stockData.indicators?.rsi < 30 ? '⚠️ 超卖待反弹' : '🟢 正常'}</div>
-                          <div>• 反转信号: {stockData.indicators?.rsi > 75 || stockData.indicators?.rsi < 25 ? '⚠️ 警惕转向' : '未出现'}</div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* 宏观面标签内容 */}
-                {activeDataTab === 'macro' && stockData.premium_data?.economic && (
-                  <div>
-                    <h4 style={{ color: '#333', marginBottom: '15px' }}>🌍 经济环境全貌</h4>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px', marginBottom: '20px' }}>
-                      {customIndicators.macro.map((indicatorId) => {
-                        const item = getIndicatorData(indicatorId);
-                        if (!item) return null;
-                        return (
-                          <div key={indicatorId} style={{ padding: '15px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-                            <div style={{ fontSize: '0.85em', color: '#666', marginBottom: '5px' }}>{item.label}</div>
-                            <div style={{ fontSize: '1.3em', fontWeight: '600', color: '#333', marginBottom: '5px' }}>
-                              {item.value} {item.trend || ''}
-                            </div>
-                            <div style={{ fontSize: '0.8em', color: '#999' }}>
-                              {item.status}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    <div style={{ padding: '15px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-                      <h4 style={{ color: '#667eea', marginBottom: '10px' }}>💡 市场环境解读</h4>
-                      <div style={{ fontSize: '0.9em', lineHeight: '1.8', color: '#666' }}>
-                        {stockData.premium_data.economic.fed_rate && parseFloat(stockData.premium_data.economic.fed_rate) > 4 ? 
-                          '高利率环境对科技股估值形成压力，但通胀受控、失业率低显示经济韧性。关注美联储政策转向信号。' :
-                          '温和的宏观环境支持市场稳定，低利率有利于成长股估值。保持关注通胀走势。'
-                        }
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* K线图 - 隐藏，只在用户问Tom时才显示 */}
-            {false && (
-              <div style={{
-                background: '#f8f9fa',
-                padding: '20px',
-                borderRadius: '10px',
-                marginBottom: '20px'
-              }}>
-                <h3 style={{ color: '#333', marginBottom: '15px' }}>📊 30天价格走势</h3>
-                <ResponsiveContainer width="100%" height={250}>
-                  <LineChart data={stockData.history}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis 
-                      dataKey="date" 
-                      tick={{ fontSize: 12 }}
-                      tickFormatter={(value) => value.slice(5)}
-                    />
-                    <YAxis 
-                      tick={{ fontSize: 12 }}
-                      domain={['dataMin - 5', 'dataMax + 5']}
-                    />
-                    <Tooltip 
-                      formatter={(value) => `$${value.toFixed(2)}`}
-                      labelFormatter={(label) => `日期: ${label}`}
-                    />
-                    <Legend />
-                    <Line 
-                      type="monotone" 
-                      dataKey="close" 
-                      stroke="#667eea" 
-                      strokeWidth={2}
-                      name="收盘价"
-                      dot={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-
-            {/* 关键指标 */}
-            <div style={{
-              background: '#f8f9fa',
-              padding: '20px',
-              borderRadius: '10px'
-            }}>
-              <h3 style={{ color: '#333', marginBottom: '15px' }}>📋 关键指标</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '15px' }}>
-                <div>
-                  <div style={{ color: '#666', fontSize: '0.9em' }}>今日最高</div>
-                  <div style={{ fontSize: '1.2em', fontWeight: '600' }}>${stockData.quote.high.toFixed(2)}</div>
-                </div>
-                <div>
-                  <div style={{ color: '#666', fontSize: '0.9em' }}>今日最低</div>
-                  <div style={{ fontSize: '1.2em', fontWeight: '600' }}>${stockData.quote.low.toFixed(2)}</div>
-                </div>
-                <div>
-                  <div style={{ color: '#666', fontSize: '0.9em' }}>成交量</div>
-                  <div style={{ fontSize: '1.2em', fontWeight: '600' }}>
-                    {(stockData.quote.volume / 1000000).toFixed(2)}M
-                  </div>
-                </div>
-                <div>
-                  <div style={{ color: '#666', fontSize: '0.9em' }}>RSI(14)</div>
-                  <div style={{ 
-                    fontSize: '1.2em', 
-                    fontWeight: '600',
-                    color: stockData.indicators.rsi > 70 ? '#f56565' : 
-                           stockData.indicators.rsi < 30 ? '#48bb78' : '#333'
-                  }}>
-                    {stockData.indicators.rsi?.toFixed(2) || 'N/A'}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ color: '#666', fontSize: '0.9em' }}>30日波动率</div>
-                  <div style={{ 
-                    fontSize: '1.2em', 
-                    fontWeight: '600',
-                    color: stockData.indicators.volatility > 40 ? '#f56565' : 
-                           stockData.indicators.volatility < 20 ? '#48bb78' : '#333'
-                  }}>
-                    {stockData.indicators.volatility?.toFixed(2)}%
-                  </div>
-                </div>
-              </div>
-            </div>
+            {/* 旧的独立图表已删除，所有内容在Tom对话窗口中展示 */}
           </div>
 
           {/* 右侧：AI分析 */}
@@ -1629,48 +1299,51 @@ function StockAnalysis({ apiUrl }) {
             </div>
           )}
           
-          {/* 🆕 Tom对话窗口 */}
+          {/* 🆕 Tom对话窗口 - 优化版 */}
           {analysis && showChatWindow && (
             <div style={{
               marginTop: '30px',
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              borderRadius: '15px',
-              padding: '25px',
-              color: 'white'
+              borderRadius: '20px',
+              padding: '35px',
+              color: 'white',
+              boxShadow: '0 10px 30px rgba(102, 126, 234, 0.3)'
             }}>
-              <h3 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <h2 style={{ marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '15px', fontSize: '1.8em' }}>
                 💬 与Tom讨论
-                <span style={{ fontSize: '0.7em', opacity: 0.8 }}>
-                  （有疑问？继续问Tom）
+                <span style={{ fontSize: '0.5em', opacity: 0.85, fontWeight: 'normal' }}>
+                  有疑问？继续问Tom
                 </span>
-              </h3>
+              </h2>
               
               {/* 对话历史 */}
               <div style={{
-                background: 'rgba(255,255,255,0.15)',
-                borderRadius: '10px',
-                padding: '15px',
-                marginBottom: '15px',
-                maxHeight: '300px',
-                overflowY: 'auto'
+                background: 'rgba(255,255,255,0.12)',
+                borderRadius: '15px',
+                padding: '25px',
+                marginBottom: '25px',
+                maxHeight: '500px',
+                overflowY: 'auto',
+                boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.1)'
               }}>
                 {conversationHistory.length === 0 ? (
-                  <div style={{ textAlign: 'center', opacity: 0.7, padding: '20px' }}>
+                  <div style={{ textAlign: 'center', opacity: 0.8, padding: '30px', fontSize: '1.1em' }}>
                     💡 您可以问Tom关于ROE、新闻影响、技术指标等问题
                   </div>
                 ) : (
                   conversationHistory.map((msg, idx) => (
                     <div key={idx} style={{
-                      marginBottom: '15px',
-                      padding: '12px',
-                      background: msg.role === 'user' ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)',
-                      borderRadius: '8px',
-                      borderLeft: msg.role === 'user' ? '4px solid #fff' : '4px solid #ffd700'
+                      marginBottom: '25px',
+                      padding: '18px 20px',
+                      background: msg.role === 'user' ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.25)',
+                      borderRadius: '12px',
+                      borderLeft: msg.role === 'user' ? '5px solid #fff' : '5px solid #ffd700',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
                     }}>
-                      <div style={{ fontWeight: 'bold', marginBottom: '5px', fontSize: '0.9em' }}>
+                      <div style={{ fontWeight: 'bold', marginBottom: '10px', fontSize: '1em' }}>
                         {msg.role === 'user' ? '👤 您' : '🤖 Tom'}
                       </div>
-                      <div style={{ lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+                      <div style={{ lineHeight: '1.8', whiteSpace: 'pre-wrap', fontSize: '1.05em' }}>
                         {msg.content}
                       </div>
                       
@@ -1713,79 +1386,76 @@ function StockAnalysis({ apiUrl }) {
                         </div>
                       )}
                       
-                      {/* 🆕 指标选择器提示 */}
-                      {msg.intent && msg.intent.show_indicator_selector && (
-                        <div style={{ marginTop: '15px', background: 'rgba(255,255,255,0.9)', padding: '12px', borderRadius: '8px', color: '#333' }}>
-                          💡 <strong>提示：</strong>您可以在上方"专业数据分析"区域点击"⚙️ 自定义指标"来选择您想看的指标
-                        </div>
-                      )}
                     </div>
                   ))
                 )}
               </div>
               
-              {/* 输入框 */}
-              <div style={{ display: 'flex', gap: '10px' }}>
+              {/* 输入框 - 优化版 */}
+              <div style={{ display: 'flex', gap: '15px' }}>
                 <input
                   type="text"
                   value={userMessage}
                   onChange={(e) => setUserMessage(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && !sendingMessage && sendMessageToTom()}
-                  placeholder="输入您的问题，例如：ROE为什么这么高？"
+                  placeholder="输入您的问题，例如：ROE为什么这么高？能看看价格走势吗？"
                   disabled={sendingMessage}
                   style={{
                     flex: 1,
-                    padding: '12px',
-                    borderRadius: '8px',
+                    padding: '16px 20px',
+                    borderRadius: '12px',
                     border: 'none',
-                    fontSize: '1em',
-                    background: 'rgba(255,255,255,0.9)'
+                    fontSize: '1.05em',
+                    background: 'rgba(255,255,255,0.95)',
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
                   }}
                 />
                 <button
                   onClick={sendMessageToTom}
                   disabled={sendingMessage || !userMessage.trim()}
                   style={{
-                    padding: '12px 25px',
-                    background: sendingMessage ? '#ccc' : 'rgba(255,255,255,0.3)',
-                    color: 'white',
-                    border: '2px solid white',
-                    borderRadius: '8px',
+                    padding: '16px 35px',
+                    background: sendingMessage ? '#ccc' : 'rgba(255,255,255,0.95)',
+                    color: sendingMessage ? '#666' : '#667eea',
+                    border: 'none',
+                    borderRadius: '12px',
                     cursor: sendingMessage ? 'not-allowed' : 'pointer',
                     fontWeight: 'bold',
-                    transition: 'all 0.3s'
+                    fontSize: '1.05em',
+                    transition: 'all 0.3s',
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
                   }}
                 >
                   {sendingMessage ? '⏳' : '发送'}
                 </button>
               </div>
               
-              {/* 策略生成按钮 */}
-              <div style={{ marginTop: '20px', textAlign: 'center' }}>
+              {/* 策略生成按钮 - 优化版 */}
+              <div style={{ marginTop: '30px', textAlign: 'center' }}>
                 <button
                   onClick={generateStrategy}
                   disabled={loading}
                   style={{
-                    padding: '15px 40px',
-                    background: loading ? '#ccc' : 'rgba(255,255,255,0.95)',
+                    padding: '18px 50px',
+                    background: loading ? '#ccc' : 'rgba(255,255,255,0.98)',
                     color: loading ? '#666' : '#667eea',
                     border: 'none',
-                    borderRadius: '10px',
-                    fontSize: '1.1em',
+                    borderRadius: '15px',
+                    fontSize: '1.2em',
                     fontWeight: 'bold',
                     cursor: loading ? 'not-allowed' : 'pointer',
-                    boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+                    boxShadow: '0 6px 20px rgba(0,0,0,0.25)',
                     transition: 'all 0.3s'
                   }}
                   onMouseEnter={(e) => {
                     if (!loading) {
-                      e.target.style.transform = 'translateY(-2px)';
-                      e.target.style.boxShadow = '0 6px 20px rgba(0,0,0,0.3)';
+                      e.target.style.transform = 'translateY(-3px)';
+                      e.target.style.boxShadow = '0 8px 25px rgba(0,0,0,0.35)';
                     }
                   }}
                   onMouseLeave={(e) => {
                     e.target.style.transform = 'translateY(0)';
-                    e.target.style.boxShadow = '0 4px 15px rgba(0,0,0,0.2)';
+                    e.target.style.boxShadow = '0 6px 20px rgba(0,0,0,0.25)';
                   }}
                 >
                   {loading ? '🔄 生成中...' : '🎯 生成交易策略（Jany）'}
