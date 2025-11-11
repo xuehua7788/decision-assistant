@@ -34,6 +34,12 @@ function StockAnalysis({ apiUrl }) {
   const [showIndicatorSelector, setShowIndicatorSelector] = useState(false);
   const [selectorCategory, setSelectorCategory] = useState('fundamental'); // 当前编辑的类别
   
+  // 新增：Tom对话相关状态
+  const [conversationHistory, setConversationHistory] = useState([]);
+  const [userMessage, setUserMessage] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [showChatWindow, setShowChatWindow] = useState(false);
+  
   // 可用指标定义
   const availableIndicators = {
     fundamental: [
@@ -356,7 +362,8 @@ function StockAnalysis({ apiUrl }) {
     }
   };
 
-  const analyzeStock = async () => {
+  // 🆕 新逻辑：Tom初步分析（不自动生成策略）
+  const tomInitialAnalysis = async () => {
     if (!stockData) {
       setError('请先搜索股票');
       return;
@@ -365,56 +372,146 @@ function StockAnalysis({ apiUrl }) {
     setLoading(true);
     setError('');
     setAnalysis(null);
+    setDualStrategyData(null); // 清空旧策略
+    setConversationHistory([]); // 清空对话历史
 
     try {
-      // 获取AI分析（传递用户自定义指标）
-      const analysisResponse = await fetch(`${apiUrl}/api/stock/analyze`, {
+      // 调用Tom初步分析API
+      const analysisResponse = await fetch(`${apiUrl}/api/chat/tom/initial-analysis`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           symbol: stockData.quote.symbol,
+          username: localStorage.getItem('username') || 'guest',
           investment_style: investmentStyle,
           news_context: newsContext,
-          user_opinion: userOpinion,
-          language: language,
-          custom_indicators: customIndicators  // 新增：传递用户自定义指标
+          user_opinion: userOpinion
         })
       });
 
       const analysisResult = await analysisResponse.json();
 
-      if (analysisResult.status === 'success') {
+      if (analysisResult.success) {
         setAnalysis(analysisResult.analysis);
-        
-        // 自动生成双策略（期权+股票）
-        try {
-          const currentUser = localStorage.getItem('username');
-          if (currentUser) {
-            const dualStrategyResponse = await fetch(`${apiUrl}/api/dual-strategy/generate`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                symbol: symbol,
-                username: currentUser,
-                notional_value: 30000,  // 增加到$30,000，确保至少能买1手期权
-                investment_style: investmentStyle,
-                ai_analysis: analysisResult.analysis  // 新增：传递AI分析结果用于智能匹配
-              })
-            });
-            
-            if (dualStrategyResponse.ok) {
-              const dualData = await dualStrategyResponse.json();
-              setDualStrategyData(dualData);
-              setStockStrategy(dualData.stock_strategy);
-              console.log('✅ 双策略生成成功:', dualData);
-            }
-          }
-        } catch (err) {
-          console.warn('双策略生成失败:', err);
-          // 不影响主流程，静默失败
-        }
+        setShowChatWindow(true); // 显示对话窗口
+        console.log('✅ Tom初步分析完成:', analysisResult.analysis);
       } else {
-        setError('AI分析失败: ' + analysisResult.message);
+        setError('Tom分析失败: ' + analysisResult.error);
+      }
+
+    } catch (err) {
+      setError('网络连接失败: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🆕 与Tom对话
+  const sendMessageToTom = async () => {
+    if (!userMessage.trim() || !analysis) {
+      return;
+    }
+
+    setSendingMessage(true);
+    const currentMessage = userMessage;
+    setUserMessage(''); // 清空输入框
+
+    try {
+      // 添加用户消息到对话历史
+      const newHistory = [
+        ...conversationHistory,
+        { role: 'user', content: currentMessage }
+      ];
+      setConversationHistory(newHistory);
+
+      // 构建股票上下文
+      const stockContext = {
+        symbol: stockData.quote.symbol,
+        current_price: stockData.quote.price,
+        investment_style: investmentStyle,
+        initial_analysis: analysis,
+        news_context: newsContext,
+        company_overview: stockData.premium_data?.company_overview,
+        technical_indicators: stockData.premium_data?.technical_indicators,
+        economic_data: stockData.premium_data?.economic_data
+      };
+
+      // 调用Tom对话API
+      const response = await fetch(`${apiUrl}/api/chat/tom/message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          symbol: stockData.quote.symbol,
+          user_message: currentMessage,
+          conversation_history: conversationHistory, // 传递之前的对话
+          stock_context: stockContext
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // 添加Tom的回复到对话历史（包含结构化数据）
+        setConversationHistory([
+          ...newHistory,
+          { 
+            role: 'assistant', 
+            content: result.tom_reply,
+            intent: result.intent,  // 用户意图
+            price_chart_data: result.price_chart_data,  // 价格图表数据
+            indicators_data: result.indicators_data  // 指标数据
+          }
+        ]);
+      } else {
+        setError('Tom回复失败: ' + result.error);
+      }
+
+    } catch (err) {
+      setError('发送消息失败: ' + err.message);
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
+  // 🆕 生成策略（Jany基于对话历史）
+  const generateStrategy = async () => {
+    if (!analysis) {
+      setError('请先进行Tom分析');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const currentUser = localStorage.getItem('username');
+      if (!currentUser) {
+        setError('请先登录');
+        return;
+      }
+
+      const response = await fetch(`${apiUrl}/api/dual-strategy/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          symbol: stockData.quote.symbol,
+          username: currentUser,
+          notional_value: 30000,
+          investment_style: investmentStyle,
+          ai_analysis: analysis,
+          conversation_history: conversationHistory // 🔑 关键：传递对话历史
+        })
+      });
+
+      if (response.ok) {
+        const dualData = await response.json();
+        setDualStrategyData(dualData);
+        setStockStrategy(dualData.stock_strategy);
+        console.log('✅ Jany策略生成成功（基于对话）:', dualData);
+        alert('✅ 策略生成成功！请查看下方的期权和股票策略对比。');
+      } else {
+        const errorData = await response.json();
+        setError('策略生成失败: ' + errorData.error);
       }
 
     } catch (err) {
@@ -1003,11 +1100,11 @@ function StockAnalysis({ apiUrl }) {
           />
         </div>
 
-        {/* AI分析按钮 */}
-        {stockData && (
+        {/* 🆕 AI综合分析按钮 */}
+        {stockData && !analysis && (
           <div style={{ marginTop: '20px', textAlign: 'center' }}>
             <button
-              onClick={analyzeStock}
+              onClick={tomInitialAnalysis}
               disabled={loading}
               style={{
                 padding: '15px 40px',
@@ -1527,6 +1624,179 @@ function StockAnalysis({ apiUrl }) {
                   {/* 接受/拒绝策略按钮 */}
                 </div>
               )}
+            </div>
+          )}
+          
+          {/* 🆕 Tom对话窗口 */}
+          {analysis && showChatWindow && (
+            <div style={{
+              marginTop: '30px',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              borderRadius: '15px',
+              padding: '25px',
+              color: 'white'
+            }}>
+              <h3 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                💬 与Tom讨论
+                <span style={{ fontSize: '0.7em', opacity: 0.8 }}>
+                  （有疑问？继续问Tom）
+                </span>
+              </h3>
+              
+              {/* 对话历史 */}
+              <div style={{
+                background: 'rgba(255,255,255,0.15)',
+                borderRadius: '10px',
+                padding: '15px',
+                marginBottom: '15px',
+                maxHeight: '300px',
+                overflowY: 'auto'
+              }}>
+                {conversationHistory.length === 0 ? (
+                  <div style={{ textAlign: 'center', opacity: 0.7, padding: '20px' }}>
+                    💡 您可以问Tom关于ROE、新闻影响、技术指标等问题
+                  </div>
+                ) : (
+                  conversationHistory.map((msg, idx) => (
+                    <div key={idx} style={{
+                      marginBottom: '15px',
+                      padding: '12px',
+                      background: msg.role === 'user' ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)',
+                      borderRadius: '8px',
+                      borderLeft: msg.role === 'user' ? '4px solid #fff' : '4px solid #ffd700'
+                    }}>
+                      <div style={{ fontWeight: 'bold', marginBottom: '5px', fontSize: '0.9em' }}>
+                        {msg.role === 'user' ? '👤 您' : '🤖 Tom'}
+                      </div>
+                      <div style={{ lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+                        {msg.content}
+                      </div>
+                      
+                      {/* 🆕 动态渲染价格图表 */}
+                      {msg.price_chart_data && msg.price_chart_data.length > 0 && (
+                        <div style={{ marginTop: '15px', background: 'rgba(255,255,255,0.9)', padding: '15px', borderRadius: '8px' }}>
+                          <div style={{ color: '#333', fontWeight: 'bold', marginBottom: '10px' }}>
+                            📈 价格走势图（最近30天）
+                          </div>
+                          <ResponsiveContainer width="100%" height={200}>
+                            <LineChart data={msg.price_chart_data}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                              <YAxis tick={{ fontSize: 10 }} />
+                              <Tooltip />
+                              <Line type="monotone" dataKey="close" stroke="#667eea" strokeWidth={2} dot={false} />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      )}
+                      
+                      {/* 🆕 动态渲染指标卡片 */}
+                      {msg.indicators_data && Object.keys(msg.indicators_data).length > 0 && (
+                        <div style={{ marginTop: '15px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
+                          {Object.entries(msg.indicators_data).map(([key, value]) => (
+                            <div key={key} style={{
+                              background: 'rgba(255,255,255,0.9)',
+                              padding: '12px',
+                              borderRadius: '8px',
+                              textAlign: 'center'
+                            }}>
+                              <div style={{ color: '#666', fontSize: '0.85em', marginBottom: '5px' }}>
+                                {key.toUpperCase()}
+                              </div>
+                              <div style={{ color: '#333', fontSize: '1.3em', fontWeight: 'bold' }}>
+                                {value || 'N/A'}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {/* 🆕 指标选择器提示 */}
+                      {msg.intent && msg.intent.show_indicator_selector && (
+                        <div style={{ marginTop: '15px', background: 'rgba(255,255,255,0.9)', padding: '12px', borderRadius: '8px', color: '#333' }}>
+                          💡 <strong>提示：</strong>您可以在上方"专业数据分析"区域点击"⚙️ 自定义指标"来选择您想看的指标
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+              
+              {/* 输入框 */}
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <input
+                  type="text"
+                  value={userMessage}
+                  onChange={(e) => setUserMessage(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && !sendingMessage && sendMessageToTom()}
+                  placeholder="输入您的问题，例如：ROE为什么这么高？"
+                  disabled={sendingMessage}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    fontSize: '1em',
+                    background: 'rgba(255,255,255,0.9)'
+                  }}
+                />
+                <button
+                  onClick={sendMessageToTom}
+                  disabled={sendingMessage || !userMessage.trim()}
+                  style={{
+                    padding: '12px 25px',
+                    background: sendingMessage ? '#ccc' : 'rgba(255,255,255,0.3)',
+                    color: 'white',
+                    border: '2px solid white',
+                    borderRadius: '8px',
+                    cursor: sendingMessage ? 'not-allowed' : 'pointer',
+                    fontWeight: 'bold',
+                    transition: 'all 0.3s'
+                  }}
+                >
+                  {sendingMessage ? '⏳' : '发送'}
+                </button>
+              </div>
+              
+              {/* 策略生成按钮 */}
+              <div style={{ marginTop: '20px', textAlign: 'center' }}>
+                <button
+                  onClick={generateStrategy}
+                  disabled={loading}
+                  style={{
+                    padding: '15px 40px',
+                    background: loading ? '#ccc' : 'rgba(255,255,255,0.95)',
+                    color: loading ? '#666' : '#667eea',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontSize: '1.1em',
+                    fontWeight: 'bold',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+                    transition: 'all 0.3s'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!loading) {
+                      e.target.style.transform = 'translateY(-2px)';
+                      e.target.style.boxShadow = '0 6px 20px rgba(0,0,0,0.3)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = 'translateY(0)';
+                    e.target.style.boxShadow = '0 4px 15px rgba(0,0,0,0.2)';
+                  }}
+                >
+                  {loading ? '🔄 生成中...' : '🎯 生成交易策略（Jany）'}
+                </button>
+                <div style={{ marginTop: '10px', fontSize: '0.9em', opacity: 0.9 }}>
+                  💡 满意Tom的分析后，点击此按钮让Jany生成具体交易策略
+                </div>
+                {conversationHistory.length > 0 && (
+                  <div style={{ marginTop: '5px', fontSize: '0.85em', opacity: 0.8 }}>
+                    ✅ Jany将基于您与Tom的{conversationHistory.length}条对话生成策略
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
