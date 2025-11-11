@@ -61,6 +61,28 @@ def get_stock_data(symbol):
     
     return None
 
+def get_option_chain(symbol):
+    """
+    获取期权链数据（Alpha Vantage HISTORICAL_OPTIONS）
+    """
+    API_KEY = os.getenv('ALPHA_VANTAGE_KEY', 'OIYWUJEPSR9RQAGU')
+    url = f'https://www.alphavantage.co/query?function=HISTORICAL_OPTIONS&symbol={symbol}&apikey={API_KEY}'
+    
+    try:
+        response = requests.get(url, timeout=15)
+        data = response.json()
+        
+        if 'data' in data and len(data['data']) > 0:
+            print(f"✅ 获取到 {len(data['data'])} 个期权")
+            return data
+        else:
+            print(f"⚠️ Alpha Vantage返回空数据")
+            return None
+            
+    except Exception as e:
+        print(f"❌ 获取期权链失败: {e}")
+        return None
+
 def get_option_data(symbol, current_price, option_type='call', days_to_expiry=90):
     """
     从Alpha Vantage获取真实期权数据（包括Delta）
@@ -479,14 +501,15 @@ def generate_dual_strategy(symbol, current_price, notional_value, investment_sty
 @dual_strategy_bp.route('/api/dual-strategy/generate', methods=['POST'])
 def generate_strategy():
     """
-    生成双策略推荐
+    生成双策略推荐（使用AI Agent Jany）
     
     请求体：
     {
         "symbol": "AAPL",
         "username": "bbb",
         "notional_value": 10000,  // 名义本金
-        "investment_style": "aggressive"  // 可选
+        "investment_style": "aggressive",  // 可选
+        "ai_analysis": {...}  // Tom的分析结果
     }
     """
     try:
@@ -495,10 +518,16 @@ def generate_strategy():
         username = data.get('username')
         notional_value = float(data.get('notional_value', 30000))  # 默认$30,000
         investment_style = data.get('investment_style', 'balanced')
-        ai_analysis = data.get('ai_analysis')  # 新增：接收AI分析结果
+        ai_analysis = data.get('ai_analysis')  # Tom的分析结果
+        conversation_history = data.get('conversation_history', [])  # 新增：对话历史
         
         if not symbol or not username:
             return jsonify({'error': '缺少必要参数'}), 400
+        
+        if not ai_analysis:
+            return jsonify({'error': '缺少AI分析结果'}), 400
+        
+        print(f"🎯 开始生成策略: {symbol}, 风格: {investment_style}, 名义本金: ${notional_value}")
         
         # 获取实时股价
         stock_data = get_stock_data(symbol)
@@ -506,11 +535,48 @@ def generate_strategy():
             return jsonify({'error': '无法获取股票数据'}), 500
         
         current_price = stock_data['price']
+        print(f"   当前价格: ${current_price}")
         
-        # 生成双策略（智能匹配）
-        option_strategy, stock_strategy, explanation = generate_dual_strategy(
-            symbol, current_price, notional_value, investment_style, ai_analysis
-        )
+        # 获取Alpha Vantage期权链数据
+        option_chain_data = get_option_chain(symbol)
+        if not option_chain_data:
+            return jsonify({'error': '无法获取期权数据'}), 500
+        
+        print(f"   期权数据: {len(option_chain_data.get('data', []))}个期权")
+        
+        # 🤖 使用AI Agent Jany生成策略（替代硬编码逻辑）
+        try:
+            from ai_strategy_agent import get_ai_strategy_agent
+            
+            jany = get_ai_strategy_agent()
+            strategy_result = jany.generate_trading_strategy(
+                symbol=symbol,
+                current_price=current_price,
+                tom_analysis=ai_analysis,
+                option_chain_data=option_chain_data,
+                investment_style=investment_style,
+                notional_value=notional_value,
+                conversation_history=conversation_history  # 新增：传递对话历史
+            )
+            
+            if not strategy_result:
+                return jsonify({'error': 'AI策略生成失败'}), 500
+            
+            # 提取策略
+            option_strategy = strategy_result.get('option_strategy')
+            stock_strategy = strategy_result.get('stock_strategy')
+            explanation = strategy_result.get('explanation', '')
+            
+            print(f"✅ AI策略生成成功")
+            print(f"   期权: {option_strategy.get('type')} @ ${option_strategy.get('strike_price')}")
+            print(f"   股票: {stock_strategy.get('shares')}股 @ ${stock_strategy.get('entry_price')}")
+            
+        except ImportError as e:
+            print(f"⚠️ AI策略Agent不可用，降级到传统逻辑: {e}")
+            # 降级：使用原来的逻辑
+            option_strategy, stock_strategy, explanation = generate_dual_strategy(
+                symbol, current_price, notional_value, investment_style, ai_analysis
+            )
         
         # 生成策略ID
         strategy_id = f"{symbol}_{int(datetime.now().timestamp())}_{investment_style}"

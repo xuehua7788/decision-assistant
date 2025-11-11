@@ -172,6 +172,14 @@ try:
     print("✅ 平仓API已注册")
 except ImportError as e:
     print(f"⚠️ 平仓API导入失败: {e}")
+
+# 导入Tom对话API
+try:
+    from chat_with_tom_api import chat_tom_bp
+    app.register_blueprint(chat_tom_bp)
+    print("✅ Tom对话API已注册")
+except ImportError as e:
+    print(f"⚠️ Tom对话API导入失败: {e}")
 print("ℹ️  旧的strategy_storage_api已禁用，策略API现在在app.py中")
 
 # 导入期权策略处理器
