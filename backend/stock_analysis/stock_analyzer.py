@@ -33,7 +33,8 @@ class StockAnalyzer:
                      investment_style: str = None,
                      company_overview: Dict = None,
                      technical_indicators: Dict = None,
-                     economic_data: Dict = None) -> Optional[Dict]:
+                     economic_data: Dict = None,
+                     custom_indicators: Dict = None) -> Optional[Dict]:
         """
         分析股票并给出投资建议
         
@@ -68,7 +69,7 @@ class StockAnalyzer:
             system_prompt = self._build_system_prompt(risk_preference, language, investment_style, current_data.get('name', symbol))
             user_prompt = self._build_user_prompt(
                 symbol, current_data, history_data, rsi, user_opinion, news_context, language,
-                company_overview, technical_indicators, economic_data
+                company_overview, technical_indicators, economic_data, custom_indicators
             )
             
             # 调用DeepSeek API
@@ -200,7 +201,11 @@ class StockAnalyzer:
 - "bearish": 看跌（技术面走弱 + 新闻利空 + 明确建议卖出）
 - "neutral": 震荡/观望（信号不明确、谨慎、不是买入时候、小仓位试探）
 
-**⚠️ 重要**：如果strategy中提到"不是买入时候"、"观望"、"谨慎"、"小仓位"，必须设置market_direction为"neutral"！
+**⚠️⚠️⚠️ 极其重要 - market_direction与strategy必须完全一致！**
+- 如果strategy中提到"不是买入时候"、"观望"、"谨慎"、"小仓位"、"等待"、"选择"、"犹豫"、"不确定"，必须设置market_direction为"neutral"！
+- 如果你不确定或犹豫，不要说"bullish"，直接说"neutral"！
+- 如果你的文字建议是观望，market_direction必须是"neutral"，不能是"bullish"或"bearish"！
+- 检查：你的strategy文字和market_direction是否一致？如果不一致，修改market_direction！
 
 **direction_strength说明**：
 - "strong": 强烈（评分>80或<20，明确看涨或看跌）
@@ -238,7 +243,8 @@ class StockAnalyzer:
                           language: str = "zh",
                           company_overview: Dict = None,
                           technical_indicators: Dict = None,
-                          economic_data: Dict = None) -> str:
+                          economic_data: Dict = None,
+                          custom_indicators: Dict = None) -> str:
         """构建用户提示词"""
         
         # 计算最近5天涨跌
@@ -400,6 +406,54 @@ class StockAnalyzer:
         if user_opinion:
             prompt += f"\n\n**用户观点/研报**:\n{user_opinion}"
             prompt += "\n\n⚠️ 重要：请务必在key_points中包含一条「用户观点评估」，评估观点的合理性，并在analysis_summary中总结您对用户观点的看法。"
+        
+        # 添加用户自定义关注指标
+        if custom_indicators:
+            prompt += "\n\n**用户特别关注的指标**:"
+            prompt += "\n（用户在专业数据分析中自定义选择了以下指标，请在分析中重点关注这些指标）"
+            
+            if custom_indicators.get('fundamental'):
+                indicator_names = {
+                    'market_cap': '市值',
+                    'pe_ratio': '市盈率P/E',
+                    'eps': '每股收益EPS',
+                    'roe': 'ROE',
+                    'profit_margin': '利润率',
+                    'dividend_yield': '股息率',
+                    'peg_ratio': 'PEG比率',
+                    'debt_to_equity': '负债率',
+                    'current_ratio': '流动比率',
+                    'book_value': '账面价值'
+                }
+                selected_names = [indicator_names.get(ind, ind) for ind in custom_indicators['fundamental']]
+                prompt += f"\n- 基本面: {', '.join(selected_names)}"
+            
+            if custom_indicators.get('technical'):
+                indicator_names = {
+                    'rsi': 'RSI(14)',
+                    'macd': 'MACD',
+                    'atr': 'ATR(14)',
+                    'bbands': '布林带位置',
+                    'sma_50': 'SMA(50)',
+                    'sma_200': 'SMA(200)',
+                    'volume': '成交量',
+                    'volatility': '波动率'
+                }
+                selected_names = [indicator_names.get(ind, ind) for ind in custom_indicators['technical']]
+                prompt += f"\n- 技术面: {', '.join(selected_names)}"
+            
+            if custom_indicators.get('macro'):
+                indicator_names = {
+                    'cpi': 'CPI通胀率',
+                    'unemployment': '失业率',
+                    'fed_rate': '联邦利率',
+                    'gdp_growth': 'GDP增长',
+                    'treasury_yield': '国债收益率'
+                }
+                selected_names = [indicator_names.get(ind, ind) for ind in custom_indicators['macro']]
+                prompt += f"\n- 宏观面: {', '.join(selected_names)}"
+            
+            prompt += "\n\n⚠️ 重要：请在analysis_summary中重点分析用户关注的这些指标，并在key_points中至少包含一条关于这些指标的分析要点。"
         
         prompt += "\n\n请按照系统提示的JSON格式返回分析结果。"
         

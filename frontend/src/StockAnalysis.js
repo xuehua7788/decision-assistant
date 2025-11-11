@@ -367,7 +367,7 @@ function StockAnalysis({ apiUrl }) {
     setAnalysis(null);
 
     try {
-      // 获取AI分析
+      // 获取AI分析（传递用户自定义指标）
       const analysisResponse = await fetch(`${apiUrl}/api/stock/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -376,7 +376,8 @@ function StockAnalysis({ apiUrl }) {
           investment_style: investmentStyle,
           news_context: newsContext,
           user_opinion: userOpinion,
-          language: language
+          language: language,
+          custom_indicators: customIndicators  // 新增：传递用户自定义指标
         })
       });
 

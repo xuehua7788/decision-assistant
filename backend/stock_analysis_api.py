@@ -305,6 +305,7 @@ def analyze_stock():
         user_opinion = data.get('user_opinion', '').strip()
         news_context = data.get('news_context', '').strip()
         language = data.get('language', 'zh')  # 默认中文
+        custom_indicators = data.get('custom_indicators', None)  # 新增：用户自定义指标
         
         if not symbol:
             return jsonify({
@@ -328,6 +329,13 @@ def analyze_stock():
             print(f"   新闻消息内容: {news_context[:50]}...", flush=True)
         else:
             print(f"   ⚠️ 新闻消息为空", flush=True)
+        if custom_indicators:
+            print(f"   🎯 用户自定义指标:", flush=True)
+            print(f"      基本面: {custom_indicators.get('fundamental', [])}", flush=True)
+            print(f"      技术面: {custom_indicators.get('technical', [])}", flush=True)
+            print(f"      宏观面: {custom_indicators.get('macro', [])}", flush=True)
+        else:
+            print(f"   ⚠️ 未提供自定义指标，使用默认配置", flush=True)
         sys.stdout.flush()
         
         # 获取股票数据
@@ -400,7 +408,8 @@ def analyze_stock():
                 'cpi': cpi_data,
                 'unemployment': unemployment_data,
                 'fed_rate': fed_rate_data
-            }
+            },
+            custom_indicators=custom_indicators  # 新增：传递用户自定义指标
         )
         
         if not analysis:

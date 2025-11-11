@@ -185,14 +185,26 @@ def smart_strategy_matching(ai_analysis, investment_style, current_price):
     recommendation = ai_analysis.get('recommendation', '观望') if ai_analysis else '观望'
     strategy_text = ai_analysis.get('strategy', '') if ai_analysis else ''
     
-    # ✅ 新增：检查AI文字内容，修正market_direction
-    # 如果AI文字说"不是买入时候"、"观望"、"谨慎"等，修正为neutral
-    caution_keywords = ['不是', '观望', '谨慎', '小仓位', '等待', '不建议', '避免']
-    if strategy_text and any(keyword in strategy_text for keyword in caution_keywords):
-        if market_direction == 'bullish' and score < 70:
-            print(f"⚠️ AI文字谨慎但direction=bullish，修正为neutral")
-            market_direction = 'neutral'
-            direction_strength = 'weak'
+    # ✅ 增强：检查AI文字内容，识别犹豫/谨慎态度
+    # 如果AI文字说"不是买入时候"、"观望"、"谨慎"、"选择一个"等，修正为neutral
+    caution_keywords = ['不是', '观望', '谨慎', '小仓位', '等待', '不建议', '避免', '选择', '犹豫', '不确定', '风险', '回调']
+    hesitation_detected = False
+    
+    if strategy_text:
+        # 检查是否有谨慎关键词
+        caution_count = sum(1 for keyword in caution_keywords if keyword in strategy_text)
+        
+        # 如果有2个以上谨慎关键词，或者明确说"不是买入时候"
+        if caution_count >= 2 or '不是' in strategy_text or '选择' in strategy_text:
+            hesitation_detected = True
+            print(f"⚠️ AI表达犹豫/谨慎（关键词数：{caution_count}），文字内容：{strategy_text[:100]}...")
+            
+            # 如果market_direction与文字不一致，修正为neutral
+            if market_direction in ['bullish', 'bearish']:
+                print(f"   修正：{market_direction} → neutral")
+                market_direction = 'neutral'
+                direction_strength = 'weak'
+                recommendation = '观望'
     
     print(f"🧠 智能匹配: score={score}, direction={market_direction}, strength={direction_strength}, style={investment_style}, recommendation={recommendation}")
     
