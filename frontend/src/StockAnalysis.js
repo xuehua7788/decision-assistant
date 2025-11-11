@@ -159,8 +159,9 @@ function StockAnalysis({ apiUrl }) {
               body: JSON.stringify({
                 symbol: symbol,
                 username: currentUser,
-                notional_value: 10000,
-                investment_style: investmentStyle
+                notional_value: 30000,  // 增加到$30,000，确保至少能买1手期权
+                investment_style: investmentStyle,
+                ai_analysis: analysisResult.analysis  // 新增：传递AI分析结果用于智能匹配
               })
             });
             
@@ -297,6 +298,21 @@ function StockAnalysis({ apiUrl }) {
           🎯 双策略推荐（请选择一个）
         </h3>
         
+        {/* 智能匹配推荐理由 */}
+        {dualStrategyData.explanation && (
+          <div style={{
+            padding: '15px',
+            background: 'rgba(255,255,255,0.2)',
+            borderRadius: '10px',
+            marginBottom: '20px',
+            fontSize: '0.95em',
+            lineHeight: '1.6'
+          }}>
+            <strong>🤖 AI智能推荐：</strong>
+            <br/>{dualStrategyData.explanation}
+          </div>
+        )}
+        
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
           {/* 期权策略 */}
           <div style={{
@@ -310,12 +326,11 @@ function StockAnalysis({ apiUrl }) {
             </h4>
             <div style={{ fontSize: '0.95em', lineHeight: '1.8' }}>
               <div><strong>类型:</strong> {optionData.type}</div>
-              <div><strong>合约数:</strong> {optionData.contracts}手</div>
+              <div><strong>等价股数:</strong> {optionData.equivalent_shares}股</div>
               <div><strong>执行价:</strong> ${optionData.strike_price}</div>
               <div><strong>到期日:</strong> {optionData.expiry_date} ({optionData.days_to_expiry}天)</div>
               <div><strong>期权费:</strong> ${optionData.premium.toFixed(2)}</div>
-              <div><strong>单个Delta:</strong> {optionData.delta.toFixed(4)}</div>
-              <div><strong>组合Delta:</strong> {optionData.portfolio_delta.toFixed(2)}</div>
+              <div><strong>Delta:</strong> {optionData.delta.toFixed(4)}</div>
               {optionData.data_source && (
                 <div style={{ marginTop: '10px', fontSize: '0.85em', opacity: 0.9 }}>
                   📡 {optionData.data_source}
@@ -355,11 +370,11 @@ function StockAnalysis({ apiUrl }) {
               <div><strong>类型:</strong> {stockData.type}</div>
               <div><strong>股数:</strong> {stockData.shares}股</div>
               <div><strong>入场价:</strong> ${stockData.entry_price.toFixed(2)}</div>
-              <div><strong>总金额:</strong> ${stockData.amount.toFixed(2)}</div>
+              <div><strong>名义本金:</strong> ${stockData.notional.toFixed(2)}</div>
               <div><strong>保证金:</strong> ${stockData.margin.toFixed(2)}</div>
               <div><strong>止损价:</strong> ${stockData.stop_loss.toFixed(2)}</div>
               <div><strong>止盈价:</strong> ${stockData.take_profit.toFixed(2)}</div>
-              <div><strong>基于组合Delta:</strong> {stockData.portfolio_delta.toFixed(2)}</div>
+              <div><strong>对应Delta:</strong> {stockData.delta.toFixed(4)}</div>
             </div>
             <button
               onClick={() => acceptStrategy(2)}
@@ -391,7 +406,12 @@ function StockAnalysis({ apiUrl }) {
           <strong>💡 提示:</strong> 选择一个策略后，系统将创建A/B对照组：
           <br/>• A组：您选择的策略（实盘交易）
           <br/>• B组：未选择的策略（虚拟跟踪）
-          <br/>这样您可以对比两种策略的实际表现！
+          <br/>• 这样您可以对比两种策略的实际表现！
+          <br/><br/>
+          <strong>📌 关于Delta One策略：</strong>
+          <br/>• 期权Delta = {dualStrategyData?.option_strategy?.delta.toFixed(4)}
+          <br/>• 股票名义本金 = 期权名义本金 × Delta = ${dualStrategyData?.stock_strategy?.notional.toFixed(2)}
+          <br/>• 两个策略的风险敞口相当，便于公平对比
         </div>
       </div>
     );

@@ -162,28 +162,195 @@ def calculate_option_delta(option_type, strike_price, current_price, days_to_exp
     
     return round(delta, 4)
 
-def generate_dual_strategy(symbol, current_price, notional_value, investment_style='balanced'):
+def smart_strategy_matching(ai_analysis, investment_style, current_price):
     """
-    生成双策略：期权 + Delta One股票
+    智能策略匹配：根据AI分析结果和用户风格推荐最优策略
+    
+    参数:
+    - ai_analysis: AI分析结果 {score, market_direction, direction_strength, ...}
+    - investment_style: 用户投资风格 (aggressive/balanced/conservative/buffett/lynch/soros)
+    - current_price: 当前股价
+    
+    返回:
+    - option_type: 'call' / 'put' / 'none'
+    - strike_offset: 执行价偏移（0=平值，正数=虚值，负数=实值）
+    - strategy_name: 策略名称
+    - explanation: 推荐理由
+    """
+    
+    # 提取AI分析结果
+    score = ai_analysis.get('score', 50) if ai_analysis else 50
+    market_direction = ai_analysis.get('market_direction', 'neutral') if ai_analysis else 'neutral'
+    direction_strength = ai_analysis.get('direction_strength', 'moderate') if ai_analysis else 'moderate'
+    
+    print(f"🧠 智能匹配: score={score}, direction={market_direction}, strength={direction_strength}, style={investment_style}")
+    
+    # ========== 强烈看涨 ==========
+    if market_direction == 'bullish' and direction_strength == 'strong' and score > 80:
+        if investment_style in ['aggressive', 'momentum', 'soros']:
+            return {
+                'option_type': 'call',
+                'strike_offset': 0.03,  # 虚值3%
+                'strategy_name': 'Long Call（略虚值）',
+                'explanation': f'AI强烈看涨（评分{score}），{investment_style}风格适合高杠杆Call期权，执行价略高于当前价3%'
+            }
+        elif investment_style in ['conservative', 'value', 'buffett']:
+            return {
+                'option_type': 'call',
+                'strike_offset': 0,
+                'strategy_name': 'Long Call（平值）',
+                'explanation': f'AI强烈看涨（评分{score}），{investment_style}风格建议平值Call期权，风险适中'
+            }
+        else:  # balanced, lynch
+            return {
+                'option_type': 'call',
+                'strike_offset': 0,
+                'strategy_name': 'Long Call（平值）',
+                'explanation': f'AI强烈看涨（评分{score}），{investment_style}风格适合平值Call期权'
+            }
+    
+    # ========== 一般看涨 ==========
+    elif market_direction == 'bullish' and score >= 60:
+        if investment_style in ['aggressive', 'momentum', 'soros']:
+            return {
+                'option_type': 'call',
+                'strike_offset': 0,
+                'strategy_name': 'Long Call（平值）',
+                'explanation': f'AI看涨（评分{score}），{investment_style}风格适合Call期权'
+            }
+        elif investment_style in ['conservative', 'value', 'buffett']:
+            return {
+                'option_type': 'call',
+                'strike_offset': -0.02,  # 略实值
+                'strategy_name': 'Long Call（略实值）',
+                'explanation': f'AI看涨（评分{score}），{investment_style}风格建议略实值Call，更稳健'
+            }
+        else:  # balanced, lynch
+            return {
+                'option_type': 'call',
+                'strike_offset': 0,
+                'strategy_name': 'Long Call（平值）',
+                'explanation': f'AI看涨（评分{score}），{investment_style}风格适度参与'
+            }
+    
+    # ========== 震荡/不确定 ==========
+    elif market_direction == 'neutral' or (40 <= score <= 60):
+        if investment_style in ['aggressive', 'momentum', 'soros']:
+            return {
+                'option_type': 'call',
+                'strike_offset': 0,
+                'strategy_name': 'Long Call（谨慎）',
+                'explanation': f'AI判断震荡（评分{score}），方向不明确，{investment_style}风格可谨慎参与，建议小仓位'
+            }
+        else:
+            return {
+                'option_type': 'call',
+                'strike_offset': 0,
+                'strategy_name': 'Long Call（观望为主）',
+                'explanation': f'AI判断震荡（评分{score}），信号不明确，{investment_style}风格建议观望或小仓位'
+            }
+    
+    # ========== 一般看跌 ==========
+    elif market_direction == 'bearish' and score >= 20:
+        if investment_style in ['aggressive', 'momentum', 'soros']:
+            return {
+                'option_type': 'put',
+                'strike_offset': 0,
+                'strategy_name': 'Long Put（平值）',
+                'explanation': f'AI看跌（评分{score}），{investment_style}风格适合Put期权做空'
+            }
+        elif investment_style in ['conservative', 'value', 'buffett']:
+            return {
+                'option_type': 'put',
+                'strike_offset': -0.05,  # 虚值5%（Put的虚值是执行价更低）
+                'strategy_name': 'Long Put（略虚值）',
+                'explanation': f'AI看跌（评分{score}），{investment_style}风格建议略虚值Put作为对冲'
+            }
+        else:  # balanced, lynch
+            return {
+                'option_type': 'put',
+                'strike_offset': 0,
+                'strategy_name': 'Long Put（平值）',
+                'explanation': f'AI看跌（评分{score}），{investment_style}风格适度做空'
+            }
+    
+    # ========== 强烈看跌 ==========
+    elif market_direction == 'bearish' and direction_strength == 'strong' and score < 20:
+        if investment_style in ['aggressive', 'momentum', 'soros']:
+            return {
+                'option_type': 'put',
+                'strike_offset': -0.03,  # 虚值3%
+                'strategy_name': 'Long Put（略虚值）',
+                'explanation': f'AI强烈看跌（评分{score}），{investment_style}风格适合高杠杆Put期权'
+            }
+        elif investment_style in ['conservative', 'value', 'buffett']:
+            return {
+                'option_type': 'put',
+                'strike_offset': 0,
+                'strategy_name': 'Long Put（平值）',
+                'explanation': f'AI强烈看跌（评分{score}），{investment_style}风格建议平值Put避险'
+            }
+        else:  # balanced, lynch
+            return {
+                'option_type': 'put',
+                'strike_offset': 0,
+                'strategy_name': 'Long Put（平值）',
+                'explanation': f'AI强烈看跌（评分{score}），{investment_style}风格适度做空'
+            }
+    
+    # ========== 默认（降级：只根据投资风格） ==========
+    else:
+        print(f"⚠️ AI分析不明确，降级到投资风格匹配")
+        if investment_style in ['aggressive', 'momentum']:
+            return {
+                'option_type': 'call',
+                'strike_offset': 0,
+                'strategy_name': 'Long Call（默认）',
+                'explanation': f'{investment_style}风格默认看涨策略'
+            }
+        elif investment_style in ['conservative', 'value', 'buffett']:
+            return {
+                'option_type': 'call',
+                'strike_offset': -0.02,
+                'strategy_name': 'Long Call（略实值）',
+                'explanation': f'{investment_style}风格默认稳健策略'
+            }
+        else:
+            return {
+                'option_type': 'call',
+                'strike_offset': 0,
+                'strategy_name': 'Long Call（默认）',
+                'explanation': f'{investment_style}风格默认平衡策略'
+            }
+
+def generate_dual_strategy(symbol, current_price, notional_value, investment_style='balanced', ai_analysis=None):
+    """
+    生成双策略：期权 + Delta One股票（智能匹配版）
     
     参数：
     - symbol: 股票代码
     - current_price: 当前股价
     - notional_value: 名义本金（两策略相同）
     - investment_style: 投资风格（影响期权选择）
+    - ai_analysis: AI分析结果（可选，用于智能匹配）
     
     返回：
     - option_strategy: 期权策略详情（使用Alpha Vantage真实数据）
-    - stock_strategy: 股票策略详情（基于期权组合Delta计算）
+    - stock_strategy: 股票策略详情（基于期权Delta计算）
+    - explanation: 策略推荐理由
     """
     
-    # 1. 根据投资风格选择期权类型
-    if investment_style in ['aggressive', 'momentum']:
-        option_type = 'call'
-    elif investment_style in ['conservative', 'value']:
-        option_type = 'put'
-    else:  # balanced
-        option_type = 'call'
+    # 1. 智能匹配策略
+    strategy_match = smart_strategy_matching(ai_analysis, investment_style, current_price)
+    
+    option_type = strategy_match['option_type']
+    strike_offset = strategy_match['strike_offset']
+    strategy_name = strategy_match['strategy_name']
+    explanation = strategy_match['explanation']
+    
+    print(f"✅ 智能匹配结果: {strategy_name}")
+    print(f"   推荐理由: {explanation}")
+    print(f"   期权类型: {option_type}, 执行价偏移: {strike_offset*100:.1f}%")
     
     # 2. 从Alpha Vantage获取真实期权数据
     real_option = get_option_data(symbol, current_price, option_type=option_type, days_to_expiry=90)
@@ -196,17 +363,14 @@ def generate_dual_strategy(symbol, current_price, notional_value, investment_sty
         option_delta = real_option['delta']  # 单个期权的Delta
         implied_volatility = real_option['implied_volatility']
         
-        # 计算合约数量（名义本金 / 每手价值）
-        contracts = int(notional_value / (current_price * 100))
+        # ✅ 正确的期权费计算逻辑：
+        # 期权费 = (名义本金 / 股价) × 期权价格
+        equivalent_shares = notional_value / current_price  # 等价股数
+        option_price_per_share = real_option['premium']  # Alpha Vantage返回的单股期权价格
+        total_premium = equivalent_shares * option_price_per_share
         
-        # 使用真实期权价格（mark价格）
-        premium_per_contract = real_option['premium'] * 100  # mark价格×100股
-        total_premium = premium_per_contract * contracts
-        
-        # ✅ 正确的组合Delta计算：
-        # 组合Delta = 单个期权Delta（这里就是组合的净Delta）
-        # 因为名义本金已经确定，Delta直接表示相对于名义本金的敏感度
-        portfolio_delta = option_delta  # 对于单个期权，就是其Delta值
+        # Delta就是单个期权的Delta（不需要组合计算）
+        # Alpha Vantage返回的是单股期权的Delta
         
         option_strategy = {
             'type': option_type.upper(),
@@ -215,17 +379,15 @@ def generate_dual_strategy(symbol, current_price, notional_value, investment_sty
             'expiry_date': expiry_date.isoformat(),
             'days_to_expiry': days_to_expiry,
             'premium': round(total_premium, 2),
-            'premium_per_contract': round(premium_per_contract, 2),
-            'delta': option_delta,  # 期权Delta（也是组合Delta）
-            'portfolio_delta': round(portfolio_delta, 4),  # 组合Delta（相对于名义本金）
+            'equivalent_shares': round(equivalent_shares, 2),  # 等价股数
+            'delta': option_delta,  # 单个期权的Delta
             'gamma': real_option['gamma'],
             'theta': real_option['theta'],
             'vega': real_option['vega'],
             'implied_volatility': round(implied_volatility, 4),
             'notional_value': notional_value,
-            'contracts': contracts,
             'data_source': 'Alpha Vantage Real Data',
-            'description': f"{option_type.upper()} 期权 x{contracts}手，执行价 ${strike_price:.2f}，{days_to_expiry}天到期，组合Delta={portfolio_delta:.4f}"
+            'description': f"{option_type.upper()} 期权，等价{equivalent_shares:.2f}股，执行价 ${strike_price:.2f}，{days_to_expiry}天到期，Delta={option_delta:.4f}"
         }
         
         print(f"✅ 使用真实期权: Delta={option_delta:.4f}, 名义本金=${notional_value}")
@@ -236,15 +398,14 @@ def generate_dual_strategy(symbol, current_price, notional_value, investment_sty
         days_to_expiry = 90
         expiry_date = (datetime.now() + timedelta(days=days_to_expiry)).date()
         
-        if option_type == 'call':
-            strike_price = current_price  # 平值
-        else:
-            strike_price = current_price * 0.95
+        # 根据strike_offset调整执行价
+        strike_price = current_price * (1 + strike_offset)
         
         option_delta = calculate_option_delta(option_type.upper(), strike_price, current_price, days_to_expiry)
-        contracts = int(notional_value / (current_price * 100))
-        portfolio_delta = option_delta  # 简化：单个期权的Delta
-        option_premium = notional_value * 0.04  # 简化：4%
+        
+        # 简化计算
+        equivalent_shares = notional_value / current_price
+        option_premium = notional_value * 0.04  # 简化：期权费为名义本金的4%
         
         option_strategy = {
             'type': option_type.upper(),
@@ -253,22 +414,20 @@ def generate_dual_strategy(symbol, current_price, notional_value, investment_sty
             'expiry_date': expiry_date.isoformat(),
             'days_to_expiry': days_to_expiry,
             'premium': round(option_premium, 2),
+            'equivalent_shares': round(equivalent_shares, 2),
             'delta': option_delta,
-            'portfolio_delta': round(portfolio_delta, 4),
             'notional_value': notional_value,
-            'contracts': contracts,
             'data_source': 'Simplified Calculation',
-            'description': f"{option_type.upper()} 期权 x{contracts}手（简化），执行价 ${strike_price:.2f}"
+            'description': f"{option_type.upper()} 期权（简化），等价{equivalent_shares:.2f}股，执行价 ${strike_price:.2f}"
         }
     
-    # 3. 生成Delta One股票策略（基于组合Delta和名义本金）
-    # ✅ 正确公式：
-    # 股票金额 = 名义本金 × 组合Delta
-    # 股票保证金 = 股票金额 × 10%
-    portfolio_delta_value = option_strategy['portfolio_delta']
-    stock_amount = notional_value * abs(portfolio_delta_value)  # 名义本金 × Delta
-    stock_margin = stock_amount * 0.1  # 10%保证金
-    stock_shares = int(stock_amount / current_price)  # 股票数量 = 金额 / 股价
+    # 3. 生成Delta One股票策略
+    # ✅ 正确公式：股票名义本金 = 期权名义本金 × Delta
+    # 股票保证金 = 股票名义本金 × 10%
+    option_delta_value = option_strategy['delta']
+    stock_notional = notional_value * abs(option_delta_value)  # 股票名义本金 = 期权名义本金 × Delta
+    stock_margin = stock_notional * 0.1  # 10%保证金
+    stock_shares = int(stock_notional / current_price)  # 股票数量
     
     # 设置止盈止损
     if option_type == 'call':
@@ -282,19 +441,17 @@ def generate_dual_strategy(symbol, current_price, notional_value, investment_sty
     
     stock_strategy = {
         'type': position_type,
-        'amount': round(stock_amount, 2),
+        'notional': round(stock_notional, 2),  # 股票名义本金
         'margin': round(stock_margin, 2),
         'shares': stock_shares,
         'entry_price': current_price,
         'stop_loss': round(stop_loss, 2),
         'take_profit': round(take_profit, 2),
-        'delta': option_strategy['delta'],
-        'portfolio_delta': portfolio_delta_value,
-        'notional_value': notional_value,
-        'description': f"{position_type} {stock_shares}股（名义本金${notional_value} × Delta{portfolio_delta_value:.4f} = ${stock_amount:.2f}），保证金 ${stock_margin:.2f}"
+        'delta': option_delta_value,  # 对应的Delta
+        'description': f"{position_type} {stock_shares}股，名义本金 ${stock_notional:.2f}（期权本金${notional_value} × Delta{option_delta_value:.4f}），保证金 ${stock_margin:.2f}"
     }
     
-    return option_strategy, stock_strategy
+    return option_strategy, stock_strategy, explanation
 
 @dual_strategy_bp.route('/api/dual-strategy/generate', methods=['POST'])
 def generate_strategy():
@@ -313,8 +470,9 @@ def generate_strategy():
         data = request.json
         symbol = data.get('symbol')
         username = data.get('username')
-        notional_value = float(data.get('notional_value', 10000))
+        notional_value = float(data.get('notional_value', 30000))  # 默认$30,000
         investment_style = data.get('investment_style', 'balanced')
+        ai_analysis = data.get('ai_analysis')  # 新增：接收AI分析结果
         
         if not symbol or not username:
             return jsonify({'error': '缺少必要参数'}), 400
@@ -326,9 +484,9 @@ def generate_strategy():
         
         current_price = stock_data['price']
         
-        # 生成双策略
-        option_strategy, stock_strategy = generate_dual_strategy(
-            symbol, current_price, notional_value, investment_style
+        # 生成双策略（智能匹配）
+        option_strategy, stock_strategy, explanation = generate_dual_strategy(
+            symbol, current_price, notional_value, investment_style, ai_analysis
         )
         
         # 生成策略ID
@@ -349,8 +507,8 @@ def generate_strategy():
             strategy_id, symbol, notional_value,
             option_strategy['type'], option_strategy['strike_price'], 
             option_strategy['expiry_date'], option_strategy['premium'], 
-            option_strategy['delta'],  # 保存单个Delta（数据库字段限制）
-            stock_strategy['amount'], stock_strategy['margin'],
+            option_strategy['delta'],  # 单个期权的Delta
+            stock_strategy['notional'], stock_strategy['margin'],  # 股票名义本金和保证金
             current_price, json.dumps(option_strategy), json.dumps(stock_strategy)
         ))
         
@@ -365,6 +523,7 @@ def generate_strategy():
             'notional_value': notional_value,
             'option_strategy': option_strategy,
             'stock_strategy': stock_strategy,
+            'explanation': explanation,  # 新增：策略推荐理由
             'created_at': datetime.now().isoformat()
         }), 200
         
