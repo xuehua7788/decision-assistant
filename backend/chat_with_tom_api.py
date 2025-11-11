@@ -299,12 +299,6 @@ def initial_analysis():
         
         print(f"🎯 Tom开始初步分析: {symbol}")
         
-        # 调用stock_analyzer进行初步分析（Tom自主选择指标）
-        from stock_analysis.stock_analyzer import StockAnalyzer
-        
-        analyzer = StockAnalyzer()
-        
-        # Tom自主分析（不需要用户指定custom_indicators）
         # 🆕 Tom智能选择指标
         from tom_indicator_selector import get_tom_indicator_selector
         
@@ -325,13 +319,65 @@ def initial_analysis():
         print(f"   宏观面: {selected_indicators['macro']}")
         print(f"   理由: {selection_reason}")
         
+        # 使用alpha_vantage_client获取数据
+        from stock_analysis.alpha_vantage_client import get_alpha_vantage_client
+        from stock_analysis.stock_analyzer import get_stock_analyzer
+        
+        client = get_alpha_vantage_client()
+        analyzer = get_stock_analyzer()
+        
+        # 获取股票数据
+        quote = client.get_quote(symbol)
+        if not quote:
+            return jsonify({'error': f'未找到该股票: {symbol}'}), 404
+        
+        # 获取历史数据
+        history = client.get_daily_history(symbol, days=30)
+        if not history:
+            return jsonify({'error': '无法获取历史数据'}), 500
+        
+        # 计算RSI
+        closes = [h['close'] for h in history]
+        rsi = client.calculate_rsi(closes)
+        
+        # 获取高级数据
+        company_overview = client.get_company_overview(symbol)
+        macd_data = client.get_technical_indicator(symbol, 'MACD', interval='daily')
+        bbands_data = client.get_technical_indicator(symbol, 'BBANDS', interval='daily', time_period=20)
+        atr_data = client.get_technical_indicator(symbol, 'ATR', interval='daily', time_period=14)
+        cpi_data = client.get_economic_indicator('CPI')
+        unemployment_data = client.get_economic_indicator('UNEMPLOYMENT')
+        fed_rate_data = client.get_economic_indicator('FEDERAL_FUNDS_RATE')
+        
+        # 构建技术指标字典
+        technical_indicators = {
+            'rsi': rsi,
+            'macd': macd_data,
+            'bbands': bbands_data,
+            'atr': atr_data
+        }
+        
+        # 构建宏观经济数据字典
+        economic_data = {
+            'cpi': cpi_data,
+            'unemployment': unemployment_data,
+            'fed_rate': fed_rate_data
+        }
+        
+        # 调用分析
         analysis = analyzer.analyze_stock(
             symbol=symbol,
+            current_data=quote,
+            history_data=history,
+            rsi=rsi,
             investment_style=investment_style,
             news_context=news_context,
             user_opinion=user_opinion,
             language='zh',
-            custom_indicators=selected_indicators  # 🔑 使用智能选择的指标
+            company_overview=company_overview,
+            technical_indicators=technical_indicators,
+            economic_data=economic_data,
+            custom_indicators=selected_indicators
         )
         
         # 在分析结果中添加指标选择信息
