@@ -1433,42 +1433,44 @@ function StockAnalysis({ apiUrl }) {
               </div>
             )}
 
-            {/* K线图 */}
-            <div style={{
-              background: '#f8f9fa',
-              padding: '20px',
-              borderRadius: '10px',
-              marginBottom: '20px'
-            }}>
-              <h3 style={{ color: '#333', marginBottom: '15px' }}>📊 30天价格走势</h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <LineChart data={stockData.history}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="date" 
-                    tick={{ fontSize: 12 }}
-                    tickFormatter={(value) => value.slice(5)}
-                  />
-                  <YAxis 
-                    tick={{ fontSize: 12 }}
-                    domain={['dataMin - 5', 'dataMax + 5']}
-                  />
-                  <Tooltip 
-                    formatter={(value) => `$${value.toFixed(2)}`}
-                    labelFormatter={(label) => `日期: ${label}`}
-                  />
-                  <Legend />
-                  <Line 
-                    type="monotone" 
-                    dataKey="close" 
-                    stroke="#667eea" 
-                    strokeWidth={2}
-                    name="收盘价"
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+            {/* K线图 - 隐藏，只在用户问Tom时才显示 */}
+            {false && (
+              <div style={{
+                background: '#f8f9fa',
+                padding: '20px',
+                borderRadius: '10px',
+                marginBottom: '20px'
+              }}>
+                <h3 style={{ color: '#333', marginBottom: '15px' }}>📊 30天价格走势</h3>
+                <ResponsiveContainer width="100%" height={250}>
+                  <LineChart data={stockData.history}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="date" 
+                      tick={{ fontSize: 12 }}
+                      tickFormatter={(value) => value.slice(5)}
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 12 }}
+                      domain={['dataMin - 5', 'dataMax + 5']}
+                    />
+                    <Tooltip 
+                      formatter={(value) => `$${value.toFixed(2)}`}
+                      labelFormatter={(label) => `日期: ${label}`}
+                    />
+                    <Legend />
+                    <Line 
+                      type="monotone" 
+                      dataKey="close" 
+                      stroke="#667eea" 
+                      strokeWidth={2}
+                      name="收盘价"
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
 
             {/* 关键指标 */}
             <div style={{
