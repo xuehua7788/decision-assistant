@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { getCurrentLanguage, setLanguage } from './i18n';
 
 function StockAnalysis({ apiUrl }) {
@@ -13,11 +13,10 @@ function StockAnalysis({ apiUrl }) {
   const [userOpinion, setUserOpinion] = useState('');
   const [newsList, setNewsList] = useState([]);
   const [loadingNews, setLoadingNews] = useState(false);
-  const [stockStrategy, setStockStrategy] = useState(null); // 新增：股票策略
-  const [dualStrategyData, setDualStrategyData] = useState(null); // 新增：完整双策略数据
+  // eslint-disable-next-line no-unused-vars
+  const [stockStrategy, setStockStrategy] = useState(null); // 保留：可能在策略接受时使用
+  const [dualStrategyData, setDualStrategyData] = useState(null);
   const [language, setLang] = useState(getCurrentLanguage());
-  const [activeDataTab, setActiveDataTab] = useState('fundamental'); // fundamental, technical, macro
-  const [showDataDashboard, setShowDataDashboard] = useState(true);
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
@@ -74,6 +73,7 @@ function StockAnalysis({ apiUrl }) {
   };
   
   // 打开指标选择器
+  // eslint-disable-next-line no-unused-vars
   const openIndicatorSelector = (category) => {
     setSelectorCategory(category);
     setShowIndicatorSelector(true);
@@ -108,6 +108,7 @@ function StockAnalysis({ apiUrl }) {
   };
   
   // 获取指标数据的辅助函数
+  // eslint-disable-next-line no-unused-vars
   const getIndicatorData = (indicatorId) => {
     if (!stockData) return null;
     
