@@ -537,10 +537,36 @@ def generate_strategy():
         current_price = stock_data['price']
         print(f"   当前价格: ${current_price}")
         
-        # 获取Alpha Vantage期权链数据
+        # 🆕 获取selected_symbols并推断目标股票
+        selected_symbols = data.get('selected_symbols', [symbol])
+        target_symbol = symbol
+        
+        # 如果有多个股票，先推断用户选择
+        if selected_symbols and len(selected_symbols) > 1:
+            from ai_strategy_agent import get_ai_strategy_agent
+            jany = get_ai_strategy_agent()
+            
+            target_symbol = jany.infer_target_symbol_from_conversation(
+                conversation_history, 
+                selected_symbols
+            )
+            
+            if target_symbol != symbol:
+                print(f"📊 Jany推断用户选择: {target_symbol}（原始为 {symbol}）")
+                symbol = target_symbol
+                
+                # 🔄 重新获取推断出的股票价格
+                from stock_analysis.alpha_vantage_client import get_alpha_vantage_client
+                client = get_alpha_vantage_client()
+                quote = client.get_quote(symbol)
+                if quote:
+                    current_price = quote['price']
+                    print(f"   更新价格: {symbol} = ${current_price}")
+        
+        # 获取Alpha Vantage期权链数据（使用推断后的股票）
         option_chain_data = get_option_chain(symbol)
         if not option_chain_data:
-            return jsonify({'error': '无法获取期权数据'}), 500
+            return jsonify({'error': f'无法获取{symbol}的期权数据'}), 500
         
         print(f"   期权数据: {len(option_chain_data.get('data', []))}个期权")
         
@@ -554,13 +580,14 @@ def generate_strategy():
             print(f"   对话历史: {len(conversation_history)}条")
             
             strategy_result = jany.generate_trading_strategy(
-                symbol=symbol,
-                current_price=current_price,
+                symbol=symbol,  # 使用推断后的股票
+                current_price=current_price,  # 使用推断后的价格
                 tom_analysis=ai_analysis,
                 option_chain_data=option_chain_data,
                 investment_style=investment_style,
                 notional_value=notional_value,
-                conversation_history=conversation_history  # 新增：传递对话历史
+                conversation_history=conversation_history,
+                selected_symbols=selected_symbols
             )
             
             if not strategy_result:

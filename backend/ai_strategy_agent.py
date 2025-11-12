@@ -24,6 +24,34 @@ class AIStrategyAgent:
         self.api_url = "https://api.deepseek.com/v1/chat/completions"
         print(f"✅ AI策略Agent (Jany) 已初始化")
     
+    def infer_target_symbol_from_conversation(self, conversation_history: List[Dict], available_symbols: List[str]) -> str:
+        """
+        从对话历史中推断用户最终选择的股票
+        
+        Args:
+            conversation_history: 对话历史
+            available_symbols: 可选的股票列表
+        
+        Returns:
+            推断出的股票代码
+        """
+        if not conversation_history or not available_symbols:
+            return available_symbols[0] if available_symbols else None
+        
+        # 从最近的消息开始查找
+        for msg in reversed(conversation_history):
+            content = msg.get('content', '').upper()
+            
+            # 检查是否提到某只股票
+            for symbol in available_symbols:
+                if symbol.upper() in content:
+                    print(f"🎯 从对话中推断用户选择: {symbol}")
+                    return symbol
+        
+        # 如果没有明确提到，返回第一只（主股票）
+        print(f"💡 未明确提到股票，默认使用主股票: {available_symbols[0]}")
+        return available_symbols[0]
+    
     def generate_trading_strategy(self,
                                   symbol: str,
                                   current_price: float,
@@ -31,7 +59,8 @@ class AIStrategyAgent:
                                   option_chain_data: Dict,
                                   investment_style: str,
                                   notional_value: float = 30000,
-                                  conversation_history: List[Dict] = None) -> Optional[Dict]:
+                                  conversation_history: List[Dict] = None,
+                                  selected_symbols: List[str] = None) -> Optional[Dict]:
         """
         生成交易策略
         

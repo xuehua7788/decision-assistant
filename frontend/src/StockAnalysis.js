@@ -585,6 +585,7 @@ function StockAnalysis({ apiUrl }) {
           investment_style: investmentStyle,
           ai_analysis: analysis,
           conversation_history: conversationHistory, // 🔑 关键：传递最新的对话历史
+          selected_symbols: selectedSymbols, // 🆕 传递所有选中的股票，Jany会从对话中推断
           timestamp: Date.now() // 🆕 添加时间戳，防止缓存
         })
       });

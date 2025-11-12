@@ -293,11 +293,16 @@ def initial_analysis():
         investment_style = data.get('investment_style', 'balanced')
         news_context = data.get('news_context', '')
         user_opinion = data.get('user_opinion', '')
+        selected_symbols = data.get('selected_symbols', [])  # 🆕 多股票列表
         
         if not symbol:
             return jsonify({'error': '缺少股票代码'}), 400
         
-        print(f"🎯 Tom开始初步分析: {symbol}")
+        # 🆕 显示分析的股票
+        if selected_symbols and len(selected_symbols) > 1:
+            print(f"🎯 Tom开始综合分析: 主股票 {symbol}, 对比股票 {selected_symbols}")
+        else:
+            print(f"🎯 Tom开始初步分析: {symbol}")
         
         # 🆕 Tom智能选择指标
         from tom_indicator_selector import get_tom_indicator_selector
@@ -364,6 +369,25 @@ def initial_analysis():
             'fed_rate': fed_rate_data
         }
         
+        # 🆕 如果有多股票，获取完整数据并添加到上下文
+        enhanced_context = news_context
+        multi_stocks_data = {}  # 存储所有股票数据
+        
+        if selected_symbols and len(selected_symbols) > 1:
+            print(f"📊 方案B：获取多股票完整数据...")
+            from multi_stock_analyzer import get_multi_stock_analyzer
+            
+            multi_analyzer = get_multi_stock_analyzer()
+            multi_stocks_data = multi_analyzer.fetch_multiple_stocks_data(selected_symbols)
+            
+            # 格式化多股票对比信息
+            if multi_stocks_data:
+                multi_stock_context = multi_analyzer.format_multi_stock_context(multi_stocks_data)
+                enhanced_context = enhanced_context + "\n\n" + multi_stock_context if enhanced_context else multi_stock_context
+                print(f"✅ 多股票数据获取完成，共 {len(multi_stocks_data)} 只")
+            else:
+                print(f"⚠️ 多股票数据获取失败，降级为单股票分析")
+        
         # 调用分析
         analysis = analyzer.analyze_stock(
             symbol=symbol,
@@ -371,7 +395,7 @@ def initial_analysis():
             history_data=history,
             rsi=rsi,
             investment_style=investment_style,
-            news_context=news_context,
+            news_context=enhanced_context,  # 🆕 使用增强的上下文
             user_opinion=user_opinion,
             language='zh',
             company_overview=company_overview,
