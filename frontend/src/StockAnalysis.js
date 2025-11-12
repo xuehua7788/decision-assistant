@@ -1267,38 +1267,6 @@ function StockAnalysis({ apiUrl }) {
                 <div style={{ fontSize: '0.9em', opacity: 0.9 }}>满分100分</div>
               </div>
 
-              {/* 操作建议 */}
-              <div style={{
-                background: '#f8f9fa',
-                padding: '20px',
-                borderRadius: '10px',
-                marginBottom: '20px'
-              }}>
-                <h3 style={{ color: '#333', marginBottom: '15px' }}>💡 操作建议</h3>
-                <div style={{
-                  padding: '15px',
-                  background: getRecommendationColor(analysis.recommendation),
-                  color: 'white',
-                  borderRadius: '8px',
-                  fontSize: '1.5em',
-                  fontWeight: 'bold',
-                  textAlign: 'center',
-                  marginBottom: '15px'
-                }}>
-                  {analysis.recommendation}
-                </div>
-
-                <div style={{ marginBottom: '10px' }}>
-                  <strong>建议仓位:</strong> {analysis.position_size}
-                </div>
-                <div style={{ marginBottom: '10px' }}>
-                  <strong>目标价:</strong> ${analysis.target_price.toFixed(2)}
-                </div>
-                <div>
-                  <strong>止损价:</strong> ${analysis.stop_loss.toFixed(2)}
-                </div>
-              </div>
-
               {/* 分析要点 */}
               <div style={{
                 background: '#f8f9fa',
@@ -1366,7 +1334,8 @@ function StockAnalysis({ apiUrl }) {
               background: '#FFFFFF',
               borderRadius: '16px',
               padding: '0',
-              maxWidth: '1200px',
+              maxWidth: '1400px', // 增加宽度
+              width: '95%', // 响应式宽度
               margin: '34px auto',
               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06)',
               border: '1px solid #E5E7EB'
@@ -1413,12 +1382,31 @@ function StockAnalysis({ apiUrl }) {
               </div>
               
               {/* 对话历史 */}
-              <div style={{
-                padding: '32px',
-                maxHeight: '600px',
-                overflowY: 'auto',
-                background: '#FFFFFF'
-              }}>
+              <div 
+                className="chat-history"
+                style={{
+                  padding: '32px',
+                  maxHeight: '600px',
+                  overflowY: 'auto',
+                  background: '#FFFFFF'
+                }}
+              >
+                <style>{`
+                  .chat-history::-webkit-scrollbar {
+                    width: 6px;
+                  }
+                  .chat-history::-webkit-scrollbar-track {
+                    background: #F3F4F6;
+                    border-radius: 3px;
+                  }
+                  .chat-history::-webkit-scrollbar-thumb {
+                    background: #D1D5DB;
+                    border-radius: 3px;
+                  }
+                  .chat-history::-webkit-scrollbar-thumb:hover {
+                    background: #9CA3AF;
+                  }
+                `}</style>
                 {conversationHistory.length === 0 ? (
                   <div style={{ 
                     textAlign: 'center', 
