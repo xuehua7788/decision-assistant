@@ -396,11 +396,41 @@ function StockAnalysis({ apiUrl }) {
         setAnalysis(analysisResult.analysis);
         setShowChatWindow(true); // 显示对话窗口
         
-        // 🆕 将Tom的初步分析作为第一条消息添加到对话历史
+        // 🆕 将Tom的完整初步分析作为第一条消息添加到对话历史
+        const analysis = analysisResult.analysis;
+        
+        // 构建完整的分析内容（类似第一张图的格式）
+        let analysisContent = `📊 **综合分析：**\n\n`;
+        
+        // 添加关键点
+        if (analysis.key_points && analysis.key_points.length > 0) {
+          analysisContent += `💡 **${analysis.key_points.join(' | ')}**\n\n`;
+        }
+        
+        // 添加详细分析摘要
+        if (analysis.analysis_summary) {
+          analysisContent += `${analysis.analysis_summary}\n\n`;
+        }
+        
+        // 添加投资建议
+        if (analysis.recommendation) {
+          analysisContent += `🎯 **投资建议：** ${analysis.recommendation}\n`;
+          if (analysis.position_size) {
+            analysisContent += `📊 **建议仓位：** ${analysis.position_size}\n`;
+          }
+          if (analysis.target_price) {
+            analysisContent += `🎯 **目标价：** $${analysis.target_price}\n`;
+          }
+          if (analysis.stop_loss) {
+            analysisContent += `🛡️ **止损价：** $${analysis.stop_loss}\n`;
+          }
+        }
+        
         const tomInitialMessage = {
           role: 'assistant',
-          content: analysisResult.analysis.summary || analysisResult.analysis.recommendation || '分析完成，您可以向我提问。',
-          initial_analysis: true
+          content: analysisContent,
+          initial_analysis: true,
+          full_analysis: analysis // 保存完整分析数据
         };
         setConversationHistory([tomInitialMessage]);
         
@@ -1329,196 +1359,349 @@ function StockAnalysis({ apiUrl }) {
             </div>
           )}
           
-          {/* 🆕 Tom对话窗口 - 优化版：拉宽拉大，字体加大 */}
+          {/* 🆕 Tom对话窗口 - 现代化设计 */}
           {analysis && showChatWindow && (
             <div style={{
-              marginTop: '30px',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              borderRadius: '20px',
-              padding: '45px',
-              color: 'white',
-              boxShadow: '0 10px 30px rgba(102, 126, 234, 0.3)',
-              maxWidth: '1400px', // 拉宽
-              margin: '30px auto' // 居中
+              marginTop: '34px',
+              background: '#FFFFFF',
+              borderRadius: '16px',
+              padding: '0',
+              maxWidth: '1200px',
+              margin: '34px auto',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06)',
+              border: '1px solid #E5E7EB'
             }}>
-              <h2 style={{ marginBottom: '30px', display: 'flex', alignItems: 'center', gap: '15px', fontSize: '2.2em' }}>
-                💬 与Tom讨论
-                <span style={{ fontSize: '0.5em', opacity: 0.85, fontWeight: 'normal' }}>
-                  有疑问？继续问Tom
-                </span>
-              </h2>
+              {/* 头部 */}
+              <div style={{
+                padding: '24px 32px',
+                borderBottom: '1px solid #F3F4F6',
+                background: '#FAFBFC'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '20px'
+                  }}>
+                    🤖
+                  </div>
+                  <div>
+                    <h2 style={{ 
+                      margin: 0, 
+                      fontSize: '20px', 
+                      fontWeight: '600',
+                      color: '#111827',
+                      lineHeight: '1.4'
+                    }}>
+                      与Tom讨论
+                    </h2>
+                    <p style={{ 
+                      margin: 0, 
+                      fontSize: '14px', 
+                      color: '#6B7280',
+                      lineHeight: '1.4'
+                    }}>
+                      AI分析师 · 在线
+                    </p>
+                  </div>
+                </div>
+              </div>
               
               {/* 对话历史 */}
               <div style={{
-                background: 'rgba(255,255,255,0.12)',
-                borderRadius: '15px',
-                padding: '30px',
-                marginBottom: '30px',
-                maxHeight: '700px', // 拉高
+                padding: '32px',
+                maxHeight: '600px',
                 overflowY: 'auto',
-                boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.1)'
+                background: '#FFFFFF'
               }}>
                 {conversationHistory.length === 0 ? (
-                  <div style={{ textAlign: 'center', opacity: 0.8, padding: '40px', fontSize: '1.3em' }}>
-                    💡 您可以问Tom关于ROE、新闻影响、技术指标等问题
+                  <div style={{ 
+                    textAlign: 'center', 
+                    padding: '64px 32px',
+                    color: '#9CA3AF'
+                  }}>
+                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>💬</div>
+                    <div style={{ fontSize: '16px', fontWeight: '500', color: '#6B7280', marginBottom: '8px' }}>
+                      开始对话
+                    </div>
+                    <div style={{ fontSize: '14px', color: '#9CA3AF' }}>
+                      询问Tom关于ROE、新闻影响、技术指标等问题
+                    </div>
                   </div>
                 ) : (
                   conversationHistory.map((msg, idx) => (
                     <div key={idx} style={{
-                      marginBottom: '30px',
-                      padding: '22px 25px',
-                      background: msg.role === 'user' ? 'rgba(255,255,255,0.25)' : (msg.role === 'jany' ? 'rgba(255,215,0,0.25)' : 'rgba(0,0,0,0.25)'),
-                      borderRadius: '14px',
-                      borderLeft: msg.role === 'user' ? '6px solid #fff' : (msg.role === 'jany' ? '6px solid #ffd700' : '6px solid #87ceeb'),
-                      boxShadow: '0 3px 10px rgba(0,0,0,0.15)'
+                      marginBottom: idx === conversationHistory.length - 1 ? 0 : '24px',
+                      display: 'flex',
+                      gap: '16px',
+                      alignItems: 'flex-start'
                     }}>
-                      <div style={{ fontWeight: 'bold', marginBottom: '12px', fontSize: '1.2em' }}>
-                        {msg.role === 'user' ? '👤 您' : (msg.role === 'jany' ? '🎯 Jany（策略师）' : '🤖 Tom（分析师）')}
+                      {/* 头像 */}
+                      <div style={{
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '50%',
+                        background: msg.role === 'user' 
+                          ? 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)'
+                          : msg.role === 'jany'
+                          ? 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)'
+                          : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '18px',
+                        flexShrink: 0
+                      }}>
+                        {msg.role === 'user' ? '👤' : msg.role === 'jany' ? '🎯' : '🤖'}
                       </div>
-                      <div style={{ lineHeight: '1.9', whiteSpace: 'pre-wrap', fontSize: '1.15em' }}>
-                        {msg.content}
-                      </div>
                       
-                      {/* 🆕 动态渲染价格图表 - 缩小版 */}
-                      {msg.price_chart_data && msg.price_chart_data.length > 0 && (
-                        <div style={{ marginTop: '18px', background: 'rgba(255,255,255,0.9)', padding: '15px', borderRadius: '10px' }}>
-                          <div style={{ color: '#333', fontWeight: 'bold', marginBottom: '10px', fontSize: '1em' }}>
-                            📈 价格走势图（最近30天）
-                          </div>
-                          <ResponsiveContainer width="100%" height={180}>
-                            <LineChart data={msg.price_chart_data}>
-                              <CartesianGrid strokeDasharray="3 3" />
-                              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                              <YAxis tick={{ fontSize: 11 }} />
-                              <Tooltip />
-                              <Line type="monotone" dataKey="close" stroke="#667eea" strokeWidth={2} dot={false} />
-                            </LineChart>
-                          </ResponsiveContainer>
-                        </div>
-                      )}
-                      
-                      {/* 🆕 动态渲染指标卡片 */}
-                      {msg.indicators_data && Object.keys(msg.indicators_data).length > 0 && (
-                        <div style={{ marginTop: '15px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
-                          {Object.entries(msg.indicators_data).map(([key, value]) => (
-                            <div key={key} style={{
-                              background: 'rgba(255,255,255,0.9)',
-                              padding: '12px',
-                              borderRadius: '8px',
-                              textAlign: 'center'
-                            }}>
-                              <div style={{ color: '#666', fontSize: '0.85em', marginBottom: '5px' }}>
-                                {key.toUpperCase()}
-                              </div>
-                              <div style={{ color: '#333', fontSize: '1.3em', fontWeight: 'bold' }}>
-                                {value || 'N/A'}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      
-                      {/* 🆕 Jany策略通知（简化版，完整策略在下方独立显示） */}
-                      {msg.role === 'jany' && msg.strategy_data && (
+                      {/* 消息内容 */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        {/* 名称和时间 */}
                         <div style={{ 
-                          marginTop: '15px',
-                          padding: '15px',
-                          background: 'rgba(255,215,0,0.2)',
-                          borderRadius: '10px',
-                          border: '2px solid rgba(255,215,0,0.5)'
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '8px',
+                          marginBottom: '8px'
                         }}>
-                          <div style={{ fontSize: '1em', marginBottom: '8px' }}>
-                            ✅ <strong>策略已生成！</strong>
-                          </div>
-                          <div style={{ fontSize: '0.9em', opacity: 0.9 }}>
-                            我已经为您生成了<strong>期权策略</strong>和<strong>股票策略</strong>，请在下方查看详情并选择。
-                            您也可以继续与Tom讨论，或重新生成策略。
-                          </div>
+                          <span style={{ 
+                            fontSize: '15px', 
+                            fontWeight: '600',
+                            color: '#111827'
+                          }}>
+                            {msg.role === 'user' ? '您' : msg.role === 'jany' ? 'Jany（策略师）' : 'Tom（分析师）'}
+                          </span>
+                          <span style={{ 
+                            fontSize: '13px', 
+                            color: '#9CA3AF'
+                          }}>
+                            {new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
                         </div>
-                      )}
+                        
+                        {/* 消息气泡 */}
+                        <div style={{
+                          background: msg.role === 'user' ? '#F3F4F6' : '#FFFFFF',
+                          padding: '16px 20px',
+                          borderRadius: '12px',
+                          border: msg.role === 'user' ? 'none' : '1px solid #E5E7EB',
+                          lineHeight: '1.6',
+                          fontSize: '15px',
+                          color: '#374151',
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word'
+                        }}>
+                          {msg.content}
+                        </div>
                       
+                        {/* 🆕 动态渲染价格图表 */}
+                        {msg.price_chart_data && msg.price_chart_data.length > 0 && (
+                          <div style={{ 
+                            marginTop: '16px', 
+                            background: '#F9FAFB', 
+                            padding: '16px', 
+                            borderRadius: '8px',
+                            border: '1px solid #E5E7EB'
+                          }}>
+                            <div style={{ 
+                              color: '#374151', 
+                              fontWeight: '600', 
+                              marginBottom: '12px', 
+                              fontSize: '14px' 
+                            }}>
+                              📈 价格走势图（最近30天）
+                            </div>
+                            <ResponsiveContainer width="100%" height={160}>
+                              <LineChart data={msg.price_chart_data}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                                <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#6B7280' }} />
+                                <YAxis tick={{ fontSize: 11, fill: '#6B7280' }} />
+                                <Tooltip />
+                                <Line type="monotone" dataKey="close" stroke="#667eea" strokeWidth={2} dot={false} />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          </div>
+                        )}
+                        
+                        {/* 🆕 动态渲染指标卡片 */}
+                        {msg.indicators_data && Object.keys(msg.indicators_data).length > 0 && (
+                          <div style={{ 
+                            marginTop: '16px', 
+                            display: 'grid', 
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', 
+                            gap: '12px' 
+                          }}>
+                            {Object.entries(msg.indicators_data).map(([key, value]) => (
+                              <div key={key} style={{
+                                background: '#F9FAFB',
+                                padding: '16px',
+                                borderRadius: '8px',
+                                border: '1px solid #E5E7EB',
+                                textAlign: 'center'
+                              }}>
+                                <div style={{ 
+                                  color: '#6B7280', 
+                                  fontSize: '13px', 
+                                  marginBottom: '8px',
+                                  fontWeight: '500'
+                                }}>
+                                  {key.toUpperCase()}
+                                </div>
+                                <div style={{ 
+                                  color: '#111827', 
+                                  fontSize: '20px', 
+                                  fontWeight: '700' 
+                                }}>
+                                  {value || 'N/A'}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      
+                        {/* 🆕 Jany策略通知 */}
+                        {msg.role === 'jany' && msg.strategy_data && (
+                          <div style={{ 
+                            marginTop: '16px',
+                            padding: '16px',
+                            background: '#FEF3C7',
+                            borderRadius: '8px',
+                            border: '1px solid #FCD34D'
+                          }}>
+                            <div style={{ 
+                              fontSize: '14px', 
+                              marginBottom: '8px',
+                              color: '#92400E',
+                              fontWeight: '600'
+                            }}>
+                              ✅ 策略已生成！
+                            </div>
+                            <div style={{ fontSize: '14px', color: '#78350F', lineHeight: '1.5' }}>
+                              我已经为您生成了<strong>期权策略</strong>和<strong>股票策略</strong>，请在下方查看详情并选择。
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))
                 )}
               </div>
               
-              {/* 输入框 - 优化版 */}
-              <div style={{ display: 'flex', gap: '15px' }}>
-                <input
-                  type="text"
-                  value={userMessage}
-                  onChange={(e) => setUserMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && !sendingMessage && sendMessageToTom()}
-                  placeholder="输入您的问题，例如：ROE为什么这么高？能看看价格走势吗？"
-                  disabled={sendingMessage}
-                  style={{
-                    flex: 1,
-                    padding: '16px 20px',
-                    borderRadius: '12px',
-                    border: 'none',
-                    fontSize: '1.05em',
-                    background: 'rgba(255,255,255,0.95)',
-                    boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
-                  }}
-                />
-                <button
-                  onClick={sendMessageToTom}
-                  disabled={sendingMessage || !userMessage.trim()}
-                  style={{
-                    padding: '16px 35px',
-                    background: sendingMessage ? '#ccc' : 'rgba(255,255,255,0.95)',
-                    color: sendingMessage ? '#666' : '#667eea',
-                    border: 'none',
-                    borderRadius: '12px',
-                    cursor: sendingMessage ? 'not-allowed' : 'pointer',
-                    fontWeight: 'bold',
-                    fontSize: '1.05em',
-                    transition: 'all 0.3s',
-                    boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
-                  }}
-                >
-                  {sendingMessage ? '⏳' : '发送'}
-                </button>
+              {/* 输入区域 - 现代化设计 */}
+              <div style={{
+                padding: '24px 32px',
+                borderTop: '1px solid #F3F4F6',
+                background: '#FFFFFF'
+              }}>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
+                  <input
+                    type="text"
+                    value={userMessage}
+                    onChange={(e) => setUserMessage(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && !sendingMessage && sendMessageToTom()}
+                    placeholder="输入您的问题..."
+                    disabled={sendingMessage}
+                    style={{
+                      flex: 1,
+                      padding: '14px 16px',
+                      borderRadius: '10px',
+                      border: '1.5px solid #E5E7EB',
+                      fontSize: '15px',
+                      background: '#FFFFFF',
+                      outline: 'none',
+                      transition: 'all 0.2s',
+                      color: '#111827'
+                    }}
+                    onFocus={(e) => e.target.style.borderColor = '#667eea'}
+                    onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
+                  />
+                  <button
+                    onClick={sendMessageToTom}
+                    disabled={sendingMessage || !userMessage.trim()}
+                    style={{
+                      padding: '14px 24px',
+                      background: sendingMessage || !userMessage.trim() ? '#E5E7EB' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      color: sendingMessage || !userMessage.trim() ? '#9CA3AF' : '#FFFFFF',
+                      border: 'none',
+                      borderRadius: '10px',
+                      cursor: sendingMessage || !userMessage.trim() ? 'not-allowed' : 'pointer',
+                      fontWeight: '600',
+                      fontSize: '15px',
+                      transition: 'all 0.2s',
+                      boxShadow: sendingMessage || !userMessage.trim() ? 'none' : '0 2px 4px rgba(102, 126, 234, 0.2)'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!sendingMessage && userMessage.trim()) {
+                        e.target.style.transform = 'translateY(-1px)';
+                        e.target.style.boxShadow = '0 4px 8px rgba(102, 126, 234, 0.3)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.transform = 'translateY(0)';
+                      e.target.style.boxShadow = '0 2px 4px rgba(102, 126, 234, 0.2)';
+                    }}
+                  >
+                    {sendingMessage ? '发送中...' : '发送'}
+                  </button>
+                </div>
               </div>
               
-              {/* 策略生成按钮 - 优化版 */}
-              <div style={{ marginTop: '30px', textAlign: 'center' }}>
+              {/* 策略生成区域 - 现代化设计 */}
+              <div style={{
+                padding: '24px 32px',
+                borderTop: '1px solid #F3F4F6',
+                background: '#FAFBFC',
+                textAlign: 'center'
+              }}>
                 <button
                   onClick={generateStrategy}
                   disabled={loading}
                   style={{
-                    padding: '18px 50px',
-                    background: loading ? '#ccc' : 'rgba(255,255,255,0.98)',
-                    color: loading ? '#666' : '#667eea',
+                    padding: '16px 32px',
+                    background: loading ? '#E5E7EB' : 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                    color: loading ? '#9CA3AF' : '#FFFFFF',
                     border: 'none',
-                    borderRadius: '15px',
-                    fontSize: '1.2em',
-                    fontWeight: 'bold',
+                    borderRadius: '10px',
+                    fontSize: '16px',
+                    fontWeight: '600',
                     cursor: loading ? 'not-allowed' : 'pointer',
-                    boxShadow: '0 6px 20px rgba(0,0,0,0.25)',
-                    transition: 'all 0.3s'
+                    boxShadow: loading ? 'none' : '0 2px 4px rgba(245, 158, 11, 0.3)',
+                    transition: 'all 0.2s',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px'
                   }}
                   onMouseEnter={(e) => {
                     if (!loading) {
-                      e.target.style.transform = 'translateY(-3px)';
-                      e.target.style.boxShadow = '0 8px 25px rgba(0,0,0,0.35)';
+                      e.target.style.transform = 'translateY(-2px)';
+                      e.target.style.boxShadow = '0 4px 8px rgba(245, 158, 11, 0.4)';
                     }
                   }}
                   onMouseLeave={(e) => {
                     e.target.style.transform = 'translateY(0)';
-                    e.target.style.boxShadow = '0 6px 20px rgba(0,0,0,0.25)';
+                    e.target.style.boxShadow = '0 2px 4px rgba(245, 158, 11, 0.3)';
                   }}
                 >
-                  {loading ? '🔄 生成中...' : '🎯 生成交易策略（Jany）'}
+                  <span>{loading ? '⏳' : '🎯'}</span>
+                  <span>{loading ? '生成中...' : '生成交易策略（Jany）'}</span>
                 </button>
-                <div style={{ marginTop: '10px', fontSize: '0.9em', opacity: 0.9 }}>
-                  💡 满意Tom的分析后，点击此按钮让Jany生成具体交易策略
+                <div style={{ 
+                  marginTop: '12px', 
+                  fontSize: '13px', 
+                  color: '#6B7280',
+                  lineHeight: '1.5'
+                }}>
+                  {conversationHistory.length > 0 ? (
+                    `Jany将基于您与Tom的 ${conversationHistory.length} 条对话生成策略`
+                  ) : (
+                    '满意Tom的分析后，点击此按钮让Jany生成具体交易策略'
+                  )}
                 </div>
-                {conversationHistory.length > 0 && (
-                  <div style={{ marginTop: '5px', fontSize: '0.85em', opacity: 0.8 }}>
-                    ✅ Jany将基于您与Tom的{conversationHistory.length}条对话生成策略
-                  </div>
-                )}
               </div>
             </div>
           )}
