@@ -10,8 +10,11 @@ import AccountBalance from './AccountBalance';
 import PositionComparison from './PositionComparison';
 
 function App() {
-  // 硬编码 Render 后端地址，确保生产环境正确
-  const API_URL = 'https://decision-assistant-backend.onrender.com';
+  // 根据环境自动切换API地址：本地开发使用localhost，生产环境使用Render
+  const API_URL = process.env.REACT_APP_API_URL || 
+                  (window.location.hostname === 'localhost' 
+                    ? 'http://localhost:10000' 
+                    : 'https://decision-assistant-backend.onrender.com');
   const [currentView, setCurrentView] = useState('login'); // 'login', 'register', 'app'
   const [user, setUser] = useState(null);
   const [currentMode, setCurrentMode] = useState('analysis');

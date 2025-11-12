@@ -51,6 +51,10 @@ class TomChatAgent:
         # 添加当前用户消息
         messages.append({"role": "user", "content": user_message})
         
+        # 🔍 调试日志：输出 Prompt 长度
+        total_tokens_estimate = len(system_prompt) // 4 + sum(len(msg.get('content', '')) // 4 for msg in messages)
+        print(f"📊 Prompt估算: 约 {total_tokens_estimate} tokens, 历史消息: {len(conversation_history)} 条")
+        
         try:
             response = requests.post(
                 self.api_url,
@@ -68,8 +72,25 @@ class TomChatAgent:
             )
             
             if response.status_code != 200:
+                error_detail = ""
+                try:
+                    error_data = response.json()
+                    error_detail = error_data.get('error', {}).get('message', '')
+                except:
+                    error_detail = response.text[:200]
+                
                 print(f"❌ Tom对话API错误: {response.status_code}")
-                return "抱歉，我现在无法回答。请稍后再试。"
+                print(f"   错误详情: {error_detail}")
+                
+                # 根据错误码返回更有用的信息
+                if response.status_code == 401:
+                    return "🔑 API密钥无效或已过期。请联系管理员检查 DeepSeek API 配置。"
+                elif response.status_code == 429:
+                    return "⏳ API调用次数已达上限。请稍后再试或联系管理员升级套餐。"
+                elif response.status_code == 413:
+                    return "📊 请求数据过大。建议减少选择的股票数量（建议≤2只）。"
+                else:
+                    return f"❌ 服务暂时不可用（错误码: {response.status_code}）。请稍后再试。"
             
             result = response.json()
             tom_reply = result["choices"][0]["message"]["content"]
@@ -160,35 +181,30 @@ class TomChatAgent:
 **分析任务**：
 投资者选择了 {len(symbols_list)} 只股票进行对比：{', '.join(symbols_list)}
 
+**重要提示**：
+- 你只掌握这 {len(symbols_list)} 只股票的数据
+- 如果用户问到其他股票（如 META, AAPL 等不在上述列表中的股票），请友好地提示：
+  "抱歉，我目前只分析了 {', '.join(symbols_list)}。如果您想了解其他股票，请在搜索框中添加该股票并重新开始分析。"
+
 你需要：
 1. **对比这些股票的关键指标**（PE、ROE、RSI、市值等）
 2. **分析各自的优劣势**
 3. **根据投资风格推荐最合适的股票**
-4. **回答用户关于任一股票的具体问题**
+4. **只回答关于已分析股票的问题**
 
 **投资风格**: {investment_style}
 
 **你掌握的完整数据**：
 
 """
-            # 为每只股票添加详细数据
+            # 为每只股票添加精简数据（减少token消耗）
             for idx, (stock_symbol, stock_data) in enumerate(multi_stocks_data.items(), 1):
                 quote = stock_data.get('quote', {})
                 overview = stock_data.get('company_overview', {})
                 tech_ind = stock_data.get('technical_indicators', {})
                 
                 prompt += f"""
-📊 **股票 {idx}: {stock_symbol}**
-- 当前价格: ${quote.get('price', 'N/A')}
-- 涨跌幅: {quote.get('change_percent', 'N/A')}
-- 市值: {overview.get('MarketCapitalization', 'N/A')}
-- PE比率: {overview.get('PERatio', 'N/A')}
-- EPS: {overview.get('EPS', 'N/A')}
-- ROE: {overview.get('ReturnOnEquityTTM', 'N/A')}
-- 利润率: {overview.get('ProfitMargin', 'N/A')}
-- 股息率: {overview.get('DividendYield', 'N/A')}
-- RSI(14): {tech_ind.get('rsi', 'N/A')}
-- MACD: {tech_ind.get('macd', 'N/A')}
+📊 **{stock_symbol}**: ${quote.get('price', 'N/A')} | PE:{overview.get('PERatio', 'N/A')} | ROE:{overview.get('ReturnOnEquityTTM', 'N/A')} | RSI:{tech_ind.get('rsi', 'N/A')}
 """
         else:
             # 单股票分析模式
