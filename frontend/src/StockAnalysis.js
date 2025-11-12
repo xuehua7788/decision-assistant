@@ -395,6 +395,15 @@ function StockAnalysis({ apiUrl }) {
       if (analysisResult.success) {
         setAnalysis(analysisResult.analysis);
         setShowChatWindow(true); // 显示对话窗口
+        
+        // 🆕 将Tom的初步分析作为第一条消息添加到对话历史
+        const tomInitialMessage = {
+          role: 'assistant',
+          content: analysisResult.analysis.summary || analysisResult.analysis.recommendation || '分析完成，您可以向我提问。',
+          initial_analysis: true
+        };
+        setConversationHistory([tomInitialMessage]);
+        
         console.log('✅ Tom初步分析完成:', analysisResult.analysis);
       } else {
         setError('Tom分析失败: ' + analysisResult.error);
@@ -474,7 +483,7 @@ function StockAnalysis({ apiUrl }) {
     }
   };
 
-  // 🆕 生成策略（Jany基于对话历史）
+  // 🆕 生成策略（Jany基于对话历史）- 每次都是全新的
   const generateStrategy = async () => {
     if (!analysis) {
       setError('请先进行Tom分析');
@@ -483,13 +492,20 @@ function StockAnalysis({ apiUrl }) {
 
     setLoading(true);
     setError('');
+    
+    // 🔑 清空旧策略数据，确保每次都是全新生成
+    setDualStrategyData(null);
+    setStockStrategy(null);
 
     try {
       const currentUser = localStorage.getItem('username');
       if (!currentUser) {
         setError('请先登录');
+        setLoading(false);
         return;
       }
+
+      console.log('🔄 Jany开始生成策略，基于对话历史:', conversationHistory);
 
       const response = await fetch(`${apiUrl}/api/dual-strategy/generate`, {
         method: 'POST',
@@ -500,7 +516,8 @@ function StockAnalysis({ apiUrl }) {
           notional_value: 30000,
           investment_style: investmentStyle,
           ai_analysis: analysis,
-          conversation_history: conversationHistory // 🔑 关键：传递对话历史
+          conversation_history: conversationHistory, // 🔑 关键：传递最新的对话历史
+          timestamp: Date.now() // 🆕 添加时间戳，防止缓存
         })
       });
 
@@ -508,15 +525,27 @@ function StockAnalysis({ apiUrl }) {
         const dualData = await response.json();
         setDualStrategyData(dualData);
         setStockStrategy(dualData.stock_strategy);
-        console.log('✅ Jany策略生成成功（基于对话）:', dualData);
-        alert('✅ 策略生成成功！请查看下方的期权和股票策略对比。');
+        console.log('✅ Jany策略生成成功（全新）:', dualData);
+        
+        // 🆕 将Jany的策略推荐添加到对话历史
+        const janyMessage = {
+          role: 'jany',
+          content: `基于我对您与Tom的${conversationHistory.length}条对话的分析，以及当前市场数据，我为您生成了两个策略供选择：`,
+          strategy_data: dualData, // 包含完整的策略数据
+          timestamp: Date.now()
+        };
+        setConversationHistory(prev => [...prev, janyMessage]);
+        
+        alert('✅ 策略生成成功！请在对话框中查看并选择策略。');
       } else {
         const errorData = await response.json();
         setError('策略生成失败: ' + errorData.error);
+        alert('❌ 策略生成失败: ' + errorData.error);
       }
 
     } catch (err) {
       setError('网络连接失败: ' + err.message);
+      alert('❌ 网络连接失败: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -1300,17 +1329,19 @@ function StockAnalysis({ apiUrl }) {
             </div>
           )}
           
-          {/* 🆕 Tom对话窗口 - 优化版 */}
+          {/* 🆕 Tom对话窗口 - 优化版：拉宽拉大，字体加大 */}
           {analysis && showChatWindow && (
             <div style={{
               marginTop: '30px',
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               borderRadius: '20px',
-              padding: '35px',
+              padding: '45px',
               color: 'white',
-              boxShadow: '0 10px 30px rgba(102, 126, 234, 0.3)'
+              boxShadow: '0 10px 30px rgba(102, 126, 234, 0.3)',
+              maxWidth: '1400px', // 拉宽
+              margin: '30px auto' // 居中
             }}>
-              <h2 style={{ marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '15px', fontSize: '1.8em' }}>
+              <h2 style={{ marginBottom: '30px', display: 'flex', alignItems: 'center', gap: '15px', fontSize: '2.2em' }}>
                 💬 与Tom讨论
                 <span style={{ fontSize: '0.5em', opacity: 0.85, fontWeight: 'normal' }}>
                   有疑问？继续问Tom
@@ -1321,44 +1352,44 @@ function StockAnalysis({ apiUrl }) {
               <div style={{
                 background: 'rgba(255,255,255,0.12)',
                 borderRadius: '15px',
-                padding: '25px',
-                marginBottom: '25px',
-                maxHeight: '500px',
+                padding: '30px',
+                marginBottom: '30px',
+                maxHeight: '700px', // 拉高
                 overflowY: 'auto',
                 boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.1)'
               }}>
                 {conversationHistory.length === 0 ? (
-                  <div style={{ textAlign: 'center', opacity: 0.8, padding: '30px', fontSize: '1.1em' }}>
+                  <div style={{ textAlign: 'center', opacity: 0.8, padding: '40px', fontSize: '1.3em' }}>
                     💡 您可以问Tom关于ROE、新闻影响、技术指标等问题
                   </div>
                 ) : (
                   conversationHistory.map((msg, idx) => (
                     <div key={idx} style={{
-                      marginBottom: '25px',
-                      padding: '18px 20px',
-                      background: msg.role === 'user' ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.25)',
-                      borderRadius: '12px',
-                      borderLeft: msg.role === 'user' ? '5px solid #fff' : '5px solid #ffd700',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                      marginBottom: '30px',
+                      padding: '22px 25px',
+                      background: msg.role === 'user' ? 'rgba(255,255,255,0.25)' : (msg.role === 'jany' ? 'rgba(255,215,0,0.25)' : 'rgba(0,0,0,0.25)'),
+                      borderRadius: '14px',
+                      borderLeft: msg.role === 'user' ? '6px solid #fff' : (msg.role === 'jany' ? '6px solid #ffd700' : '6px solid #87ceeb'),
+                      boxShadow: '0 3px 10px rgba(0,0,0,0.15)'
                     }}>
-                      <div style={{ fontWeight: 'bold', marginBottom: '10px', fontSize: '1em' }}>
-                        {msg.role === 'user' ? '👤 您' : '🤖 Tom'}
+                      <div style={{ fontWeight: 'bold', marginBottom: '12px', fontSize: '1.2em' }}>
+                        {msg.role === 'user' ? '👤 您' : (msg.role === 'jany' ? '🎯 Jany（策略师）' : '🤖 Tom（分析师）')}
                       </div>
-                      <div style={{ lineHeight: '1.8', whiteSpace: 'pre-wrap', fontSize: '1.05em' }}>
+                      <div style={{ lineHeight: '1.9', whiteSpace: 'pre-wrap', fontSize: '1.15em' }}>
                         {msg.content}
                       </div>
                       
-                      {/* 🆕 动态渲染价格图表 */}
+                      {/* 🆕 动态渲染价格图表 - 缩小版 */}
                       {msg.price_chart_data && msg.price_chart_data.length > 0 && (
-                        <div style={{ marginTop: '15px', background: 'rgba(255,255,255,0.9)', padding: '15px', borderRadius: '8px' }}>
-                          <div style={{ color: '#333', fontWeight: 'bold', marginBottom: '10px' }}>
+                        <div style={{ marginTop: '18px', background: 'rgba(255,255,255,0.9)', padding: '15px', borderRadius: '10px' }}>
+                          <div style={{ color: '#333', fontWeight: 'bold', marginBottom: '10px', fontSize: '1em' }}>
                             📈 价格走势图（最近30天）
                           </div>
-                          <ResponsiveContainer width="100%" height={200}>
+                          <ResponsiveContainer width="100%" height={180}>
                             <LineChart data={msg.price_chart_data}>
                               <CartesianGrid strokeDasharray="3 3" />
-                              <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                              <YAxis tick={{ fontSize: 10 }} />
+                              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                              <YAxis tick={{ fontSize: 11 }} />
                               <Tooltip />
                               <Line type="monotone" dataKey="close" stroke="#667eea" strokeWidth={2} dot={false} />
                             </LineChart>
@@ -1384,6 +1415,25 @@ function StockAnalysis({ apiUrl }) {
                               </div>
                             </div>
                           ))}
+                        </div>
+                      )}
+                      
+                      {/* 🆕 Jany策略通知（简化版，完整策略在下方独立显示） */}
+                      {msg.role === 'jany' && msg.strategy_data && (
+                        <div style={{ 
+                          marginTop: '15px',
+                          padding: '15px',
+                          background: 'rgba(255,215,0,0.2)',
+                          borderRadius: '10px',
+                          border: '2px solid rgba(255,215,0,0.5)'
+                        }}>
+                          <div style={{ fontSize: '1em', marginBottom: '8px' }}>
+                            ✅ <strong>策略已生成！</strong>
+                          </div>
+                          <div style={{ fontSize: '0.9em', opacity: 0.9 }}>
+                            我已经为您生成了<strong>期权策略</strong>和<strong>股票策略</strong>，请在下方查看详情并选择。
+                            您也可以继续与Tom讨论，或重新生成策略。
+                          </div>
                         </div>
                       )}
                       
