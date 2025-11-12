@@ -148,7 +148,51 @@ class TomChatAgent:
         news_context = stock_context.get('news_context', '')
         initial_analysis = stock_context.get('initial_analysis', {})
         
-        prompt = f"""你是一位资深股票分析师Tom，正在与投资者讨论 {symbol} 股票的投资机会。
+        # 🆕 提取多股票数据
+        multi_stocks_data = stock_context.get('multi_stocks_data', {})
+        
+        # 🆕 判断是单股票分析还是多股票对比分析
+        if multi_stocks_data and len(multi_stocks_data) > 1:
+            # 多股票对比分析模式
+            symbols_list = list(multi_stocks_data.keys())
+            prompt = f"""你是一位资深股票分析师Tom，正在与投资者进行**多股票对比分析**。
+
+**分析任务**：
+投资者选择了 {len(symbols_list)} 只股票进行对比：{', '.join(symbols_list)}
+
+你需要：
+1. **对比这些股票的关键指标**（PE、ROE、RSI、市值等）
+2. **分析各自的优劣势**
+3. **根据投资风格推荐最合适的股票**
+4. **回答用户关于任一股票的具体问题**
+
+**投资风格**: {investment_style}
+
+**你掌握的完整数据**：
+
+"""
+            # 为每只股票添加详细数据
+            for idx, (stock_symbol, stock_data) in enumerate(multi_stocks_data.items(), 1):
+                quote = stock_data.get('quote', {})
+                overview = stock_data.get('company_overview', {})
+                tech_ind = stock_data.get('technical_indicators', {})
+                
+                prompt += f"""
+📊 **股票 {idx}: {stock_symbol}**
+- 当前价格: ${quote.get('price', 'N/A')}
+- 涨跌幅: {quote.get('change_percent', 'N/A')}
+- 市值: {overview.get('MarketCapitalization', 'N/A')}
+- PE比率: {overview.get('PERatio', 'N/A')}
+- EPS: {overview.get('EPS', 'N/A')}
+- ROE: {overview.get('ReturnOnEquityTTM', 'N/A')}
+- 利润率: {overview.get('ProfitMargin', 'N/A')}
+- 股息率: {overview.get('DividendYield', 'N/A')}
+- RSI(14): {tech_ind.get('rsi', 'N/A')}
+- MACD: {tech_ind.get('macd', 'N/A')}
+"""
+        else:
+            # 单股票分析模式
+            prompt = f"""你是一位资深股票分析师Tom，正在与投资者讨论 {symbol} 股票的投资机会。
 
 **当前股票信息**：
 - 股票代码: {symbol}
@@ -369,8 +413,7 @@ def initial_analysis():
             'fed_rate': fed_rate_data
         }
         
-        # 🆕 如果有多股票，获取完整数据并添加到上下文
-        enhanced_context = news_context
+        # 🆕 如果有多股票，获取完整数据
         multi_stocks_data = {}  # 存储所有股票数据
         
         if selected_symbols and len(selected_symbols) > 1:
@@ -380,10 +423,7 @@ def initial_analysis():
             multi_analyzer = get_multi_stock_analyzer()
             multi_stocks_data = multi_analyzer.fetch_multiple_stocks_data(selected_symbols)
             
-            # 格式化多股票对比信息
             if multi_stocks_data:
-                multi_stock_context = multi_analyzer.format_multi_stock_context(multi_stocks_data)
-                enhanced_context = enhanced_context + "\n\n" + multi_stock_context if enhanced_context else multi_stock_context
                 print(f"✅ 多股票数据获取完成，共 {len(multi_stocks_data)} 只")
             else:
                 print(f"⚠️ 多股票数据获取失败，降级为单股票分析")
@@ -395,7 +435,7 @@ def initial_analysis():
             history_data=history,
             rsi=rsi,
             investment_style=investment_style,
-            news_context=enhanced_context,  # 🆕 使用增强的上下文
+            news_context=news_context,
             user_opinion=user_opinion,
             language='zh',
             company_overview=company_overview,
@@ -408,6 +448,10 @@ def initial_analysis():
         if analysis:
             analysis['selected_indicators'] = selected_indicators
             analysis['indicator_selection_reason'] = selection_reason
+            # 🆕 添加多股票数据标记
+            if multi_stocks_data and len(multi_stocks_data) > 1:
+                analysis['is_multi_stock_analysis'] = True
+                analysis['analyzed_symbols'] = list(multi_stocks_data.keys())
         
         if not analysis:
             return jsonify({'error': 'Tom分析失败'}), 500
@@ -417,6 +461,7 @@ def initial_analysis():
         return jsonify({
             'success': True,
             'analysis': analysis,
+            'multi_stocks_data': multi_stocks_data,  # 🆕 返回多股票数据
             'message': 'Tom已完成初步分析，你可以继续与他讨论'
         }), 200
         
@@ -437,7 +482,8 @@ def chat_message():
         "symbol": "AAPL",
         "user_message": "ROE为什么这么高？",
         "conversation_history": [...],
-        "stock_context": {...}
+        "stock_context": {...},
+        "selected_symbols": ["AAPL", "GOOGL", "MSFT"]  # 🆕 用户选择的所有股票
     }
     """
     try:
@@ -446,6 +492,7 @@ def chat_message():
         user_message = data.get('user_message')
         conversation_history = data.get('conversation_history', [])
         stock_context = data.get('stock_context', {})
+        selected_symbols = data.get('selected_symbols', [])  # 🆕 获取所有选中的股票
         
         if not symbol or not user_message:
             return jsonify({'error': '缺少必要参数'}), 400

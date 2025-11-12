@@ -12,6 +12,7 @@ function StockAnalysis({ apiUrl }) {
   const [investmentStyle, setInvestmentStyle] = useState('buffett');
   const [customStyleName, setCustomStyleName] = useState(''); // 🆕 自定义风格名称
   const [customStyleDesc, setCustomStyleDesc] = useState(''); // 🆕 自定义风格描述
+  const [multiStocksData, setMultiStocksData] = useState({}); // 🆕 存储多股票完整数据
   const [newsContext, setNewsContext] = useState('');
   const [newsList, setNewsList] = useState([]); // 改为数组存储多条新闻
   const [loadingNews, setLoadingNews] = useState(false);
@@ -431,6 +432,7 @@ function StockAnalysis({ apiUrl }) {
 
       if (analysisResult.success) {
         setAnalysis(analysisResult.analysis);
+        setMultiStocksData(analysisResult.multi_stocks_data || {}); // 🆕 保存多股票数据
         setShowChatWindow(true); // 显示对话窗口
         
         // 🆕 将Tom的完整初步分析作为第一条消息添加到对话历史
@@ -511,7 +513,8 @@ function StockAnalysis({ apiUrl }) {
         history_data: stockData.history || [], // 🆕 添加历史数据，用于绘制价格图表
         company_overview: stockData.premium_data?.company_overview,
         technical_indicators: stockData.premium_data?.technical_indicators,
-        economic_data: stockData.premium_data?.economic_data
+        economic_data: stockData.premium_data?.economic_data,
+        multi_stocks_data: multiStocksData // 🆕 添加多股票数据
       };
 
       // 调用Tom对话API
@@ -522,7 +525,8 @@ function StockAnalysis({ apiUrl }) {
           symbol: stockData.quote.symbol,
           user_message: currentMessage,
           conversation_history: conversationHistory, // 传递之前的对话
-          stock_context: stockContext
+          stock_context: stockContext,
+          selected_symbols: selectedSymbols // 🆕 传递所有选中的股票
         })
       });
 
@@ -1756,7 +1760,7 @@ function StockAnalysis({ apiUrl }) {
               </div>
             </div>
           )}
-      )}
+        )}
 
       {/* 双策略对比显示 */}
       {renderDualStrategyComparison()}
