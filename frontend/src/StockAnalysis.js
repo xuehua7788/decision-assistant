@@ -812,13 +812,6 @@ function StockAnalysis({ apiUrl }) {
   };
 
 
-  // 获取推荐颜色
-  const getRecommendationColor = (recommendation) => {
-    if (recommendation === '买入') return '#48bb78';
-    if (recommendation === '卖出') return '#f56565';
-    return '#ed8936';
-  };
-
   // 获取评分颜色
   const getScoreColor = (score) => {
     if (score >= 70) return '#48bb78';
