@@ -812,13 +812,6 @@ function StockAnalysis({ apiUrl }) {
   };
 
 
-  // 获取评分颜色
-  const getScoreColor = (score) => {
-    if (score >= 70) return '#48bb78';
-    if (score >= 50) return '#ed8936';
-    return '#f56565';
-  };
-
   return (
     <div style={{
       background: 'white',
@@ -1243,83 +1236,6 @@ function StockAnalysis({ apiUrl }) {
             {/* 旧的独立图表已删除，所有内容在Tom对话窗口中展示 */}
           </div>
 
-          {/* 右侧：AI分析 */}
-          {analysis && (
-            <div>
-              {/* 综合评分 */}
-              <div style={{
-                background: getScoreColor(analysis.score),
-                color: 'white',
-                padding: '20px',
-                borderRadius: '10px',
-                marginBottom: '20px',
-                textAlign: 'center'
-              }}>
-                <div style={{ fontSize: '0.9em', marginBottom: '5px' }}>🎯 综合评分</div>
-                <div style={{ fontSize: '3em', fontWeight: 'bold' }}>{analysis.score}</div>
-                <div style={{ fontSize: '0.9em', opacity: 0.9 }}>满分100分</div>
-              </div>
-
-              {/* 分析要点 */}
-              <div style={{
-                background: '#f8f9fa',
-                padding: '20px',
-                borderRadius: '10px',
-                marginBottom: '20px'
-              }}>
-                <h3 style={{ color: '#333', marginBottom: '15px' }}>📌 分析要点</h3>
-                <ul style={{ margin: 0, paddingLeft: '20px', lineHeight: '1.8' }}>
-                  {analysis.key_points.map((point, index) => (
-                    <li key={index} style={{ marginBottom: '10px' }}>{point}</li>
-                  ))}
-                </ul>
-                
-                {analysis.analysis_summary && (
-                  <div style={{
-                    marginTop: '15px',
-                    padding: '15px',
-                    background: 'white',
-                    borderRadius: '8px',
-                    borderLeft: '4px solid #667eea'
-                  }}>
-                    <strong>综合分析:</strong>
-                    <p style={{ margin: '10px 0 0 0', lineHeight: '1.6' }}>
-                      {analysis.analysis_summary}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* 投资策略 */}
-              {analysis.strategy && (
-                <div style={{
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  color: 'white',
-                  padding: '20px',
-                  borderRadius: '10px'
-                }}>
-                  <h3 style={{ marginBottom: '15px', display: 'flex', alignItems: 'center' }}>
-                    🎯 综合投资策略
-                  </h3>
-                  <p style={{ margin: 0, lineHeight: '1.8', fontSize: '1.05em' }}>
-                    {analysis.strategy}
-                  </p>
-                  <div style={{
-                    marginTop: '15px',
-                    padding: '10px',
-                    background: 'rgba(255,255,255,0.2)',
-                    borderRadius: '5px',
-                    fontSize: '0.9em'
-                  }}>
-                    💡 此策略综合了技术指标、基本面消息和您的观点
-                  </div>
-                  
-                  {/* 接受/拒绝策略按钮 */}
-                </div>
-              )}
-            </div>
-          )}
-          
           {/* 🆕 Tom对话窗口 - 现代化设计 */}
           {analysis && showChatWindow && (
             <div style={{
@@ -1327,9 +1243,9 @@ function StockAnalysis({ apiUrl }) {
               background: '#FFFFFF',
               borderRadius: '16px',
               padding: '0',
-              maxWidth: '1400px', // 增加宽度
-              width: '95%', // 响应式宽度
-              margin: '34px auto',
+              maxWidth: '1200px', // 最大宽度1200px
+              width: '75%', // 屏幕的75%
+              margin: '34px auto', // 水平居中
               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06)',
               border: '1px solid #E5E7EB'
             }}>
