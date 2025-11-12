@@ -4,14 +4,16 @@ import { getCurrentLanguage, setLanguage } from './i18n';
 
 function StockAnalysis({ apiUrl }) {
   const [symbol, setSymbol] = useState('');
+  const [selectedSymbols, setSelectedSymbols] = useState([]); // 🆕 多股票选择
   const [stockData, setStockData] = useState(null);
   const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [investmentStyle, setInvestmentStyle] = useState('buffett');
+  const [customStyleName, setCustomStyleName] = useState(''); // 🆕 自定义风格名称
+  const [customStyleDesc, setCustomStyleDesc] = useState(''); // 🆕 自定义风格描述
   const [newsContext, setNewsContext] = useState('');
-  const [userOpinion, setUserOpinion] = useState('');
-  const [newsList, setNewsList] = useState([]);
+  const [newsList, setNewsList] = useState([]); // 改为数组存储多条新闻
   const [loadingNews, setLoadingNews] = useState(false);
   // eslint-disable-next-line no-unused-vars
   const [stockStrategy, setStockStrategy] = useState(null); // 保留：可能在策略接受时使用
@@ -328,6 +330,32 @@ function StockAnalysis({ apiUrl }) {
     searchStock(result.symbol);
   };
 
+  // 🆕 添加股票到选中列表
+  const addSymbolToList = (symbolToAdd) => {
+    const upperSymbol = symbolToAdd.toUpperCase();
+    if (upperSymbol && !selectedSymbols.includes(upperSymbol)) {
+      setSelectedSymbols([...selectedSymbols, upperSymbol]);
+    }
+  };
+
+  // 🆕 从选中列表删除股票
+  const removeSymbolFromList = (symbolToRemove) => {
+    setSelectedSymbols(selectedSymbols.filter(s => s !== symbolToRemove));
+  };
+
+  // 🆕 添加新闻到列表
+  const addNewsToList = () => {
+    if (newsContext.trim()) {
+      setNewsList([...newsList, { id: Date.now(), content: newsContext.trim() }]);
+      setNewsContext('');
+    }
+  };
+
+  // 🆕 从列表删除新闻
+  const removeNewsFromList = (newsId) => {
+    setNewsList(newsList.filter(n => n.id !== newsId));
+  };
+
   const searchStock = async (searchSymbol) => {
     const targetSymbol = searchSymbol || symbol;
     if (!targetSymbol.trim()) {
@@ -377,16 +405,25 @@ function StockAnalysis({ apiUrl }) {
     setConversationHistory([]); // 清空对话历史
 
     try {
+      // 🆕 构建投资风格参数
+      let styleParam = investmentStyle;
+      if (investmentStyle === 'custom' && customStyleName && customStyleDesc) {
+        styleParam = `${customStyleName}: ${customStyleDesc}`;
+      }
+
+      // 🆕 合并所有新闻内容
+      const allNews = newsList.map(n => n.content).join('\n\n---\n\n');
+
       // 调用Tom初步分析API
       const analysisResponse = await fetch(`${apiUrl}/api/chat/tom/initial-analysis`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           symbol: stockData.quote.symbol,
+          selected_symbols: selectedSymbols, // 🆕 多股票列表
           username: localStorage.getItem('username') || 'guest',
-          investment_style: investmentStyle,
-          news_context: newsContext,
-          user_opinion: userOpinion
+          investment_style: styleParam, // 🆕 支持自定义风格
+          news_context: allNews // 🆕 所有新闻内容
         })
       });
 
@@ -471,6 +508,7 @@ function StockAnalysis({ apiUrl }) {
         investment_style: investmentStyle,
         initial_analysis: analysis,
         news_context: newsContext,
+        history_data: stockData.history || [], // 🆕 添加历史数据，用于绘制价格图表
         company_overview: stockData.premium_data?.company_overview,
         technical_indicators: stockData.premium_data?.technical_indicators,
         economic_data: stockData.premium_data?.economic_data
@@ -933,23 +971,77 @@ function StockAnalysis({ apiUrl }) {
           </div>
           
           <button
-            onClick={() => searchStock()}
-            disabled={loading}
+            onClick={() => {
+              addSymbolToList(symbol);
+              searchStock();
+            }}
+            disabled={loading || !symbol.trim()}
             style={{
-              padding: '12px 30px',
-              background: loading ? '#ccc' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              padding: '12px 24px',
+              background: loading || !symbol.trim() ? '#ccc' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               color: 'white',
               border: 'none',
               borderRadius: '8px',
-              cursor: loading ? 'not-allowed' : 'pointer',
+              cursor: loading || !symbol.trim() ? 'not-allowed' : 'pointer',
               fontWeight: '600',
               fontSize: '1em',
               whiteSpace: 'nowrap'
             }}
           >
-            {loading ? '🔍 搜索中...' : '🔍 搜索'}
+            {loading ? '🔄' : '➕ 添加并搜索'}
           </button>
         </div>
+
+        {/* 🆕 已选中的股票列表 */}
+        {selectedSymbols.length > 0 && (
+          <div style={{ 
+            marginBottom: '15px', 
+            padding: '12px 15px', 
+            background: '#F0F4FF', 
+            borderRadius: '8px',
+            border: '1px solid #667eea'
+          }}>
+            <div style={{ fontWeight: '600', color: '#333', marginBottom: '8px', fontSize: '0.9em' }}>
+              📊 已选择的股票：
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {selectedSymbols.map((sym) => (
+                <div
+                  key={sym}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    background: 'white',
+                    border: '2px solid #667eea',
+                    borderRadius: '20px',
+                    fontSize: '0.9em',
+                    fontWeight: '600',
+                    color: '#667eea'
+                  }}
+                >
+                  {sym}
+                  <span
+                    onClick={() => removeSymbolFromList(sym)}
+                    style={{
+                      cursor: 'pointer',
+                      color: '#dc3545',
+                      fontSize: '1.1em',
+                      lineHeight: '1'
+                    }}
+                    title="删除"
+                  >
+                    ×
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: '8px', fontSize: '0.85em', color: '#666' }}>
+              💡 分析时将综合考虑所有选中的股票
+            </div>
+          </div>
+        )}
 
         {/* 热门股票快捷按钮（按分类显示） */}
         <div style={{ marginTop: '15px' }}>
@@ -974,12 +1066,12 @@ function StockAnalysis({ apiUrl }) {
                       key={stock.code}
                       onClick={() => {
                         setSymbol(stock.code);
-                        searchStock(stock.code);
+                        addSymbolToList(stock.code);
                       }}
                       style={{
                         padding: '6px 12px',
-                        background: 'white',
-                        color: '#667eea',
+                        background: selectedSymbols.includes(stock.code) ? '#667eea' : 'white',
+                        color: selectedSymbols.includes(stock.code) ? 'white' : '#667eea',
                         border: '2px solid #667eea',
                         borderRadius: '20px',
                         cursor: 'pointer',
@@ -988,16 +1080,20 @@ function StockAnalysis({ apiUrl }) {
                         transition: 'all 0.3s'
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.background = '#667eea';
-                        e.currentTarget.style.color = 'white';
+                        if (!selectedSymbols.includes(stock.code)) {
+                          e.currentTarget.style.background = '#667eea';
+                          e.currentTarget.style.color = 'white';
+                        }
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'white';
-                        e.currentTarget.style.color = '#667eea';
+                        if (!selectedSymbols.includes(stock.code)) {
+                          e.currentTarget.style.background = 'white';
+                          e.currentTarget.style.color = '#667eea';
+                        }
                       }}
                       title={`${language === 'zh' ? stock.name_zh : stock.name_en} (${stock.code})`}
                     >
-                      {stock.code}
+                      {selectedSymbols.includes(stock.code) ? '✓ ' : ''}{stock.code}
                     </button>
                   ))}
                 </div>
@@ -1015,7 +1111,8 @@ function StockAnalysis({ apiUrl }) {
             {[
               { value: 'buffett', label: '巴菲特', emoji: '🏛️', desc: '价值投资' },
               { value: 'lynch', label: '彼得·林奇', emoji: '🎯', desc: '成长股猎手' },
-              { value: 'soros', label: '索罗斯', emoji: '🌊', desc: '趋势投机' }
+              { value: 'soros', label: '索罗斯', emoji: '🌊', desc: '趋势投机' },
+              { value: 'custom', label: '自定义', emoji: '⚙️', desc: '个性化策略' }
             ].map(option => (
               <label 
                 key={option.value} 
@@ -1046,6 +1143,53 @@ function StockAnalysis({ apiUrl }) {
               </label>
             ))}
           </div>
+
+          {/* 🆕 自定义投资风格输入框 */}
+          {investmentStyle === 'custom' && (
+            <div style={{ marginTop: '15px', padding: '12px', background: '#fff', borderRadius: '8px', border: '2px solid #667eea' }}>
+              <div style={{ marginBottom: '10px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', color: '#333', fontWeight: '600', fontSize: '0.9em' }}>
+                  风格名称：
+                </label>
+                <input
+                  type="text"
+                  value={customStyleName}
+                  onChange={(e) => setCustomStyleName(e.target.value)}
+                  placeholder="例如：科技成长型、保守稳健型、激进短线型"
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '6px',
+                    fontSize: '0.95em'
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', color: '#333', fontWeight: '600', fontSize: '0.9em' }}>
+                  策略描述：
+                </label>
+                <textarea
+                  value={customStyleDesc}
+                  onChange={(e) => setCustomStyleDesc(e.target.value)}
+                  placeholder="详细描述您的投资策略...&#10;&#10;示范：&#10;• 关注高ROE（>20%）和低PE（<25）的科技股&#10;• 重视现金流和盈利能力&#10;• 看重创新能力和市场份额&#10;• 偏好中期持有（3-12个月）&#10;• 风险承受能力：中等"
+                  style={{
+                    width: '100%',
+                    minHeight: '120px',
+                    padding: '10px',
+                    border: '1px solid #ddd',
+                    borderRadius: '6px',
+                    fontSize: '0.95em',
+                    fontFamily: 'inherit',
+                    resize: 'vertical'
+                  }}
+                />
+              </div>
+              <div style={{ marginTop: '8px', fontSize: '0.85em', color: '#666', lineHeight: '1.5' }}>
+                💡 提示：详细描述您的投资偏好，包括关注的财务指标、风险偏好、持有期限等，AI将据此为您定制分析
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 最新新闻列表 */}
@@ -1102,48 +1246,95 @@ function StockAnalysis({ apiUrl }) {
           </div>
         )}
 
-        {/* 新闻/消息输入 */}
+        {/* 🆕 新闻管理 - 添加和删除多条新闻 */}
         <div style={{ marginTop: '15px', padding: '15px', background: '#fff3cd', borderRadius: '8px' }}>
           <label style={{ display: 'block', marginBottom: '10px', color: '#333', fontWeight: '600' }}>
-            📝 选中的新闻/自定义消息（可选）：
+            📝 添加新闻/消息（分析时将综合考虑）：
           </label>
-          <textarea
-            value={newsContext}
-            onChange={(e) => setNewsContext(e.target.value)}
-            placeholder="点击上方新闻自动填充，或手动输入..."
-            style={{
-              width: '100%',
-              minHeight: '80px',
-              padding: '10px',
-              border: '1px solid #ddd',
-              borderRadius: '5px',
-              fontSize: '14px',
-              fontFamily: 'inherit',
-              resize: 'vertical'
-            }}
-          />
-        </div>
-
-        {/* 用户观点输入 */}
-        <div style={{ marginTop: '15px', padding: '15px', background: '#d1ecf1', borderRadius: '8px' }}>
-          <label style={{ display: 'block', marginBottom: '10px', color: '#333', fontWeight: '600' }}>
-            💭 您的观点/研报（可选）：
-          </label>
-          <textarea
-            value={userOpinion}
-            onChange={(e) => setUserOpinion(e.target.value)}
-            placeholder="例如：我认为该公司基本面良好，技术创新能力强，长期看好..."
-            style={{
-              width: '100%',
-              minHeight: '80px',
-              padding: '10px',
-              border: '1px solid #ddd',
-              borderRadius: '5px',
-              fontSize: '14px',
-              fontFamily: 'inherit',
-              resize: 'vertical'
-            }}
-          />
+          
+          {/* 已添加的新闻列表 */}
+          {newsList.length > 0 && (
+            <div style={{ marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {newsList.map((newsItem) => (
+                <div
+                  key={newsItem.id}
+                  style={{
+                    padding: '10px 12px',
+                    background: 'white',
+                    borderRadius: '6px',
+                    border: '1px solid #ffc107',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'start',
+                    gap: '10px'
+                  }}
+                >
+                  <div style={{ flex: 1, fontSize: '0.9em', color: '#333', lineHeight: '1.4' }}>
+                    {newsItem.content}
+                  </div>
+                  <button
+                    onClick={() => removeNewsFromList(newsItem.id)}
+                    style={{
+                      padding: '4px 8px',
+                      background: '#dc3545',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '0.85em',
+                      flexShrink: 0
+                    }}
+                  >
+                    删除
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {/* 新闻输入框 */}
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <textarea
+              value={newsContext}
+              onChange={(e) => setNewsContext(e.target.value)}
+              placeholder="点击上方新闻自动填充，或手动输入新闻/消息..."
+              style={{
+                flex: 1,
+                minHeight: '80px',
+                padding: '10px',
+                border: '1px solid #ddd',
+                borderRadius: '5px',
+                fontSize: '14px',
+                fontFamily: 'inherit',
+                resize: 'vertical'
+              }}
+            />
+            <button
+              onClick={addNewsToList}
+              disabled={!newsContext.trim()}
+              style={{
+                padding: '10px 20px',
+                background: newsContext.trim() ? '#28a745' : '#ccc',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: newsContext.trim() ? 'pointer' : 'not-allowed',
+                fontWeight: '600',
+                fontSize: '0.9em',
+                alignSelf: 'flex-start',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              ➕ 添加
+            </button>
+          </div>
+          
+          <div style={{ marginTop: '8px', fontSize: '0.85em', color: '#666' }}>
+            {newsList.length > 0 
+              ? `✅ 已添加 ${newsList.length} 条新闻/消息` 
+              : '💡 可添加多条新闻，分析时会综合考虑所有内容'
+            }
+          </div>
         </div>
 
         {/* 🆕 AI综合分析按钮 */}
@@ -1178,9 +1369,9 @@ function StockAnalysis({ apiUrl }) {
               {loading ? '🔄 分析中...' : '🤖 开始AI综合分析'}
             </button>
             <div style={{ marginTop: '10px', fontSize: '0.9em', color: '#666' }}>
-              {newsContext && '✅ 已选择新闻 '}
-              {userOpinion && '✅ 已输入观点 '}
-              {!newsContext && !userOpinion && '💡 提示：选择新闻或输入观点可获得更全面的分析'}
+              {newsList.length > 0 && `✅ 已添加 ${newsList.length} 条新闻 `}
+              {selectedSymbols.length > 0 && `📊 已选择 ${selectedSymbols.length} 只股票 `}
+              {newsList.length === 0 && selectedSymbols.length === 0 && '💡 提示：添加更多新闻或选择多只股票可获得更全面的分析'}
             </div>
           </div>
         )}
@@ -1199,56 +1390,18 @@ function StockAnalysis({ apiUrl }) {
         </div>
       )}
 
-      {/* 数据展示区域 */}
-      {stockData && (
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: window.innerWidth > 768 ? '1fr 1fr' : '1fr',
-          gap: '20px',
-          marginBottom: '20px'
+      {/* 🆕 Tom对话窗口 - 现代化简洁设计 */}
+      {analysis && showChatWindow && (
+        <div style={{
+          background: '#FFFFFF',
+          borderRadius: '16px',
+          padding: '0',
+          maxWidth: '1200px', // 最大宽度1200px
+          width: '70%', // 屏幕的70%
+          margin: '34px auto', // 水平居中
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06)',
+          border: '1px solid #E5E7EB'
         }}>
-          {/* 左侧：股票数据 */}
-          <div>
-            {/* 价格卡片 */}
-            <div style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white',
-              padding: '20px',
-              borderRadius: '10px',
-              marginBottom: '20px'
-            }}>
-              <div style={{ fontSize: '0.9em', marginBottom: '5px' }}>{stockData.quote.name}</div>
-              <div style={{ fontSize: '2em', fontWeight: 'bold', marginBottom: '10px' }}>
-                ${stockData.quote.price.toFixed(2)}
-              </div>
-              <div style={{ fontSize: '1.2em' }}>
-                {stockData.quote.change >= 0 ? '📈' : '📉'} 
-                {stockData.quote.change >= 0 ? '+' : ''}
-                {stockData.quote.change.toFixed(2)} 
-                ({stockData.quote.change_percent >= 0 ? '+' : ''}
-                {stockData.quote.change_percent.toFixed(2)}%)
-              </div>
-              <div style={{ fontSize: '0.8em', marginTop: '10px', opacity: 0.8 }}>
-                更新时间: {stockData.quote.updated_at}
-              </div>
-            </div>
-
-            {/* 旧的独立图表已删除，所有内容在Tom对话窗口中展示 */}
-          </div>
-
-          {/* 🆕 Tom对话窗口 - 现代化设计 */}
-          {analysis && showChatWindow && (
-            <div style={{
-              marginTop: '34px',
-              background: '#FFFFFF',
-              borderRadius: '16px',
-              padding: '0',
-              maxWidth: '1200px', // 最大宽度1200px
-              width: '75%', // 屏幕的75%
-              margin: '34px auto', // 水平居中
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06)',
-              border: '1px solid #E5E7EB'
-            }}>
               {/* 头部 */}
               <div style={{
                 padding: '24px 32px',
@@ -1602,7 +1755,6 @@ function StockAnalysis({ apiUrl }) {
               </div>
             </div>
           )}
-        </div>
       )}
 
       {/* 双策略对比显示 */}
