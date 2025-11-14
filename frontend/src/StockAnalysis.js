@@ -517,6 +517,12 @@ function StockAnalysis({ apiUrl }) {
         multi_stocks_data: multiStocksData // 🆕 添加多股票数据
       };
 
+      // 🔧 过滤对话历史，只保留 role 和 content（DeepSeek API 只接受这两个字段）
+      const cleanHistory = conversationHistory.map(msg => ({
+        role: msg.role,
+        content: msg.content
+      }));
+
       // 调用Tom对话API
       const response = await fetch(`${apiUrl}/api/chat/tom/message`, {
         method: 'POST',
@@ -524,7 +530,7 @@ function StockAnalysis({ apiUrl }) {
         body: JSON.stringify({
           symbol: stockData.quote.symbol,
           user_message: currentMessage,
-          conversation_history: conversationHistory, // 传递之前的对话
+          conversation_history: cleanHistory, // 🔧 传递清理后的对话历史
           stock_context: stockContext,
           selected_symbols: selectedSymbols // 🆕 传递所有选中的股票
         })

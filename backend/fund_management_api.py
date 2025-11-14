@@ -11,18 +11,35 @@ from datetime import datetime
 fund_bp = Blueprint('fund', __name__)
 
 def get_db_connection():
+    """获取数据库连接（跨平台兼容）"""
+    import urllib.parse
     DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://decision_user:8P8ZDdFaLp306B0siOZTXGScXmrdS9EB@dpg-d3ot1n3ipnbc739gkn7g-a.singapore-postgres.render.com/decision_assistant_098l')
-    return psycopg2.connect(DATABASE_URL)
+    
+    # 使用解析后的连接参数，避免Windows上的UnicodeDecodeError
+    result = urllib.parse.urlparse(DATABASE_URL)
+    return psycopg2.connect(
+        database=result.path[1:],
+        user=result.username,
+        password=result.password,
+        host=result.hostname,
+        port=result.port
+    )
 
 def get_user_id(username):
     """根据用户名获取user_id"""
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT id FROM users WHERE username = %s", (username,))
-    result = cur.fetchone()
-    cur.close()
-    conn.close()
-    return result[0] if result else None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM users WHERE username = %s", (username,))
+        result = cur.fetchone()
+        cur.close()
+        conn.close()
+        return result[0] if result else None
+    except Exception as e:
+        print(f"❌ get_user_id失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
 
 # ==================== 账户查询 ====================
 
@@ -94,9 +111,13 @@ def get_positions(username):
     获取用户持仓列表（包含A/B对照组）
     """
     try:
+        print(f"📊 获取持仓列表: username={username}")
         user_id = get_user_id(username)
         if not user_id:
+            print(f"❌ 用户不存在: {username}")
             return jsonify({'error': '用户不存在'}), 404
+        
+        print(f"✅ 找到用户ID: {user_id}")
         
         conn = get_db_connection()
         cur = conn.cursor()
