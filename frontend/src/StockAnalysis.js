@@ -517,11 +517,15 @@ function StockAnalysis({ apiUrl }) {
         multi_stocks_data: multiStocksData // 🆕 添加多股票数据
       };
 
-      // 🔧 过滤对话历史，只保留 role 和 content（DeepSeek API 只接受这两个字段）
-      const cleanHistory = conversationHistory.map(msg => ({
-        role: msg.role,
-        content: msg.content
-      }));
+      // 🔧 过滤对话历史：
+      // 1. 排除 Jany 的消息（from_jany: true）
+      // 2. 只保留 role 和 content（DeepSeek API 只接受这两个字段）
+      const cleanHistory = conversationHistory
+        .filter(msg => !msg.from_jany)  // 排除 Jany 的策略消息
+        .map(msg => ({
+          role: msg.role,
+          content: msg.content
+        }));
 
       // 调用Tom对话API
       const response = await fetch(`${apiUrl}/api/chat/tom/message`, {
