@@ -517,15 +517,12 @@ function StockAnalysis({ apiUrl }) {
         multi_stocks_data: multiStocksData // 🆕 添加多股票数据
       };
 
-      // 🔧 过滤对话历史：
-      // 1. 排除 Jany 的消息（from_jany: true）
-      // 2. 只保留 role 和 content（DeepSeek API 只接受这两个字段）
-      const cleanHistory = conversationHistory
-        .filter(msg => !msg.from_jany)  // 排除 Jany 的策略消息
-        .map(msg => ({
-          role: msg.role,
-          content: msg.content
-        }));
+      // 🔧 清理对话历史：只保留 role 和 content（DeepSeek API 只接受这两个字段）
+      // 注意：保留 Jany 的消息，让 Tom 能看到策略并根据用户反馈调整
+      const cleanHistory = conversationHistory.map(msg => ({
+        role: msg.role,
+        content: msg.content
+      }));
 
       // 调用Tom对话API
       const response = await fetch(`${apiUrl}/api/chat/tom/message`, {
@@ -611,10 +608,36 @@ function StockAnalysis({ apiUrl }) {
         console.log('✅ Jany策略生成成功（全新）:', dualData);
         
         // 🆕 将Jany的策略推荐添加到对话历史
+        // 构建 Jany 的详细策略说明（让 Tom 能看到完整信息）
+        const optionStrat = dualData.option_strategy;
+        const stockStrat = dualData.stock_strategy;
+        
+        const janyContent = `📊 **Jany策略推荐**
+
+基于您与Tom的${conversationHistory.length}条对话分析，我为您生成了两个策略：
+
+**策略A：期权策略**
+- 类型: ${optionStrat.strategy_type}
+- 行权价: $${optionStrat.strike_price}
+- 到期日: ${optionStrat.expiration_date}
+- 期权费: $${optionStrat.option_premium}
+- 最大收益: $${optionStrat.max_profit}
+- 最大损失: $${optionStrat.max_loss}
+
+**策略B：股票策略**
+- 操作: ${stockStrat.action}
+- 数量: ${stockStrat.quantity}股
+- 成本: $${stockStrat.total_cost}
+- 预期收益: $${stockStrat.expected_profit}
+
+**对比分析**:
+${dualData.comparison.summary}`;
+
         const janyMessage = {
-          role: 'jany',
-          content: `基于我对您与Tom的${conversationHistory.length}条对话的分析，以及当前市场数据，我为您生成了两个策略供选择：`,
-          strategy_data: dualData, // 包含完整的策略数据
+          role: 'assistant',  // ← 改为 'assistant' 让 Tom 能看到
+          content: janyContent,
+          from_jany: true,  // UI 标记
+          strategy_data: dualData,
           timestamp: Date.now()
         };
         setConversationHistory(prev => [...prev, janyMessage]);
