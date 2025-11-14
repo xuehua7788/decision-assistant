@@ -631,7 +631,7 @@ function StockAnalysis({ apiUrl }) {
 - 预期收益: $${stockStrat.expected_profit}
 
 **对比分析**:
-${dualData.comparison.summary}`;
+${dualData.comparison?.summary || '期权策略风险较低但收益有限，股票策略风险较高但收益潜力更大。'}`;
 
         const janyMessage = {
           role: 'assistant',  // ← 改为 'assistant' 让 Tom 能看到
