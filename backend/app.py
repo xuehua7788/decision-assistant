@@ -99,20 +99,19 @@ load_dotenv()
 app = Flask(__name__)
 
 # CORS configuration - 允许所有来源和方法
-CORS(app, 
-     resources={r"/*": {"origins": "*"}},
-     allow_headers=["Content-Type", "Authorization"],
-     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-     supports_credentials=False)
+# 使用环境变量配置允许的源
+ALLOWED_ORIGINS = os.getenv('ALLOWED_ORIGINS', '*')
+if ALLOWED_ORIGINS == '*':
+    origins = '*'
+else:
+    origins = [origin.strip() for origin in ALLOWED_ORIGINS.split(',')]
 
-# 🔧 添加全局错误处理器，确保所有响应都包含 CORS 头
-@app.after_request
-def after_request(response):
-    """确保所有响应都包含 CORS 头"""
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
-    return response
+CORS(app, 
+     resources={r"/*": {"origins": origins}},
+     allow_headers=["Content-Type", "Authorization", "Access-Control-Allow-Origin"],
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+     supports_credentials=False,
+     expose_headers=["Content-Type", "Authorization"])
 
 # 注册数据库初始化API蓝图
 if DB_INIT_AVAILABLE and db_init_bp:
