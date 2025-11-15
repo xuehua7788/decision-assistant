@@ -146,12 +146,27 @@ class DecisionTreeModel:
         print(f"      精确率: {test_precision_stock:.2%}")
         print(f"      召回率: {test_recall_stock:.2%}")
         
-        # 混淆矩阵
-        cm = confusion_matrix(y_test, y_test_pred)
+        # 混淆矩阵（处理单类别情况）
+        cm = confusion_matrix(y_test, y_test_pred, labels=[1, 2])
         print(f"\n📊 混淆矩阵:")
         print(f"                预测期权  预测股票")
-        print(f"   实际期权:      {cm[0][0]:>4}      {cm[0][1]:>4}")
-        print(f"   实际股票:      {cm[1][0]:>4}      {cm[1][1]:>4}")
+        
+        # 安全访问混淆矩阵元素
+        if cm.shape == (2, 2):
+            print(f"   实际期权:      {cm[0][0]:>4}      {cm[0][1]:>4}")
+            print(f"   实际股票:      {cm[1][0]:>4}      {cm[1][1]:>4}")
+        elif cm.shape == (1, 1):
+            # 只有一个类别
+            unique_label = int(y_test.iloc[0]) if hasattr(y_test, 'iloc') else int(y_test[0])
+            if unique_label == 1:
+                print(f"   实际期权:      {cm[0][0]:>4}         0")
+                print(f"   实际股票:         0         0")
+            else:
+                print(f"   实际期权:         0         0")
+                print(f"   实际股票:      {cm[0][0]:>4}         0")
+        else:
+            print(f"   ⚠️ 混淆矩阵形状异常: {cm.shape}")
+            print(f"   {cm}")
         
         # 特征重要性
         print(f"\n🔍 Top 10 特征重要性:")
