@@ -116,7 +116,8 @@ function UserProfile({ username, apiUrl }) {
       // 1. 先训练模型（如果需要）
       const trainResponse = await fetch(`${apiUrl}/api/ml/decision-tree/train`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
       });
 
       if (!trainResponse.ok) {
