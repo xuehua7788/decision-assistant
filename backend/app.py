@@ -189,6 +189,14 @@ try:
     print("✅ Tom对话API已注册")
 except ImportError as e:
     print(f"⚠️ Tom对话API导入失败: {e}")
+
+# 导入机器学习API
+try:
+    from ml_api import ml_bp
+    app.register_blueprint(ml_bp)
+    print("✅ 机器学习API已注册")
+except ImportError as e:
+    print(f"⚠️ 机器学习API导入失败: {e}")
 print("ℹ️  旧的strategy_storage_api已禁用，策略API现在在app.py中")
 
 # 导入期权策略处理器

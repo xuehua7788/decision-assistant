@@ -5,7 +5,6 @@ import Register from './Register';
 import OptionStrategy from './OptionStrategy';
 import UserProfile from './UserProfile';
 import StockAnalysis from './StockAnalysis';
-import StrategyEvaluation from './StrategyEvaluation';
 import AccountBalance from './AccountBalance';
 import PositionComparison from './PositionComparison';
 
@@ -18,8 +17,6 @@ function App() {
   const [currentView, setCurrentView] = useState('login'); // 'login', 'register', 'app'
   const [user, setUser] = useState(null);
   const [currentMode, setCurrentMode] = useState('analysis');
-  const [chatMessages, setChatMessages] = useState([]);
-  const [chatInput, setChatInput] = useState('');
   const [loading, setLoading] = useState(false);
   
   // 算法分析相关状态
@@ -33,69 +30,7 @@ function App() {
   const [optionStrategyResult, setOptionStrategyResult] = useState(null);
   const [showOptionStrategy, setShowOptionStrategy] = useState(false);
 
-  // 初始化用户聊天记录的函数
-  const initializeChatForUser = React.useCallback(async (username) => {
-    console.log(`🔄 正在为用户 ${username} 加载聊天记录...`);
-    
-    // 优先从后端API获取该用户的聊天记录
-    try {
-      const response = await fetch(`${API_URL}/api/decisions/chat/${username}`);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log(`✅ 从后端加载到 ${data.messages?.length || 0} 条消息`);
-        
-        if (data.messages) {
-          // 将后端格式转换为前端格式
-          const formattedMessages = [];
-          data.messages.forEach(msg => {
-            if (msg.user) {
-              formattedMessages.push({ type: 'user', text: msg.user });
-            }
-            if (msg.assistant) {
-              formattedMessages.push({ type: 'assistant', text: msg.assistant });
-            }
-          });
-          
-          // 即使是空数组也要设置，避免后续创建欢迎消息
-          if (formattedMessages.length > 0) {
-            console.log(`📝 显示 ${formattedMessages.length} 条历史消息`);
-            setChatMessages(formattedMessages);
-            localStorage.setItem(`chat_${username}`, JSON.stringify(formattedMessages));
-            return;
-          } else {
-            // 后端返回空消息，但用户已存在，说明是新用户或聊天已清空
-            console.log(`📝 新用户或空聊天记录`);
-          }
-        }
-      }
-    } catch (error) {
-      console.log('⚠️ 无法从后端加载聊天记录，尝试使用本地缓存:', error);
-    }
-    
-    // 如果后端没有消息，尝试从localStorage获取
-    const userChatKey = `chat_${username}`;
-    const savedChat = localStorage.getItem(userChatKey);
-    
-    if (savedChat) {
-      try {
-        const parsedChat = JSON.parse(savedChat);
-        console.log(`📦 从localStorage加载到 ${parsedChat.length} 条消息`);
-        setChatMessages(parsedChat);
-        return;
-      } catch (e) {
-        console.log('❌ localStorage解析失败:', e);
-      }
-    }
-    
-    // 只有在后端和localStorage都没有数据时，才创建欢迎消息
-    console.log(`🆕 创建欢迎消息`);
-    const welcomeMessage = [
-      { type: 'assistant', text: `Hello ${username}! I'm your decision assistant. Tell me what decision you're facing, and I'll help you think through it step by step. What's on your mind?` }
-    ];
-    setChatMessages(welcomeMessage);
-    localStorage.setItem(userChatKey, JSON.stringify(welcomeMessage));
-  }, [API_URL]);
+  // 删除了聊天相关功能
 
   // 加载算法列表
   useEffect(() => {
@@ -113,54 +48,18 @@ function App() {
   // 用户必须手动登录才能进入应用
 
   const handleLogin = (userData) => {
-    // 清理其他用户的localStorage缓存
-    const currentUsername = userData.username;
-    const keysToRemove = [];
-    
-    // 找出所有不属于当前用户的聊天记录键
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('chat_') && key !== `chat_${currentUsername}`) {
-        keysToRemove.push(key);
-      }
-    }
-    
-    // 删除其他用户的聊天记录
-    keysToRemove.forEach(key => localStorage.removeItem(key));
-    
     setUser(userData);
     setCurrentView('app');
-    // 为当前用户加载或初始化聊天记录
-    initializeChatForUser(userData.username);
   };
 
   const handleRegister = (userData) => {
-    // 清理所有旧的localStorage缓存
-    const currentUsername = userData.username;
-    const keysToRemove = [];
-    
-    // 找出所有不属于当前用户的聊天记录键
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('chat_') && key !== `chat_${currentUsername}`) {
-        keysToRemove.push(key);
-      }
-    }
-    
-    // 删除其他用户的聊天记录
-    keysToRemove.forEach(key => localStorage.removeItem(key));
-    
     setUser(userData);
     setCurrentView('app');
-    // 新用户，初始化欢迎消息
-    initializeChatForUser(userData.username);
   };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('username');
-    // 清空聊天记录
-    setChatMessages([]);
     setUser(null);
     setCurrentView('login');
   };
@@ -214,50 +113,7 @@ function App() {
   };
 
 
-  const sendMessage = async () => {
-    if (!chatInput.trim()) return;
-
-    const newMessages = [...chatMessages, { type: 'user', text: chatInput }];
-    setChatMessages(newMessages);
-    const userMessage = chatInput;
-    setChatInput('');
-
-    try {
-      const response = await fetch(`${API_URL}/api/decisions/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          message: userMessage,
-          session_id: user?.username // 使用用户名作为session_id
-        })
-      });
-      
-      const data = await response.json();
-      
-      // 检查是否返回了期权策略结果
-      if (data.option_strategy_used && data.option_strategy_result) {
-        console.log('🎯 检测到期权策略响应:', data.option_strategy_result);
-        setOptionStrategyResult(data.option_strategy_result);
-        setShowOptionStrategy(true);
-      }
-      
-      const updatedMessages = [...newMessages, { type: 'assistant', text: data.response }];
-      setChatMessages(updatedMessages);
-      
-      // 保存到localStorage
-      if (user?.username) {
-        localStorage.setItem(`chat_${user.username}`, JSON.stringify(updatedMessages));
-      }
-    } catch (error) {
-      const errorMessages = [...newMessages, { type: 'assistant', text: 'Error: Could not connect to server' }];
-      setChatMessages(errorMessages);
-      
-      // 保存到localStorage
-      if (user?.username) {
-        localStorage.setItem(`chat_${user.username}`, JSON.stringify(errorMessages));
-      }
-    }
-  };
+  // 删除了聊天功能
 
   // 如果未登录，显示登录或注册页面
   if (currentView === 'login') {
@@ -349,38 +205,6 @@ function App() {
             📊 Positions (A/B)
           </button>
           <button
-            onClick={() => switchMode('strategy')}
-            style={{
-              background: currentMode === 'strategy' ? '#ffd700' : 'white',
-              color: currentMode === 'strategy' ? '#333' : '#667eea',
-              padding: '10px 25px',
-              border: 'none',
-              borderRadius: '25px',
-              cursor: 'pointer',
-              fontSize: '1em',
-              fontWeight: '600',
-              transform: currentMode === 'strategy' ? 'scale(1.05)' : 'scale(1)'
-            }}
-          >
-            📋 Old Strategies
-          </button>
-          <button
-            onClick={() => switchMode('chat')}
-            style={{
-              background: currentMode === 'chat' ? '#ffd700' : 'white',
-              color: currentMode === 'chat' ? '#333' : '#667eea',
-              padding: '10px 25px',
-              border: 'none',
-              borderRadius: '25px',
-              cursor: 'pointer',
-              fontSize: '1em',
-              fontWeight: '600',
-              transform: currentMode === 'chat' ? 'scale(1.05)' : 'scale(1)'
-            }}
-          >
-            💬 Chat
-          </button>
-          <button
             onClick={() => switchMode('profile')}
             style={{
               background: currentMode === 'profile' ? '#ffd700' : 'white',
@@ -409,9 +233,6 @@ function App() {
         )}
 
         {/* Old Strategy Evaluation Mode */}
-        {currentMode === 'strategy' && (
-          <StrategyEvaluation apiUrl={API_URL} />
-        )}
 
         {/* Old Algorithm Mode - Hidden */}
         {currentMode === 'algorithm_old' && (
@@ -577,79 +398,6 @@ function App() {
           </div>
         )}
 
-        {/* Chat Mode */}
-        {currentMode === 'chat' && (
-          <div style={{
-            background: 'white',
-            borderRadius: '15px',
-            padding: '30px',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
-            marginBottom: '20px'
-          }}>
-            <div style={{
-              minHeight: '400px',
-              maxHeight: '400px',
-              overflowY: 'auto',
-              border: '2px solid #e0e0e0',
-              borderRadius: '10px',
-              padding: '20px',
-              marginBottom: '20px',
-              background: '#fafafa'
-            }}>
-              {chatMessages.map((msg, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    marginBottom: '15px',
-                    padding: '12px 16px',
-                    borderRadius: '10px',
-                    maxWidth: '80%',
-                    marginLeft: msg.type === 'user' ? 'auto' : '0',
-                    background: msg.type === 'user' 
-                      ? 'linear-gradient(135deg, #667eea, #764ba2)'
-                      : 'white',
-                    color: msg.type === 'user' ? 'white' : '#333',
-                    border: msg.type === 'assistant' ? '1px solid #e0e0e0' : 'none',
-                    textAlign: msg.type === 'user' ? 'right' : 'left'
-                  }}
-                >
-                  {msg.text}
-                </div>
-              ))}
-            </div>
-
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <input
-                type="text"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                placeholder="Type your message..."
-                style={{
-                  flex: 1,
-                  padding: '12px',
-                  border: '2px solid #e0e0e0',
-                  borderRadius: '8px',
-                  fontSize: '1em'
-                }}
-              />
-              <button
-                onClick={sendMessage}
-                style={{
-                  padding: '12px 24px',
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontWeight: '600'
-                }}
-              >
-                Send
-              </button>
-            </div>
-          </div>
-        )}
 
       </div>
 

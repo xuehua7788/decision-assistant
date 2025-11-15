@@ -5,8 +5,13 @@ function UserProfile({ username, apiUrl }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
-  const [recommendations, setRecommendations] = useState([]);
-  const [loadingRecs, setLoadingRecs] = useState(false);
+  
+  // 交易行为分析相关状态
+  const [showMLAnalysis, setShowMLAnalysis] = useState(false);
+  const [selectedAlgorithm, setSelectedAlgorithm] = useState('decision_tree');
+  const [mlAnalyzing, setMlAnalyzing] = useState(false);
+  const [mlResult, setMlResult] = useState(null);
+  const [mlError, setMlError] = useState(null);
 
   // 加载用户画像
   const loadProfile = async () => {
@@ -99,31 +104,56 @@ function UserProfile({ username, apiUrl }) {
     return map[value] || value;
   };
 
-  // 加载历史推荐记录
-  const loadRecommendations = async () => {
-    setLoadingRecs(true);
-    
+  // 删除了历史推荐记录功能
+
+  // 交易行为分析函数
+  const analyzeTrading = async () => {
+    setMlAnalyzing(true);
+    setMlError(null);
+    setMlResult(null);
+
     try {
-      const response = await fetch(`${apiUrl}/api/profile/${username}/recommendations`);
-      
-      if (response.ok) {
-        const data = await response.json();
-        setRecommendations(data.recommendations || []);
-      } else {
-        setRecommendations([]);
+      // 1. 先训练模型（如果需要）
+      const trainResponse = await fetch(`${apiUrl}/api/ml/decision-tree/train`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!trainResponse.ok) {
+        throw new Error('模型训练失败');
       }
+
+      const trainData = await trainResponse.json();
+      console.log('✅ 模型训练完成:', trainData);
+
+      // 2. 让Tom分析结果
+      const tomResponse = await fetch(`${apiUrl}/api/ml/tom-analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: username,
+          model_type: selectedAlgorithm
+        })
+      });
+
+      if (!tomResponse.ok) {
+        throw new Error('Tom分析失败');
+      }
+
+      const tomData = await tomResponse.json();
+      setMlResult(tomData);
+
     } catch (err) {
-      console.error('加载推荐记录失败:', err);
-      setRecommendations([]);
+      setMlError(err.message || '分析失败');
+      console.error('交易行为分析失败:', err);
     } finally {
-      setLoadingRecs(false);
+      setMlAnalyzing(false);
     }
   };
 
   useEffect(() => {
     if (username) {
       loadProfile();
-      loadRecommendations();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [username]);
@@ -186,23 +216,161 @@ function UserProfile({ username, apiUrl }) {
           最后分析: {profile.metadata?.analyzed_at ? new Date(profile.metadata.analyzed_at).toLocaleString('zh-CN') : 'N/A'} | 
           分析消息数: {profile.metadata?.total_messages_analyzed || 0} 条
         </div>
-        <button
-          onClick={generateProfile}
-          disabled={analyzing}
-          style={{
-            marginTop: '15px',
-            background: analyzing ? '#ccc' : '#764ba2',
-            color: 'white',
-            padding: '10px 25px',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '14px',
+        <div style={{ marginTop: '15px', display: 'flex', gap: '15px', justifyContent: 'center' }}>
+          <button
+            onClick={generateProfile}
+            disabled={analyzing}
+            style={{
+              background: analyzing ? '#ccc' : '#764ba2',
+              color: 'white',
+              padding: '10px 25px',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '14px',
             cursor: analyzing ? 'not-allowed' : 'pointer'
           }}
         >
           {analyzing ? '⏳ 重新分析中...' : '🔄 重新生成画像'}
         </button>
+        <button
+          onClick={() => setShowMLAnalysis(!showMLAnalysis)}
+          style={{
+            background: showMLAnalysis ? '#48bb78' : '#667eea',
+            color: 'white',
+            padding: '10px 25px',
+            border: 'none',
+            borderRadius: '8px',
+            fontSize: '14px',
+            cursor: 'pointer'
+          }}
+        >
+          {showMLAnalysis ? '📊 隐藏行为分析' : '🤖 交易行为分析'}
+        </button>
       </div>
+      </div>
+
+      {/* 交易行为分析面板 */}
+      {showMLAnalysis && (
+        <div style={{
+          background: 'white',
+          borderRadius: '15px',
+          padding: '30px',
+          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+          marginBottom: '20px'
+        }}>
+          <h3 style={{ color: '#667eea', marginBottom: '20px' }}>🤖 AI交易行为分析</h3>
+          
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', marginBottom: '10px', fontWeight: '600' }}>
+              选择分析算法：
+            </label>
+            <select
+              value={selectedAlgorithm}
+              onChange={(e) => setSelectedAlgorithm(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '12px',
+                border: '2px solid #e0e0e0',
+                borderRadius: '8px',
+                fontSize: '16px'
+              }}
+            >
+              <option value="decision_tree">决策树 (Decision Tree)</option>
+              <option value="bayesian">贝叶斯 (Bayesian) - 即将推出</option>
+            </select>
+          </div>
+
+          <button
+            onClick={analyzeTrading}
+            disabled={mlAnalyzing}
+            style={{
+              width: '100%',
+              background: mlAnalyzing ? '#ccc' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              padding: '15px',
+              border: 'none',
+              borderRadius: '10px',
+              fontSize: '16px',
+              fontWeight: '600',
+              cursor: mlAnalyzing ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {mlAnalyzing ? '⏳ Tom正在分析中...' : '🚀 开始分析'}
+          </button>
+
+          {mlError && (
+            <div style={{
+              marginTop: '20px',
+              padding: '15px',
+              background: '#fee',
+              border: '1px solid #fcc',
+              borderRadius: '8px',
+              color: '#c33'
+            }}>
+              ❌ {mlError}
+            </div>
+          )}
+
+          {mlResult && (
+            <div style={{
+              marginTop: '20px',
+              padding: '20px',
+              background: '#f8f9fa',
+              borderRadius: '10px'
+            }}>
+              <h4 style={{ color: '#667eea', marginBottom: '15px' }}>💡 Tom的分析报告</h4>
+              
+              {/* 模型信息 */}
+              <div style={{
+                background: 'white',
+                padding: '15px',
+                borderRadius: '8px',
+                marginBottom: '15px'
+              }}>
+                <div style={{ fontSize: '14px', color: '#666' }}>
+                  <div><strong>模型版本:</strong> {mlResult.model_version}</div>
+                  <div><strong>训练样本:</strong> {mlResult.summary?.total_samples || 0} 个</div>
+                  <div><strong>准确率:</strong> {(mlResult.summary?.accuracy * 100).toFixed(2)}%</div>
+                </div>
+              </div>
+
+              {/* Tom的分析 */}
+              <div style={{
+                background: 'white',
+                padding: '20px',
+                borderRadius: '8px',
+                lineHeight: '1.8',
+                whiteSpace: 'pre-wrap'
+              }}>
+                {mlResult.tom_analysis}
+              </div>
+
+              {/* Top特征 */}
+              {mlResult.summary?.top_features && (
+                <div style={{
+                  marginTop: '15px',
+                  background: 'white',
+                  padding: '15px',
+                  borderRadius: '8px'
+                }}>
+                  <h5 style={{ marginBottom: '10px' }}>🔍 关键影响因素 (Top 5)</h5>
+                  {mlResult.summary.top_features.slice(0, 5).map((feature, idx) => (
+                    <div key={idx} style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      padding: '8px 0',
+                      borderBottom: idx < 4 ? '1px solid #eee' : 'none'
+                    }}>
+                      <span>{feature.name}</span>
+                      <strong>{(feature.importance * 100).toFixed(2)}%</strong>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 投资特征卡片 */}
       <div style={{
@@ -282,19 +450,6 @@ function UserProfile({ username, apiUrl }) {
         </div>
       </div>
 
-      {/* 分析摘要 */}
-      <div style={{
-        background: '#f8f9fa',
-        borderRadius: '15px',
-        padding: '25px',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
-      }}>
-        <h3 style={{ color: '#667eea', marginBottom: '15px' }}>📝 分析摘要</h3>
-        <p style={{ lineHeight: '1.8', color: '#333' }}>
-          {profile.analysis_summary || 'N/A'}
-        </p>
-      </div>
-
       {error && (
         <div style={{
           marginTop: '20px',
@@ -306,70 +461,6 @@ function UserProfile({ username, apiUrl }) {
           ❌ {error}
         </div>
       )}
-
-      {/* 历史推荐记录 */}
-      <div style={{
-        marginTop: '30px',
-        padding: '25px',
-        background: 'white',
-        borderRadius: '15px',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
-      }}>
-        <h3 style={{ color: '#667eea', marginBottom: '15px' }}>📈 历史策略推荐记录</h3>
-        
-        {loadingRecs ? (
-          <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
-            ⏳ 加载中...
-          </div>
-        ) : recommendations.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
-            暂无推荐记录
-          </div>
-        ) : (
-          <div>
-            {recommendations.map((rec, index) => (
-              <div key={rec.id || index} style={{
-                marginBottom: '15px',
-                padding: '15px',
-                background: '#f8f9fa',
-                borderRadius: '10px',
-                borderLeft: '4px solid #667eea'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                  <div style={{ fontWeight: 'bold', color: '#333' }}>
-                    {rec.strategy_type || '未知策略'}
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#999' }}>
-                    {rec.created_at ? new Date(rec.created_at).toLocaleString('zh-CN') : ''}
-                  </div>
-                </div>
-                
-                {rec.strategy_parameters && (
-                  <div style={{ fontSize: '14px', color: '#666', marginBottom: '8px' }}>
-                    <strong>参数:</strong>
-                    <pre style={{
-                      background: 'white',
-                      padding: '10px',
-                      borderRadius: '5px',
-                      fontSize: '12px',
-                      overflow: 'auto',
-                      marginTop: '5px'
-                    }}>
-                      {JSON.stringify(rec.strategy_parameters, null, 2)}
-                    </pre>
-                  </div>
-                )}
-                
-                {rec.adjustment_reason && (
-                  <div style={{ fontSize: '14px', color: '#555', marginTop: '8px' }}>
-                    <strong>调整原因:</strong> {rec.adjustment_reason}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   );
 }
