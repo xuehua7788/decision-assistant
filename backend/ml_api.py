@@ -12,8 +12,7 @@ from ml_decision_tree import (
     train_and_save_model,
     predict_user_choice
 )
-from ml_feature_extraction import get_training_data, prepare_features_for_decision_tree
-from database.connection import get_db_connection
+from ml_feature_extraction import get_training_data, prepare_features_for_decision_tree, get_db_connection
 
 ml_bp = Blueprint('ml', __name__, url_prefix='/api/ml')
 
