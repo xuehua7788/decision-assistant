@@ -3,7 +3,6 @@ import './App.css';
 import Login from './Login';
 import Register from './Register';
 import OptionStrategy from './OptionStrategy';
-import UserProfile from './UserProfile';
 import StockAnalysis from './StockAnalysis';
 import AccountBalance from './AccountBalance';
 import PositionComparison from './PositionComparison';
@@ -204,22 +203,6 @@ function App() {
           >
             📊 Positions (A/B)
           </button>
-          <button
-            onClick={() => switchMode('profile')}
-            style={{
-              background: currentMode === 'profile' ? '#ffd700' : 'white',
-              color: currentMode === 'profile' ? '#333' : '#667eea',
-              padding: '10px 25px',
-              border: 'none',
-              borderRadius: '25px',
-              cursor: 'pointer',
-              fontSize: '1em',
-              fontWeight: '600',
-              transform: currentMode === 'profile' ? 'scale(1.05)' : 'scale(1)'
-            }}
-          >
-            👤 Profile
-          </button>
         </div>
 
         {/* Stock Analysis Mode */}
@@ -400,11 +383,6 @@ function App() {
 
 
       </div>
-
-      {/* User Profile Mode */}
-      {currentMode === 'profile' && (
-        <UserProfile username={user?.username} apiUrl={API_URL} />
-      )}
 
       {/* 期权策略模态框 */}
       {showOptionStrategy && optionStrategyResult && (

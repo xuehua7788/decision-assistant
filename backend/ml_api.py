@@ -404,8 +404,9 @@ def tom_analyze_ml():
         data = request.json
         username = data.get('username')
         model_type = data.get('model_type', 'decision_tree')
+        investment_style = data.get('investment_style', 'buffett')  # 获取投资大师风格
         
-        print(f"📝 用户: {username}, 模型类型: {model_type}")
+        print(f"📝 用户: {username}, 模型类型: {model_type}, 投资风格: {investment_style}")
         
         # 加载模型
         print("📦 正在加载模型...")
@@ -552,7 +553,18 @@ def tom_analyze_ml():
         if len(top_features_cn) == 0:
             top_features_cn.append("暂无足够数据分析关键因素")
         
-        prompt = f"""你是Tom，一位专业的量化分析师。我通过AI算法分析了用户 {username} 的 {summary['total_samples']} 笔交易记录，发现了一些有趣的交易行为模式。请用通俗易懂的语言，帮助用户了解自己的交易习惯。
+        # 投资大师风格描述
+        style_descriptions = {
+            'buffett': '巴菲特风格（价值投资，长期持有优质公司）',
+            'graham': '格雷厄姆风格（安全边际，低估值投资）',
+            'soros': '索罗斯风格（宏观趋势，灵活应变）',
+            'custom': '自定义风格'
+        }
+        style_desc = style_descriptions.get(investment_style, '巴菲特风格')
+        
+        prompt = f"""你是Tom，一位专业的量化分析师和投资顾问。我通过AI算法分析了用户 {username} 的 {summary['total_samples']} 笔交易记录，发现了一些有趣的交易行为模式。
+
+**重要背景**：用户当前选择的投资大师风格是「{style_desc}」，请在分析中考虑用户的实际交易行为与这个风格的匹配度。
 
 ## 用户的交易数据
 - 交易次数: {summary['total_samples']} 笔已平仓交易
@@ -564,21 +576,23 @@ def tom_analyze_ml():
 ## 影响你决策的关键因素（AI发现）
 {chr(10).join(top_features_cn)}
 
-请用**第二人称（你）**，从以下角度给出分析（每个角度2-3句话，总共400字以内）：
+请用**第二人称（你）**，从以下角度给出分析（每个角度2-3句话，总共500字以内）：
 
 1. **你的交易风格**：根据期权/股票选择比例和收益情况，描述用户是什么类型的交易者
 
-2. **你的决策依据**：**重点解释**上面列出的Top 3关键因素是什么意思，以及为什么这些因素对用户的决策影响最大。用大白话解释，比如"你最看重账户里有多少钱可以用"
+2. **与{style_desc}的匹配度**：分析用户的实际交易行为与选择的投资风格是否一致，有哪些相似和不同之处
 
-3. **你的优势**：指出用户做得好的地方（比如收益率、风险控制等）
+3. **你的决策依据**：**重点解释**上面列出的Top 3关键因素是什么意思，以及为什么这些因素对你的决策影响最大。用大白话解释，比如"你最看重账户里有多少钱可以用"
 
-4. **改进建议**：给出1-2条具体的、可操作的建议
+4. **你的优势**：指出用户做得好的地方（比如收益率、风险控制等）
+
+5. **改进建议**：结合用户选择的投资风格，给出1-2条具体的、可操作的建议，帮助用户更好地实践该风格
 
 注意：
 - 用"你"而不是"用户"
 - 语气友好、鼓励
 - 必须用大白话解释那3个关键因素，不要直接说专业术语
-- 重点是帮助用户了解自己
+- 重点是帮助用户了解自己，并更好地实践选择的投资风格
 """
 
         print("🚀 正在调用DeepSeek API...")
@@ -600,7 +614,7 @@ def tom_analyze_ml():
                 }
             ],
             "temperature": 0.7,
-            "max_tokens": 800
+            "max_tokens": 1000  # 增加到1000以容纳更长的分析
         }
         
         response = requests.post(

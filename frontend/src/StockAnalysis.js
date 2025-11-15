@@ -28,6 +28,13 @@ function StockAnalysis({ apiUrl, username }) {
   const [mlSummary, setMlSummary] = useState(null);
   const [showMlSummary, setShowMlSummary] = useState(true);
   
+  // 交易行为分析
+  const [showMLAnalysisPanel, setShowMLAnalysisPanel] = useState(false);
+  const [selectedAlgorithm, setSelectedAlgorithm] = useState('decision_tree');
+  const [mlAnalyzing, setMlAnalyzing] = useState(false);
+  const [mlResult, setMlResult] = useState(null);
+  const [mlError, setMlError] = useState(null);
+  
   // 自定义指标选择（从localStorage加载或使用默认值）
   const [customIndicators, setCustomIndicators] = useState(() => {
     const saved = localStorage.getItem('customIndicators');
@@ -891,6 +898,73 @@ ${dualData.comparison?.summary || '期权策略风险较低但收益有限，股
     );
   };
 
+  // 交易行为分析函数
+  const analyzeTrading = async () => {
+    setMlAnalyzing(true);
+    setMlError(null);
+    setMlResult(null);
+
+    try {
+      // 1. 训练模型
+      const trainResponse = await fetch(`${apiUrl}/api/ml/decision-tree/train`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+
+      if (!trainResponse.ok) {
+        throw new Error('模型训练失败');
+      }
+
+      // 2. Tom 分析（结合投资大师风格）
+      const tomResponse = await fetch(`${apiUrl}/api/ml/tom-analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: username,
+          model_type: selectedAlgorithm,
+          investment_style: investmentStyle  // 传递当前选择的投资大师风格
+        })
+      });
+
+      if (!tomResponse.ok) {
+        throw new Error('Tom分析失败');
+      }
+
+      const tomData = await tomResponse.json();
+      setMlResult(tomData);
+      
+      // 刷新 ML 摘要
+      const profileResponse = await fetch(`${apiUrl}/api/profile/${username}`);
+      if (profileResponse.ok) {
+        const data = await profileResponse.json();
+        if (data.profile && data.profile.ai_analysis) {
+          const aiAnalysis = typeof data.profile.ai_analysis === 'string' 
+            ? JSON.parse(data.profile.ai_analysis) 
+            : data.profile.ai_analysis;
+          
+          if (aiAnalysis.source === 'ml_analysis') {
+            setMlSummary({
+              optionPct: aiAnalysis.option_preference_pct,
+              avgOptionReturn: aiAnalysis.avg_option_return,
+              avgStockReturn: aiAnalysis.avg_stock_return,
+              riskTolerance: data.profile.risk_tolerance,
+              investmentStyle: data.profile.investment_style,
+              summary: data.profile.analysis_summary
+            });
+            setShowMlSummary(true);
+          }
+        }
+      }
+
+    } catch (err) {
+      setMlError(err.message || '分析失败');
+      console.error('交易行为分析失败:', err);
+    } finally {
+      setMlAnalyzing(false);
+    }
+  };
+
   // 获取 ML 分析摘要
   useEffect(() => {
     if (username) {
@@ -1023,6 +1097,164 @@ ${dualData.comparison?.summary || '期权策略风险较低但收益有限，股
               >
                 查看完整分析
               </a>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* 交易行为分析按钮 */}
+      <div style={{ marginBottom: '20px', textAlign: 'center' }}>
+        <button
+          onClick={() => setShowMLAnalysisPanel(!showMLAnalysisPanel)}
+          style={{
+            background: showMLAnalysisPanel ? '#48bb78' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            padding: '12px 30px',
+            border: 'none',
+            borderRadius: '10px',
+            fontSize: '16px',
+            fontWeight: '600',
+            cursor: 'pointer',
+            boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+            transition: 'all 0.3s'
+          }}
+        >
+          {showMLAnalysisPanel ? '📊 隐藏交易行为分析' : '🤖 AI交易行为分析'}
+        </button>
+      </div>
+
+      {/* 交易行为分析面板 */}
+      {showMLAnalysisPanel && (
+        <div style={{
+          background: 'white',
+          borderRadius: '15px',
+          padding: '30px',
+          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+          marginBottom: '25px',
+          border: '2px solid #667eea'
+        }}>
+          <h3 style={{ color: '#667eea', marginBottom: '20px', fontSize: '20px' }}>
+            🤖 AI交易行为分析
+          </h3>
+          
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ 
+              display: 'block', 
+              marginBottom: '10px', 
+              fontWeight: '600', 
+              fontSize: '16px',
+              color: '#333'
+            }}>
+              选择分析算法：
+            </label>
+            <select
+              value={selectedAlgorithm}
+              onChange={(e) => setSelectedAlgorithm(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '14px',
+                border: '2px solid #e0e0e0',
+                borderRadius: '8px',
+                fontSize: '16px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                backgroundColor: 'white'
+              }}
+            >
+              <option value="decision_tree" style={{ fontSize: '16px', padding: '10px' }}>
+                决策树 (Decision Tree)
+              </option>
+              <option value="bayesian" style={{ fontSize: '16px', padding: '10px' }}>
+                贝叶斯 (Bayesian) - 即将推出
+              </option>
+            </select>
+          </div>
+
+          <button
+            onClick={analyzeTrading}
+            disabled={mlAnalyzing}
+            style={{
+              width: '100%',
+              background: mlAnalyzing ? '#ccc' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              padding: '15px',
+              border: 'none',
+              borderRadius: '10px',
+              fontSize: '16px',
+              fontWeight: '600',
+              cursor: mlAnalyzing ? 'not-allowed' : 'pointer',
+              marginBottom: '20px'
+            }}
+          >
+            {mlAnalyzing ? '⏳ Tom正在分析中...' : '🚀 开始分析（结合当前投资风格）'}
+          </button>
+
+          {mlError && (
+            <div style={{
+              padding: '15px',
+              background: '#fee',
+              border: '1px solid #fcc',
+              borderRadius: '8px',
+              color: '#c33',
+              marginBottom: '20px'
+            }}>
+              ❌ {mlError}
+            </div>
+          )}
+
+          {mlResult && (
+            <div style={{
+              padding: '20px',
+              background: '#f8f9fa',
+              borderRadius: '10px'
+            }}>
+              <h4 style={{ color: '#667eea', marginBottom: '15px' }}>💡 Tom的分析报告</h4>
+              
+              <div style={{
+                background: 'white',
+                padding: '15px',
+                borderRadius: '8px',
+                marginBottom: '15px',
+                fontSize: '14px',
+                color: '#666'
+              }}>
+                <div><strong>模型版本:</strong> {mlResult.model_version}</div>
+                <div><strong>训练样本:</strong> {mlResult.summary?.total_samples || 0} 个</div>
+                <div><strong>准确率:</strong> {(mlResult.summary?.accuracy * 100).toFixed(2)}%</div>
+              </div>
+
+              <div style={{
+                background: 'white',
+                padding: '20px',
+                borderRadius: '8px',
+                lineHeight: '1.8',
+                whiteSpace: 'pre-wrap',
+                fontSize: '15px'
+              }}>
+                {mlResult.tom_analysis}
+              </div>
+
+              {mlResult.summary?.top_features && (
+                <div style={{
+                  marginTop: '15px',
+                  background: 'white',
+                  padding: '15px',
+                  borderRadius: '8px'
+                }}>
+                  <h5 style={{ marginBottom: '10px', color: '#667eea' }}>🔍 关键影响因素 (Top 5)</h5>
+                  {mlResult.summary.top_features.slice(0, 5).map((feature, idx) => (
+                    <div key={idx} style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      padding: '8px 0',
+                      borderBottom: idx < 4 ? '1px solid #eee' : 'none'
+                    }}>
+                      <span>{feature.name}</span>
+                      <strong>{(feature.importance * 100).toFixed(2)}%</strong>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
