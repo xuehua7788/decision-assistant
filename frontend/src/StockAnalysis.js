@@ -1033,19 +1033,20 @@ ${dualData.comparison?.summary || '期权策略风险较低但收益有限，股
               onChange={(e) => setSelectedAlgorithm(e.target.value)}
               style={{
                 width: '100%',
-                padding: '14px',
+                padding: '16px',
                 border: '2px solid #667eea',
                 borderRadius: '8px',
-                fontSize: '18px',
+                fontSize: '20px',
                 fontWeight: '500',
                 cursor: 'pointer',
-                backgroundColor: '#f0f4ff'
+                backgroundColor: '#f0f4ff',
+                lineHeight: '1.5'
               }}
             >
-              <option value="decision_tree" style={{ fontSize: '18px', padding: '10px' }}>
+              <option value="decision_tree" style={{ fontSize: '20px', padding: '12px', fontWeight: '500' }}>
                 决策树 (Decision Tree)
               </option>
-              <option value="bayesian" style={{ fontSize: '18px', padding: '10px' }}>
+              <option value="bayesian" style={{ fontSize: '20px', padding: '12px', fontWeight: '500' }}>
                 贝叶斯 (Bayesian) - 即将推出
               </option>
             </select>
