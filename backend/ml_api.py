@@ -472,26 +472,30 @@ def tom_analyze_ml():
         
         print("✅ API Key 已配置")
         
-        prompt = f"""你是Tom，一位专业的量化分析师。请分析以下决策树模型的训练结果，给出简短的分析和建议。
+        prompt = f"""你是Tom，一位专业的量化分析师。我通过AI算法分析了用户 {username} 的 {summary['total_samples']} 笔交易记录，发现了一些有趣的交易行为模式。请用通俗易懂的语言，帮助用户了解自己的交易习惯。
 
-## 模型结果
-- 总样本: {summary['total_samples']} 个已平仓交易
-- 准确率: {summary['accuracy']:.2%}
-- 选择期权: {summary['choice_distribution']['option']} 次
-- 选择股票: {summary['choice_distribution']['stock']} 次
+## 用户的交易数据
+- 交易次数: {summary['total_samples']} 笔已平仓交易
+- 期权交易: {summary['choice_distribution']['option']} 次（{summary['choice_distribution']['option']/summary['total_samples']*100:.1f}%）
+- 股票交易: {summary['choice_distribution']['stock']} 次（{summary['choice_distribution']['stock']/summary['total_samples']*100:.1f}%）
 - 期权平均收益: {summary['average_returns']['option']:.2%}
 - 股票平均收益: {summary['average_returns']['stock']:.2%}
-- 最优选择率: {summary['optimal_choice_rate']:.2%}
 
-## Top 5 特征重要性
-{chr(10).join([f"{i}. {f['name']}: {f['importance']:.2%}" for i, f in enumerate(summary['top_features'], 1)])}
+## 影响你决策的关键因素（AI发现）
+{chr(10).join([f"{i}. {f['name']}: 影响力 {f['importance']*100:.1f}%" for i, f in enumerate(summary['top_features'][:3], 1)])}
 
-请从以下角度给出分析（每个角度2-3句话，总共400字以内）：
-1. **模型表现评价**
-2. **用户行为洞察**
-3. **特征重要性解读**
-4. **风险提示**
-5. **改进建议**
+请用**第二人称（你）**，从以下角度给出分析（每个角度2-3句话，总共350字以内）：
+
+1. **你的交易风格**：根据期权/股票选择比例和收益情况，描述用户是什么类型的交易者
+2. **你的决策依据**：根据Top 3特征重要性，解释用户主要看重什么因素来做决策
+3. **你的优势**：指出用户做得好的地方（比如收益率、风险控制等）
+4. **改进建议**：给出1-2条具体的、可操作的建议
+
+注意：
+- 用"你"而不是"用户"
+- 语气友好、鼓励
+- 避免专业术语
+- 重点是帮助用户了解自己
 """
 
         print("🚀 正在调用DeepSeek API...")
