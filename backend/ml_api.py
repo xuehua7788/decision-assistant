@@ -394,23 +394,34 @@ def tom_analyze_ml():
     """
     try:
         import os
-        import openai
         from ml_decision_tree import DecisionTreeModel
         from ml_feature_extraction import get_training_data
+        
+        print("🔍 Tom分析开始...")
         
         data = request.json
         username = data.get('username')
         model_type = data.get('model_type', 'decision_tree')
         
+        print(f"📝 用户: {username}, 模型类型: {model_type}")
+        
         # 加载模型
+        print("📦 正在加载模型...")
         model = DecisionTreeModel.load_model()
         if not model:
+            print("❌ 模型加载失败")
             return jsonify({'error': '模型未找到，请先训练模型'}), 404
         
+        print(f"✅ 模型加载成功: {model.model_version}")
+        
         # 获取训练数据摘要
+        print("📊 正在获取训练数据...")
         df = get_training_data()
         if df is None or len(df) == 0:
+            print("❌ 训练数据获取失败")
             return jsonify({'error': '没有训练数据'}), 400
+        
+        print(f"✅ 训练数据获取成功: {len(df)} 条")
         
         # 特征重要性
         top_features = sorted(
@@ -451,7 +462,15 @@ def tom_analyze_ml():
         }
         
         # 让Tom分析
-        openai.api_key = os.getenv('OPENAI_API_KEY')
+        print("🤖 准备调用DeepSeek API...")
+        import requests
+        deepseek_api_key = os.getenv('DEEPSEEK_API_KEY')
+        
+        if not deepseek_api_key:
+            print("❌ DEEPSEEK_API_KEY 未设置")
+            return jsonify({'error': 'DEEPSEEK_API_KEY 未配置'}), 500
+        
+        print("✅ API Key 已配置")
         
         prompt = f"""你是Tom，一位专业的量化分析师。请分析以下决策树模型的训练结果，给出简短的分析和建议。
 
@@ -475,9 +494,15 @@ def tom_analyze_ml():
 5. **改进建议**
 """
 
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[
+        print("🚀 正在调用DeepSeek API...")
+        headers = {
+            "Authorization": f"Bearer {deepseek_api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "model": "deepseek-chat",
+            "messages": [
                 {
                     "role": "system",
                     "content": "你是Tom，一位专业的量化分析师和AI算法专家。"
@@ -487,11 +512,25 @@ def tom_analyze_ml():
                     "content": prompt
                 }
             ],
-            temperature=0.7,
-            max_tokens=800
+            "temperature": 0.7,
+            "max_tokens": 800
+        }
+        
+        response = requests.post(
+            "https://api.deepseek.com/v1/chat/completions",
+            headers=headers,
+            json=payload,
+            timeout=30
         )
         
-        analysis = response.choices[0].message.content
+        if response.status_code != 200:
+            print(f"❌ DeepSeek API 错误: {response.status_code}")
+            print(f"   响应: {response.text}")
+            return jsonify({'error': f'DeepSeek API error: {response.status_code}'}), 500
+        
+        print("✅ DeepSeek API 调用成功")
+        analysis = response.json()['choices'][0]['message']['content']
+        print(f"📝 分析结果长度: {len(analysis)} 字符")
         
         return jsonify({
             'success': True,
