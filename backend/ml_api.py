@@ -486,9 +486,12 @@ def tom_analyze_ml():
         option_count = int(choice_counts.get(1, 0))
         stock_count = int(choice_counts.get(2, 0))
         
-        # 平均收益
-        option_return = float(user_df[user_df['user_choice'] == 1]['actual_return'].mean())
-        stock_return = float(user_df[user_df['user_choice'] == 2]['actual_return'].mean())
+        # 平均收益（处理空数组）
+        option_df = user_df[user_df['user_choice'] == 1]
+        stock_df = user_df[user_df['user_choice'] == 2]
+        
+        option_return = float(option_df['actual_return'].mean()) if len(option_df) > 0 else 0.0
+        stock_return = float(stock_df['actual_return'].mean()) if len(stock_df) > 0 else 0.0
         
         # 最优选择率
         optimal_rate = float(user_df['optimal_choice'].mean())
@@ -538,9 +541,16 @@ def tom_analyze_ml():
         }
         
         top_features_cn = []
-        for i, f in enumerate(summary['top_features'][:3], 1):
+        # 取前3个特征，如果不足3个就取全部
+        num_features = min(3, len(summary['top_features']))
+        for i in range(num_features):
+            f = summary['top_features'][i]
             cn_name = feature_translations.get(f['name'], f['name'])
-            top_features_cn.append(f"{i}. {cn_name}: 影响力 {f['importance']*100:.1f}%")
+            top_features_cn.append(f"{i+1}. {cn_name}: 影响力 {f['importance']*100:.1f}%")
+        
+        # 如果没有特征，添加默认提示
+        if len(top_features_cn) == 0:
+            top_features_cn.append("暂无足够数据分析关键因素")
         
         prompt = f"""你是Tom，一位专业的量化分析师。我通过AI算法分析了用户 {username} 的 {summary['total_samples']} 笔交易记录，发现了一些有趣的交易行为模式。请用通俗易懂的语言，帮助用户了解自己的交易习惯。
 
