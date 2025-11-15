@@ -111,7 +111,9 @@ CORS(app,
      allow_headers=["Content-Type", "Authorization", "Access-Control-Allow-Origin"],
      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
      supports_credentials=False,
-     expose_headers=["Content-Type", "Authorization"])
+     expose_headers=["Content-Type", "Authorization"],
+     send_wildcard=True,
+     always_send=True)
 
 # 注册数据库初始化API蓝图
 if DB_INIT_AVAILABLE and db_init_bp:
