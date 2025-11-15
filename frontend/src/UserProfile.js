@@ -262,7 +262,7 @@ function UserProfile({ username, apiUrl }) {
           <h3 style={{ color: '#667eea', marginBottom: '20px' }}>🤖 AI交易行为分析</h3>
           
           <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', marginBottom: '10px', fontWeight: '600', fontSize: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '10px', fontWeight: '600', fontSize: '18px' }}>
               选择分析算法：
             </label>
             <select
@@ -270,16 +270,16 @@ function UserProfile({ username, apiUrl }) {
               onChange={(e) => setSelectedAlgorithm(e.target.value)}
               style={{
                 width: '100%',
-                padding: '14px',
+                padding: '16px',
                 border: '2px solid #e0e0e0',
                 borderRadius: '8px',
-                fontSize: '18px',
+                fontSize: '20px',
                 fontWeight: '500',
                 cursor: 'pointer'
               }}
             >
-              <option value="decision_tree" style={{ fontSize: '18px' }}>决策树 (Decision Tree)</option>
-              <option value="bayesian" style={{ fontSize: '18px' }}>贝叶斯 (Bayesian) - 即将推出</option>
+              <option value="decision_tree" style={{ fontSize: '20px' }}>决策树 (Decision Tree)</option>
+              <option value="bayesian" style={{ fontSize: '20px' }}>贝叶斯 (Bayesian) - 即将推出</option>
             </select>
           </div>
 

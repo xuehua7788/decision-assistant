@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { getCurrentLanguage, setLanguage } from './i18n';
 
-function StockAnalysis({ apiUrl }) {
+function StockAnalysis({ apiUrl, username }) {
   const [symbol, setSymbol] = useState('');
   const [selectedSymbols, setSelectedSymbols] = useState([]); // 🆕 多股票选择
   const [stockData, setStockData] = useState(null);
@@ -23,6 +23,10 @@ function StockAnalysis({ apiUrl }) {
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
+  
+  // ML 分析摘要
+  const [mlSummary, setMlSummary] = useState(null);
+  const [showMlSummary, setShowMlSummary] = useState(true);
   
   // 自定义指标选择（从localStorage加载或使用默认值）
   const [customIndicators, setCustomIndicators] = useState(() => {
@@ -887,6 +891,34 @@ ${dualData.comparison?.summary || '期权策略风险较低但收益有限，股
     );
   };
 
+  // 获取 ML 分析摘要
+  useEffect(() => {
+    if (username) {
+      fetch(`${apiUrl}/api/profile/${username}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.profile && data.profile.ai_analysis) {
+            const aiAnalysis = typeof data.profile.ai_analysis === 'string' 
+              ? JSON.parse(data.profile.ai_analysis) 
+              : data.profile.ai_analysis;
+            
+            // 只有当数据来源是 ml_analysis 时才显示
+            if (aiAnalysis.source === 'ml_analysis') {
+              setMlSummary({
+                optionPct: aiAnalysis.option_preference_pct,
+                avgOptionReturn: aiAnalysis.avg_option_return,
+                avgStockReturn: aiAnalysis.avg_stock_return,
+                riskTolerance: data.profile.risk_tolerance,
+                investmentStyle: data.profile.investment_style,
+                summary: data.profile.analysis_summary
+              });
+            }
+          }
+        })
+        .catch(err => console.error('获取ML摘要失败:', err));
+    }
+  }, [username, apiUrl]);
+
 
   return (
     <div style={{
@@ -896,6 +928,106 @@ ${dualData.comparison?.summary || '期权策略风险较低但收益有限，股
       boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
       marginBottom: '20px'
     }}>
+      {/* ML 分析摘要卡片 */}
+      {mlSummary && showMlSummary && (
+        <div style={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          borderRadius: '12px',
+          padding: '20px',
+          marginBottom: '25px',
+          color: 'white',
+          position: 'relative'
+        }}>
+          <button
+            onClick={() => setShowMlSummary(false)}
+            style={{
+              position: 'absolute',
+              top: '10px',
+              right: '10px',
+              background: 'rgba(255,255,255,0.2)',
+              border: 'none',
+              borderRadius: '50%',
+              width: '30px',
+              height: '30px',
+              cursor: 'pointer',
+              color: 'white',
+              fontSize: '18px'
+            }}
+          >
+            ×
+          </button>
+          
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '15px' }}>
+            <span style={{ fontSize: '24px', marginRight: '10px' }}>🤖</span>
+            <h3 style={{ margin: 0, fontSize: '18px' }}>Tom的交易行为分析</h3>
+          </div>
+          
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', 
+            gap: '15px',
+            marginBottom: '15px'
+          }}>
+            <div>
+              <div style={{ opacity: 0.9, fontSize: '13px' }}>期权偏好</div>
+              <div style={{ fontSize: '20px', fontWeight: 'bold' }}>
+                {mlSummary.optionPct?.toFixed(1)}%
+              </div>
+            </div>
+            <div>
+              <div style={{ opacity: 0.9, fontSize: '13px' }}>期权收益</div>
+              <div style={{ fontSize: '20px', fontWeight: 'bold' }}>
+                {(mlSummary.avgOptionReturn * 100)?.toFixed(2)}%
+              </div>
+            </div>
+            <div>
+              <div style={{ opacity: 0.9, fontSize: '13px' }}>股票收益</div>
+              <div style={{ fontSize: '20px', fontWeight: 'bold' }}>
+                {(mlSummary.avgStockReturn * 100)?.toFixed(2)}%
+              </div>
+            </div>
+            <div>
+              <div style={{ opacity: 0.9, fontSize: '13px' }}>风险类型</div>
+              <div style={{ fontSize: '16px', fontWeight: 'bold' }}>
+                {mlSummary.riskTolerance === 'aggressive' ? '激进型' : 
+                 mlSummary.riskTolerance === 'moderate' ? '稳健型' : '保守型'}
+              </div>
+            </div>
+          </div>
+          
+          {mlSummary.summary && (
+            <div style={{
+              background: 'rgba(255,255,255,0.15)',
+              borderRadius: '8px',
+              padding: '12px',
+              fontSize: '14px',
+              lineHeight: '1.6',
+              maxHeight: '100px',
+              overflow: 'hidden',
+              position: 'relative'
+            }}>
+              {mlSummary.summary.substring(0, 150)}...
+              <a 
+                href="#profile" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  // 这里可以触发切换到 Profile 页面
+                  window.location.hash = 'profile';
+                }}
+                style={{ 
+                  color: 'white', 
+                  textDecoration: 'underline',
+                  marginLeft: '5px',
+                  fontWeight: 'bold'
+                }}
+              >
+                查看完整分析
+              </a>
+            </div>
+          )}
+        </div>
+      )}
+      
       {/* 搜索区域 */}
       <div style={{ marginBottom: '30px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>

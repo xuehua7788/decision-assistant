@@ -42,7 +42,18 @@ def load_user_profile_from_db(username: str) -> Optional[Dict]:
     try:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT ai_analysis, last_analyzed_at, total_messages_analyzed
+            SELECT 
+                risk_tolerance,
+                investment_style,
+                time_horizon,
+                financial_knowledge,
+                option_experience,
+                sentiment_tendency,
+                confidence_level,
+                ai_analysis,
+                analysis_summary,
+                last_analyzed_at,
+                total_messages_analyzed
             FROM user_profiles
             WHERE username = %s
         """, (username,))
@@ -51,10 +62,40 @@ def load_user_profile_from_db(username: str) -> Optional[Dict]:
         cursor.close()
         conn.close()
         
-        if result and result[0]:
-            profile = json.loads(result[0]) if isinstance(result[0], str) else result[0]
-            profile['last_analyzed_at'] = result[1].isoformat() if result[1] else None
-            profile['total_messages_analyzed'] = result[2]
+        if result:
+            # 构建完整的 profile 对象
+            ai_analysis = result[7]
+            if ai_analysis:
+                if isinstance(ai_analysis, str):
+                    ai_analysis = json.loads(ai_analysis)
+            
+            profile = {
+                'investment_preferences': {
+                    'risk_tolerance': result[0],
+                    'investment_style': result[1],
+                    'time_horizon': result[2]
+                },
+                'knowledge_level': {
+                    'financial_knowledge': result[3],
+                    'option_experience': result[4]
+                },
+                'emotional_traits': {
+                    'sentiment_tendency': result[5],
+                    'confidence_level': result[6]
+                },
+                'ai_analysis': ai_analysis,
+                'analysis_summary': result[8],
+                'metadata': {
+                    'last_analyzed_at': result[9].isoformat() if result[9] else None,
+                    'total_messages_analyzed': result[10] or 0
+                },
+                # 为了兼容，也添加顶层字段
+                'risk_tolerance': result[0],
+                'investment_style': result[1],
+                'time_horizon': result[2],
+                'last_analyzed_at': result[9].isoformat() if result[9] else None,
+                'total_messages_analyzed': result[10] or 0
+            }
             return profile
         
         return None

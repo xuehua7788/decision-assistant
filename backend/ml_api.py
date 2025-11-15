@@ -7,6 +7,8 @@
 
 from flask import Blueprint, request, jsonify
 import traceback
+import json
+import pandas as pd
 from ml_decision_tree import (
     DecisionTreeModel,
     train_and_save_model,
@@ -414,38 +416,87 @@ def tom_analyze_ml():
         
         print(f"✅ 模型加载成功: {model.model_version}")
         
-        # 获取训练数据摘要
-        print("📊 正在获取训练数据...")
-        df = get_training_data()
-        if df is None or len(df) == 0:
-            print("❌ 训练数据获取失败")
-            return jsonify({'error': '没有训练数据'}), 400
+        # 获取当前用户的交易数据
+        print(f"📊 正在获取用户 {username} 的交易数据...")
+        user_df = get_training_data(username=username)
         
-        print(f"✅ 训练数据获取成功: {len(df)} 条")
+        # 如果用户数据不足，生成模拟数据
+        MIN_SAMPLES = 20
+        if user_df is None or len(user_df) < MIN_SAMPLES:
+            print(f"⚠️ 用户 {username} 数据不足（{len(user_df) if user_df is not None else 0} 条），生成模拟数据...")
+            
+            # 生成模拟数据
+            from generate_mock_data import generate_mock_positions_for_user
+            try:
+                # 先获取 user_id
+                conn = get_db_connection()
+                cur = conn.cursor()
+                cur.execute("SELECT id FROM users WHERE username = %s", (username,))
+                user_result = cur.fetchone()
+                
+                if not user_result:
+                    cur.close()
+                    conn.close()
+                    return jsonify({'error': f'用户 {username} 不存在'}), 404
+                
+                user_id = user_result[0]
+                cur.close()
+                conn.close()
+                
+                # 生成模拟数据
+                num_to_generate = MIN_SAMPLES - (len(user_df) if user_df is not None else 0)
+                print(f"   生成 {num_to_generate} 条模拟交易数据...")
+                generate_mock_positions_for_user(user_id, num_to_generate)
+                
+                # 重新获取数据
+                user_df = get_training_data(username=username)
+                print(f"   ✅ 数据已补充，当前: {len(user_df)} 条")
+                
+            except Exception as e:
+                print(f"   ❌ 生成模拟数据失败: {e}")
+                return jsonify({'error': f'无法生成模拟数据: {str(e)}'}), 500
         
-        # 特征重要性
+        if user_df is None or len(user_df) < 5:
+            return jsonify({'error': f'用户 {username} 数据仍然不足，无法分析'}), 400
+        
+        print(f"✅ 用户数据准备完成: {len(user_df)} 条交易记录")
+        
+        # 使用该用户的数据训练个人模型
+        print(f"🎓 为用户 {username} 训练个人决策树模型...")
+        from ml_feature_extraction import prepare_features_for_decision_tree
+        
+        X, y, _ = prepare_features_for_decision_tree(user_df)
+        
+        # 创建用户专属模型
+        user_model = DecisionTreeModel(max_depth=5, min_samples_split=2, min_samples_leaf=1)
+        performance = user_model.train(X, y, test_size=0.2)
+        
+        print(f"✅ 用户模型训练完成，准确率: {performance['accuracy']:.2%}")
+        
+        # 特征重要性（来自用户个人模型）
         top_features = sorted(
-            model.feature_importance.items(),
+            performance['feature_importance'].items(),
             key=lambda x: x[1],
             reverse=True
         )[:5]
         
+        # 以下统计数据都是该用户的个人数据
         # 选择分布
-        choice_counts = df['user_choice'].value_counts()
+        choice_counts = user_df['user_choice'].value_counts()
         option_count = int(choice_counts.get(1, 0))
         stock_count = int(choice_counts.get(2, 0))
         
         # 平均收益
-        option_return = float(df[df['user_choice'] == 1]['actual_return'].mean())
-        stock_return = float(df[df['user_choice'] == 2]['actual_return'].mean())
+        option_return = float(user_df[user_df['user_choice'] == 1]['actual_return'].mean())
+        stock_return = float(user_df[user_df['user_choice'] == 2]['actual_return'].mean())
         
         # 最优选择率
-        optimal_rate = float(df['optimal_choice'].mean())
+        optimal_rate = float(user_df['optimal_choice'].mean())
         
         summary = {
-            'model_version': model.model_version,
-            'total_samples': len(df),
-            'accuracy': 0.8125,
+            'model_version': f"{username}_personal_{user_model.model_version}",
+            'total_samples': len(user_df),
+            'accuracy': performance['accuracy'],
             'choice_distribution': {
                 'option': option_count,
                 'stock': stock_count
@@ -472,6 +523,25 @@ def tom_analyze_ml():
         
         print("✅ API Key 已配置")
         
+        # 翻译特征名称为中文
+        feature_translations = {
+            'cash_to_notional_ratio': '资金充裕度（账户可用资金与交易金额的比例）',
+            'volume_ratio': '市场流动性（成交量相对于平均水平的比例）',
+            'volatility': '市场波动率（价格波动的剧烈程度）',
+            'total_pnl': '累计盈亏（之前所有交易的总盈亏）',
+            'available_cash': '可用资金（账户中可以用来交易的现金）',
+            'rsi': 'RSI指标（相对强弱指标，衡量超买超卖）',
+            'current_price': '当前价格',
+            'position_count': '持仓数量',
+            'option_delta': '期权Delta值（期权价格对股价的敏感度）',
+            'option_premium': '期权权利金（购买期权需要支付的费用）'
+        }
+        
+        top_features_cn = []
+        for i, f in enumerate(summary['top_features'][:3], 1):
+            cn_name = feature_translations.get(f['name'], f['name'])
+            top_features_cn.append(f"{i}. {cn_name}: 影响力 {f['importance']*100:.1f}%")
+        
         prompt = f"""你是Tom，一位专业的量化分析师。我通过AI算法分析了用户 {username} 的 {summary['total_samples']} 笔交易记录，发现了一些有趣的交易行为模式。请用通俗易懂的语言，帮助用户了解自己的交易习惯。
 
 ## 用户的交易数据
@@ -482,19 +552,22 @@ def tom_analyze_ml():
 - 股票平均收益: {summary['average_returns']['stock']:.2%}
 
 ## 影响你决策的关键因素（AI发现）
-{chr(10).join([f"{i}. {f['name']}: 影响力 {f['importance']*100:.1f}%" for i, f in enumerate(summary['top_features'][:3], 1)])}
+{chr(10).join(top_features_cn)}
 
-请用**第二人称（你）**，从以下角度给出分析（每个角度2-3句话，总共350字以内）：
+请用**第二人称（你）**，从以下角度给出分析（每个角度2-3句话，总共400字以内）：
 
 1. **你的交易风格**：根据期权/股票选择比例和收益情况，描述用户是什么类型的交易者
-2. **你的决策依据**：根据Top 3特征重要性，解释用户主要看重什么因素来做决策
+
+2. **你的决策依据**：**重点解释**上面列出的Top 3关键因素是什么意思，以及为什么这些因素对用户的决策影响最大。用大白话解释，比如"你最看重账户里有多少钱可以用"
+
 3. **你的优势**：指出用户做得好的地方（比如收益率、风险控制等）
+
 4. **改进建议**：给出1-2条具体的、可操作的建议
 
 注意：
 - 用"你"而不是"用户"
 - 语气友好、鼓励
-- 避免专业术语
+- 必须用大白话解释那3个关键因素，不要直接说专业术语
 - 重点是帮助用户了解自己
 """
 
@@ -535,6 +608,141 @@ def tom_analyze_ml():
         print("✅ DeepSeek API 调用成功")
         analysis = response.json()['choices'][0]['message']['content']
         print(f"📝 分析结果长度: {len(analysis)} 字符")
+        
+        # 1. 更新用户画像
+        print("💾 更新用户画像...")
+        try:
+            conn = get_db_connection()
+            cur = conn.cursor()
+            
+            # 推断投资风格
+            option_pct = summary['choice_distribution']['option'] / summary['total_samples']
+            if option_pct > 0.7:
+                risk_tolerance = 'aggressive'
+                investment_style = 'momentum'
+            elif option_pct > 0.4:
+                risk_tolerance = 'moderate'
+                investment_style = 'growth'
+            else:
+                risk_tolerance = 'conservative'
+                investment_style = 'value'
+            
+            # 更新 user_profiles（适配现有表结构）
+            cur.execute("""
+                INSERT INTO user_profiles (
+                    username, 
+                    risk_tolerance, 
+                    investment_style, 
+                    time_horizon,
+                    ai_analysis,
+                    analysis_summary,
+                    last_analyzed_at,
+                    updated_at
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, NOW(), NOW())
+                ON CONFLICT (username) 
+                DO UPDATE SET
+                    risk_tolerance = EXCLUDED.risk_tolerance,
+                    investment_style = EXCLUDED.investment_style,
+                    time_horizon = EXCLUDED.time_horizon,
+                    ai_analysis = EXCLUDED.ai_analysis,
+                    analysis_summary = EXCLUDED.analysis_summary,
+                    last_analyzed_at = EXCLUDED.last_analyzed_at,
+                    updated_at = EXCLUDED.updated_at
+            """, (
+                username,
+                risk_tolerance,  # 直接存储字符串
+                investment_style,  # 直接存储字符串
+                'short' if option_pct > 0.6 else 'medium',  # 直接存储字符串
+                json.dumps({  # JSONB字段
+                    'source': 'ml_analysis',
+                    'model_version': model.model_version,
+                    'analyzed_at': str(pd.Timestamp.now()),
+                    'total_samples': summary['total_samples'],
+                    'option_preference_pct': float(option_pct * 100),
+                    'avg_option_return': float(summary['average_returns']['option']),
+                    'avg_stock_return': float(summary['average_returns']['stock']),
+                    'key_factors': [f['name'] for f in summary['top_features'][:3]]
+                }),
+                analysis  # Tom的分析作为摘要
+            ))
+            
+            conn.commit()
+            cur.close()
+            conn.close()
+            print("✅ 用户画像已更新")
+        except Exception as e:
+            print(f"⚠️ 更新用户画像失败: {e}")
+        
+        # 2. 发送到 Tom 聊天记录
+        print("💬 发送到 Tom 聊天...")
+        try:
+            import datetime
+            conn = get_db_connection()
+            cur = conn.cursor()
+            
+            # 先获取 user_id
+            cur.execute("SELECT id FROM users WHERE username = %s", (username,))
+            user_result = cur.fetchone()
+            
+            if not user_result:
+                print(f"⚠️ 用户 {username} 不存在，跳过聊天记录")
+            else:
+                user_id = user_result[0]
+                
+                # 获取或创建 session（使用 session_id 字段）
+                cur.execute("""
+                    SELECT id FROM chat_sessions 
+                    WHERE user_id = %s 
+                    ORDER BY created_at DESC 
+                    LIMIT 1
+                """, (user_id,))
+                
+                result = cur.fetchone()
+                if result:
+                    session_pk = result[0]
+                else:
+                    # 创建新 session
+                    import uuid
+                    session_id_str = f"{username}_ml_{uuid.uuid4().hex[:8]}"
+                    cur.execute("""
+                        INSERT INTO chat_sessions (user_id, session_id, created_at)
+                        VALUES (%s, %s, %s)
+                        RETURNING id
+                    """, (user_id, session_id_str, datetime.datetime.now()))
+                    session_pk = cur.fetchone()[0]
+                
+                # 插入用户消息
+                cur.execute("""
+                    INSERT INTO chat_messages (session_id, role, content, created_at)
+                    VALUES (%s, %s, %s, %s)
+                """, (
+                    session_pk,
+                    'user',
+                    f'[系统] 请Tom分析我的交易行为（基于{summary["total_samples"]}笔交易记录）',
+                    datetime.datetime.now()
+                ))
+                
+                # 插入 Tom 的回复
+                cur.execute("""
+                    INSERT INTO chat_messages (session_id, role, content, created_at)
+                    VALUES (%s, %s, %s, %s)
+                """, (
+                    session_pk,
+                    'assistant',
+                    f"📊 **交易行为分析报告**\n\n{analysis}\n\n---\n*基于AI算法分析{summary['total_samples']}笔交易记录*",
+                    datetime.datetime.now()
+                ))
+                
+                conn.commit()
+                print("✅ 已发送到 Tom 聊天")
+            
+            cur.close()
+            conn.close()
+        except Exception as e:
+            print(f"⚠️ 发送聊天记录失败: {e}")
+            import traceback
+            traceback.print_exc()
         
         return jsonify({
             'success': True,

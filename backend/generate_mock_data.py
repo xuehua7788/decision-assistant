@@ -21,6 +21,140 @@ def get_db_connection():
         return None
 
 
+def generate_mock_positions_for_user(user_id, num_positions=20):
+    """为特定用户生成模拟持仓数据"""
+    conn = get_db_connection()
+    if not conn:
+        return False
+    
+    try:
+        cursor = conn.cursor()
+        
+        # 获取或创建策略
+        cursor.execute("SELECT strategy_id, option_premium, stock_margin, current_price, volatility, rsi FROM strategies ORDER BY create_time DESC LIMIT 10")
+        strategies = cursor.fetchall()
+        
+        if not strategies:
+            print("⚠️ 没有策略数据，先生成策略...")
+            generate_mock_strategies(10)
+            cursor.execute("SELECT strategy_id, option_premium, stock_margin, current_price, volatility, rsi FROM strategies ORDER BY create_time DESC LIMIT 10")
+            strategies = cursor.fetchall()
+        
+        # 随机用户类型
+        user_type = random.choice(['aggressive', 'moderate', 'conservative'])
+        user_profiles = {
+            'aggressive': {'option_preference': 0.7, 'avg_return': 0.15},
+            'moderate': {'option_preference': 0.5, 'avg_return': 0.10},
+            'conservative': {'option_preference': 0.3, 'avg_return': 0.08}
+        }
+        profile = user_profiles[user_type]
+        
+        print(f"   为用户 {user_id} 生成 {num_positions} 条数据（类型: {user_type}）...")
+        
+        for i in range(num_positions):
+            strategy_id, option_premium, stock_margin, current_price, volatility, rsi = random.choice(strategies)
+            
+            # 账户状态
+            available_cash = random.uniform(30000, 100000)
+            total_pnl = random.uniform(-5000, 10000)
+            position_count = random.randint(0, 5)
+            
+            # 决策逻辑
+            option_score = profile['option_preference']
+            if volatility > 0.5:
+                option_score += 0.2
+            if rsi > 70 or rsi < 30:
+                option_score += 0.15
+            if available_cash < 50000:
+                option_score += 0.15
+            option_score += random.uniform(-0.2, 0.2)
+            
+            user_choice = 1 if option_score > 0.5 else 2
+            
+            # 实际和虚拟
+            if user_choice == 1:
+                actual_type = 'OPTION'
+                actual_cost = float(option_premium)
+                virtual_type = 'STOCK'
+                virtual_cost = float(stock_margin)
+            else:
+                actual_type = 'STOCK'
+                actual_cost = float(stock_margin)
+                virtual_type = 'OPTION'
+                virtual_cost = float(option_premium)
+            
+            # 模拟收益
+            base_return = profile['avg_return']
+            market_factor = (float(volatility) - 0.4) * 0.5
+            random_factor = random.uniform(-0.1, 0.15)
+            
+            actual_return = base_return + market_factor + random_factor
+            virtual_return = base_return + market_factor + random.uniform(-0.1, 0.15)
+            
+            if actual_type == 'OPTION':
+                actual_return *= random.uniform(0.8, 2.0)
+            
+            # 最优选择
+            optimal_choice = 1 if actual_return > virtual_return else 2
+            
+            # 时间
+            decision_time = datetime.now() - timedelta(days=random.randint(1, 90))
+            close_time = decision_time + timedelta(days=random.randint(1, 30))
+            holding_days = (close_time - decision_time).days
+            
+            # 插入数据
+            cursor.execute("""
+                INSERT INTO positions (
+                    user_id, strategy_id, user_choice, optimal_choice,
+                    actual_type, actual_cost, actual_return,
+                    virtual_type, virtual_cost, virtual_return,
+                    regret_value, holding_days,
+                    market_state, account_state,
+                    decision_time, close_time, status
+                ) VALUES (
+                    %s, %s, %s, %s,
+                    %s, %s, %s,
+                    %s, %s, %s,
+                    %s, %s,
+                    %s, %s,
+                    %s, %s, %s
+                )
+            """, (
+                user_id, strategy_id, user_choice, optimal_choice,
+                actual_type, actual_cost, actual_return,
+                virtual_type, virtual_cost, virtual_return,
+                abs(actual_return - virtual_return), holding_days,
+                json.dumps({
+                    'current_price': float(current_price),
+                    'volatility': float(volatility),
+                    'rsi': float(rsi),
+                    'volume_ratio': random.uniform(0.5, 2.0)
+                }),
+                json.dumps({
+                    'available_cash': available_cash,
+                    'position_count': position_count,
+                    'total_pnl': total_pnl
+                }),
+                decision_time, close_time, 'CLOSED'
+            ))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        print(f"   ✅ 成功为用户 {user_id} 生成 {num_positions} 条模拟数据")
+        return True
+        
+    except Exception as e:
+        print(f"   ❌ 生成失败: {e}")
+        import traceback
+        traceback.print_exc()
+        if conn:
+            conn.rollback()
+            conn.close()
+        return False
+
+
 def generate_mock_strategies(num_strategies=30):
     """生成模拟策略数据"""
     conn = get_db_connection()

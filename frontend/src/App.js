@@ -224,7 +224,7 @@ function App() {
 
         {/* Stock Analysis Mode */}
         {currentMode === 'analysis' && (
-          <StockAnalysis apiUrl={API_URL} />
+          <StockAnalysis apiUrl={API_URL} username={user?.username} />
         )}
 
         {/* Positions A/B Comparison Mode */}

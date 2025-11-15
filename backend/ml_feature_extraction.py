@@ -19,9 +19,13 @@ def get_db_connection():
         print(f"❌ 数据库连接失败: {e}")
         return None
 
-def get_training_data():
+def get_training_data(username=None):
     """
     从ml_training_data视图获取训练数据
+    
+    Args:
+        username: 如果指定，只获取该用户的数据；否则获取所有用户数据
+    
     返回: DataFrame
     """
     conn = get_db_connection()
@@ -30,16 +34,27 @@ def get_training_data():
         return None
     
     try:
-        query = """
-            SELECT * FROM ml_training_data
-            WHERE user_choice IS NOT NULL
-            ORDER BY decision_time DESC
-        """
+        if username:
+            # 获取特定用户的数据
+            query = """
+                SELECT * FROM ml_training_data
+                WHERE user_choice IS NOT NULL
+                AND user_id = (SELECT id FROM users WHERE username = %s)
+                ORDER BY decision_time DESC
+            """
+            df = pd.read_sql(query, conn, params=(username,))
+            print(f"✅ 成功加载用户 {username} 的 {len(df)} 条训练数据")
+        else:
+            # 获取所有用户的数据
+            query = """
+                SELECT * FROM ml_training_data
+                WHERE user_choice IS NOT NULL
+                ORDER BY decision_time DESC
+            """
+            df = pd.read_sql(query, conn)
+            print(f"✅ 成功加载所有用户的 {len(df)} 条训练数据")
         
-        df = pd.read_sql(query, conn)
         conn.close()
-        
-        print(f"✅ 成功加载 {len(df)} 条训练数据")
         return df
         
     except Exception as e:
