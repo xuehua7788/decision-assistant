@@ -127,7 +127,7 @@ function App() {
   return (
     <div style={{ 
       fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif",
-      background: '#F9FAFB', // 简洁的浅灰色背景
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', // 蓝紫色渐变背景
       minHeight: '100vh',
       padding: '20px'
     }}>
